@@ -63,7 +63,7 @@ cat > my-theme/theme.json << 'EOF'
   "version": "1.0.0",
   "description": "基于官方前端定制的主题",
   "author": {"name": "你的名字"},
-  "novaix": "~0.2.5"
+  "requires": "~0.2.5"
 }
 EOF
 
@@ -87,7 +87,7 @@ cd my-theme && zip -r ../my-theme.zip .
      "version": "1.0.0",
      "description": "简短描述",
      "author": {"name": "你的名字", "url": "https://github.com/your-name"},
-     "novaix": "~0.2.5",
+     "requires": "~0.2.5",
      "download_url": "https://raw.githubusercontent.com/huohuastudio/novaix-releases/main/themes/my-theme.zip"
    }
    ```
@@ -115,7 +115,7 @@ src/
 
 - `src/api/` 目录从 Swagger 文档自动生成，不包含在仓库中。开发前需要先生成 API 客户端
 - 开发服务器通过 Vite 代理将 `/api` 请求转发到后端，确保后端已启动
-- `theme.json` 中的 `novaix` 字段建议使用 `~x.y.z` 约束（仅允许 patch 更新），前端与后端 API 强耦合
+- `theme.json` 中的 `requires` 字段建议使用 `~x.y.z` 约束（仅允许 patch 更新），前端与后端 API 强耦合
 - 本仓库代码随 Novaix 主仓库版本发布自动同步，请基于 tag 对应的版本开发
 
 ## 许可证
