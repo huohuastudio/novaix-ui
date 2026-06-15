@@ -28,12 +28,8 @@
 pnpm install
 
 # 生成 API 客户端（需要后端的 swagger.json）
-# 方式一：从运行中的后端获取
 curl -o swagger.json http://localhost:8080/docs/swagger.json
-pnpm openapi-ts -i swagger.json -o src/api
-
-# 方式二：如果你同时有 Novaix 主仓库，直接引用
-# 修改 openapi-ts.config.ts 中的 input 路径指向 swagger.json
+OPENAPI_INPUT=swagger.json pnpm api:gen
 
 # 启动开发服务器（默认端口 3000，API 代理到 localhost:8080）
 pnpm dev
