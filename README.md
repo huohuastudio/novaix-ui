@@ -77,6 +77,28 @@ cd my-theme && zip -r ../my-theme.zip .
 
 在 Novaix 后台 → 主题管理 → 上传安装，选择 `my-theme.zip` 即可。
 
+### 提交到主题市场
+
+如果你希望将主题上架到 Novaix 官方主题市场，供所有用户在线安装：
+
+1. Fork [novaix-releases](https://github.com/huohuastudio/novaix-releases) 仓库
+2. 将 `my-theme.zip` 放到 `themes/` 目录下
+3. 在 `themes/index.json` 的 `themes` 数组中添加你的主题信息：
+   ```json
+   {
+     "id": "my-theme",
+     "name": "我的主题",
+     "version": "1.0.0",
+     "description": "简短描述",
+     "author": {"name": "你的名字", "url": "https://github.com/your-name"},
+     "novaix": "~0.2.5",
+     "download_url": "https://raw.githubusercontent.com/huohuastudio/novaix-releases/main/themes/my-theme.zip"
+   }
+   ```
+4. 提交 PR，审核通过后你的主题将出现在所有 Novaix 实例的主题市场中
+
+详细要求见 [novaix-releases README](https://github.com/huohuastudio/novaix-releases#主题市场)。
+
 ## 项目结构
 
 ```
