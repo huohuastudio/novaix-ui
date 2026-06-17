@@ -27,9 +27,9 @@
 # 安装依赖
 pnpm install
 
-# 生成 API 客户端（需要后端的 swagger.json）
-curl -o swagger.json http://localhost:8080/docs/swagger.json
-OPENAPI_INPUT=swagger.json pnpm api:gen
+# 生成 API 客户端（需要后端的 openapi.json，需先在后台开启 API 文档）
+curl -o openapi.json http://localhost:8080/docs/openapi.json
+OPENAPI_INPUT=openapi.json pnpm api:gen
 
 # 启动开发服务器（默认端口 3000，API 代理到 localhost:8080）
 pnpm dev
