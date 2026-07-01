@@ -11,7 +11,7 @@ import { FirewallRuleFormDialog, FirewallDeleteDialog } from "@/components/firew
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function FirewallTab({ instanceId }: { instanceId: number }) {
+export function FirewallTab({ instanceId, instanceBusy }: { instanceId: number; instanceBusy: boolean }) {
   const api = useMemo(() => ({
     list: getPortalInstancesByIdFirewallRules,
     create: postPortalInstancesByIdFirewallRules,
@@ -48,7 +48,7 @@ export function FirewallTab({ instanceId }: { instanceId: number }) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">防火墙规则</h2>
-          <Button onClick={fw.openCreate}>
+          <Button onClick={fw.openCreate} disabled={instanceBusy}>
             <Plus className="size-3.5" />
             添加规则
           </Button>
@@ -98,13 +98,14 @@ export function FirewallTab({ instanceId }: { instanceId: number }) {
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="size-7" onClick={() => fw.openEdit(rule)}>
+                    <Button variant="ghost" size="icon" className="size-7" disabled={instanceBusy} onClick={() => fw.openEdit(rule)}>
                       <Pencil className="size-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="size-7 text-destructive hover:text-destructive"
+                      disabled={instanceBusy}
                       onClick={() => fw.setDeleteConfirm(rule)}
                     >
                       <Trash2 className="size-3.5" />

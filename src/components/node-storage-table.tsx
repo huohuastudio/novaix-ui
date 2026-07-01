@@ -277,7 +277,7 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium">自定义卷</h4>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
               <Plus className="size-3.5" />
               创建卷
             </Button>

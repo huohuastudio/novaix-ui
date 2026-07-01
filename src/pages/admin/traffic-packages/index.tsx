@@ -12,6 +12,7 @@ import type { TrafficPackageTrafficPackageItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { trafficPackageTypeMap } from "@/lib/traffic-package-constants"
 import TrafficPackageFormDialog from "./traffic-package-form-dialog"
@@ -147,7 +148,10 @@ export default function TrafficPackages() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">流量包管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">流量包管理</h1>
+          <HelpLink path="/novaix/traffic-package" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">配置可供用户加购的流量包</p>
       </div>
       <DataTable

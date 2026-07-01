@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, FolderTree, Package } from "lucide-react"
+import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   getAdminPlans,
   getAdminPlanGroups,
@@ -13,10 +20,12 @@ import type { ProductPlanItem, ProductPlanGroupItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { EmptyState } from "@/components/empty-state"
 import PlanFormDialog from "./plan-form-dialog"
 import PlanGroupDialog from "./plan-group-dialog"
+import TrialDialog from "./trial-dialog"
 
 const activeBadgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
 
@@ -76,10 +85,18 @@ export default function Plans() {
     filterKeys: ["name", "status", "group_id"],
   })
 
+  const [trialPlan, setTrialPlan] = useState<ProductPlanItem | undefined>()
+  const [trialOpen, setTrialOpen] = useState(false)
+
   const handleCreate = () => {
     setEditingPlan(undefined)
     setDialogOpen(true)
   }
+
+  const handleTrial = useCallback((plan: ProductPlanItem) => {
+    setTrialPlan(plan)
+    setTrialOpen(true)
+  }, [])
 
   const handleEdit = useCallback((plan: ProductPlanItem) => {
     setEditingPlan(plan)
@@ -213,27 +230,41 @@ export default function Plans() {
             <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(plan)}>
               <Pencil className="size-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-destructive hover:text-destructive"
-              onClick={() => handleDelete(plan)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8">
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleTrial(plan)}>
+                  <FlaskConical className="size-4 mr-2" />
+                  试建实例
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(plan)}>
+                  <Trash2 className="size-4 mr-2" />
+                  删除套餐
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )
       },
     },
-  ], [handleEdit, handleDelete, formatPrice, groups, groupNameMap])
+  ], [handleEdit, handleDelete, handleTrial, formatPrice, groups, groupNameMap])
 
   return (
     <div className="px-6 pt-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">套餐管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">套餐管理</h1>
+          <HelpLink path="/novaix/plan" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">套餐定义了用户可购买的资源配置（CPU/内存/磁盘/带宽）和价格。套餐通过绑定节点组来决定在哪些节点上开通实例</p>
       </div>
       <DataTable
+        tourId="plan-table"
         columns={columns}
         data={table.data}
         loading={table.loading}
@@ -250,7 +281,7 @@ export default function Plans() {
               <FolderTree className="size-4" />
               分组管理
             </Button>
-            <Button onClick={handleCreate}>
+            <Button onClick={handleCreate} data-tour="plan-add-btn">
               <Plus className="size-4" />
               添加套餐
             </Button>
@@ -276,6 +307,13 @@ export default function Plans() {
         onOpenChange={setGroupDialogOpen}
         onChanged={() => { loadGroups(); table.refresh() }}
       />
+      {trialPlan && (
+        <TrialDialog
+          open={trialOpen}
+          onOpenChange={setTrialOpen}
+          plan={trialPlan}
+        />
+      )}
       {ConfirmDialog}
     </div>
   )

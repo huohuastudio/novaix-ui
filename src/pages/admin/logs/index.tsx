@@ -170,7 +170,7 @@ export default function Logs() {
                 清除
               </Button>
             )}
-            <ExportButton endpoint="logs" params={exportParams} />
+            <ExportButton endpoint="logs" params={exportParams} disabled={table.data.total === 0} />
           </div>
         }
       />

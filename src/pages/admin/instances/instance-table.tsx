@@ -21,9 +21,10 @@ import { getErrorMessage } from "@/lib/utils"
 
 interface InstanceTableProps {
   toolbar?: React.ReactNode
+  tourId?: string
 }
 
-export default function InstanceTable({ toolbar }: InstanceTableProps) {
+export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
   const formatDate = useFormatDate()
   const adminPath = useAdminPath()
   const [retryInstance, setRetryInstance] = useState<InstanceInstanceItem | null>(null)
@@ -206,6 +207,7 @@ export default function InstanceTable({ toolbar }: InstanceTableProps) {
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
         toolbar={toolbar}
+        tourId={tourId}
         emptyState={
           <EmptyState
             icon={MonitorCog}

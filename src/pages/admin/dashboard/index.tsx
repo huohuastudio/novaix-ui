@@ -284,10 +284,12 @@ export default function Dashboard() {
       </div>
 
       {/* 新手引导 */}
-      <SetupGuide />
+      <div data-tour="setup-guide">
+        <SetupGuide />
+      </div>
 
       {/* 统计卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stat-cards">
         <StatCard
           icon={Server}
           label="节点"
@@ -323,7 +325,7 @@ export default function Dashboard() {
       </div>
 
       {/* 收入趋势 - 独占一行 */}
-      <div className="rounded-md border p-5">
+      <div className="rounded-md border p-5" data-tour="revenue-trend">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="size-4 text-muted-foreground" />
@@ -473,7 +475,7 @@ export default function Dashboard() {
         </div>
 
         {/* 待处理事项 */}
-        <div className="lg:col-span-4 rounded-md border p-5">
+        <div className="lg:col-span-4 rounded-md border p-5" data-tour="pending-items">
           <h3 className="text-sm font-medium mb-4">待处理事项</h3>
           <div className="space-y-2">
             {(() => {

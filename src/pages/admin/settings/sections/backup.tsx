@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SettingSkeleton } from "./setting-skeleton"
+import { HelpLink } from "@/components/help-doc"
 
 export function BackupSection() {
   const { data, loading, saving, save, update } = useSettings("backup")
@@ -21,7 +22,10 @@ export function BackupSection() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Label>自动备份</Label>
+          <div className="flex items-center gap-1.5">
+            <Label>自动备份</Label>
+            <HelpLink path="/novaix/backup" />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">开启后系统将按策略为已启用的实例自动创建快照备份</p>
         </div>
         <Switch

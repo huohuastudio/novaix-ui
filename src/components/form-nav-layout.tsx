@@ -54,7 +54,7 @@ export function FormNavLayout({ navItems, sections, actions }: FormNavLayoutProp
       />
 
       <div className="flex gap-8">
-        <nav className="hidden lg:block w-56 shrink-0 space-y-1 sticky top-0 self-start">
+        <nav className="hidden lg:block w-56 shrink-0 space-y-1 sticky top-0 self-start" data-tour="create-instance-nav">
           <NavButton
             item={navItems[0]}
             active={activeSection === navItems[0].id}

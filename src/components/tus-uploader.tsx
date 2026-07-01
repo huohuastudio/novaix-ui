@@ -111,7 +111,7 @@ export function TusUploader({ endpoint, file, metadata, onSuccess, onError }: Tu
       </div>
 
       {state === "error" && (
-        <Button variant="outline" size="sm" onClick={() => { uploadRef.current?.start(); setState("uploading") }}>
+        <Button variant="outline" onClick={() => { uploadRef.current?.start(); setState("uploading") }}>
           重试
         </Button>
       )}

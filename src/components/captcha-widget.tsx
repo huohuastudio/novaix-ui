@@ -25,12 +25,13 @@ interface CaptchaWidgetProps {
 export function CaptchaWidget({ onSuccess, onError, onExpired }: CaptchaWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { captcha_public_config } = useSiteSettings()
-  const initializedRef = useRef(false)
+  const versionRef = useRef(0)
   const callbacksRef = useRef({ onSuccess, onError, onExpired })
   useEffect(() => { callbacksRef.current = { onSuccess, onError, onExpired } })
 
   useEffect(() => {
-    if (!containerRef.current || initializedRef.current) return
+    if (!containerRef.current) return
+    const version = ++versionRef.current
 
     let config: Record<string, string> = {}
     if (captcha_public_config) {
@@ -44,8 +45,9 @@ export function CaptchaWidget({ onSuccess, onError, onExpired }: CaptchaWidgetPr
     const script = document.createElement("script")
     script.src = `/api/v1/captcha/widget.js?t=${Date.now()}`
     script.onload = () => {
+      if (version !== versionRef.current) return
       if (window.__novaix_captcha_init && containerRef.current) {
-        initializedRef.current = true
+        containerRef.current.innerHTML = ""
         window.__novaix_captcha_init(containerRef.current, config, {
           onSuccess: (token) => callbacksRef.current.onSuccess(token),
           onError: (msg) => callbacksRef.current.onError?.(msg),
@@ -53,17 +55,20 @@ export function CaptchaWidget({ onSuccess, onError, onExpired }: CaptchaWidgetPr
         })
       }
     }
-    script.onerror = () => callbacksRef.current.onError?.("加载验证码组件失败")
+    script.onerror = () => {
+      if (version === versionRef.current) callbacksRef.current.onError?.("加载验证码组件失败")
+    }
     document.head.appendChild(script)
 
+    const container = containerRef.current
     return () => {
       window.__novaix_captcha_destroy?.()
       delete window.__novaix_captcha_init
       delete window.__novaix_captcha_destroy
       script.remove()
-      initializedRef.current = false
+      if (container) container.innerHTML = ""
     }
   }, [captcha_public_config])
 
-  return <div ref={containerRef} className="my-2" />
+  return <div ref={containerRef} className="my-2 *:!w-full" />
 }

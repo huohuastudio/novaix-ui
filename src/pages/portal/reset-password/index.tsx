@@ -212,7 +212,7 @@ export default function ResetPasswordPage() {
                 {loading ? "重置中..." : "重置密码"}
               </Button>
               <div className="flex items-center justify-between text-sm">
-                <Button type="button" variant="ghost" size="sm" className="h-auto p-0" onClick={() => { setStep(1); setCode(""); setPassword(""); setConfirmPassword(""); setError("") }}>
+                <Button type="button" variant="ghost" className="h-auto p-0" onClick={() => { setStep(1); setCode(""); setPassword(""); setConfirmPassword(""); setError("") }}>
                   <ArrowLeft className="size-3.5" />
                   返回
                 </Button>

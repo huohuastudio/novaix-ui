@@ -12,6 +12,7 @@ import type { TicketTicketItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { useTicketMeta } from "@/hooks/use-ticket-meta"
 import { UserPopover } from "@/components/user-popover"
@@ -219,7 +220,10 @@ export default function TicketList() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">工单管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">工单管理</h1>
+          <HelpLink path="/novaix/ticket" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">查看和处理用户提交的工单</p>
       </div>
       <DataTable

@@ -81,6 +81,8 @@ interface DataTableProps<TData, TValue> {
   getRowId?: (row: TData) => string
   /** 数据为空时的自定义展示内容，替代默认的"暂无数据"文字 */
   emptyState?: React.ReactNode
+  /** 新手教程高亮标识 */
+  tourId?: string
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -140,6 +142,7 @@ export function DataTable<TData, TValue>({
   renderExpanded,
   getRowId,
   emptyState,
+  tourId,
 }: DataTableProps<TData, TValue>) {
   const [internalFilters, setInternalFilters] = useState<ColumnFiltersState>([])
   const columnFilters = externalFilters ?? internalFilters
@@ -174,7 +177,7 @@ export function DataTable<TData, TValue>({
   )
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-tour={tourId}>
       {/* Filter bar */}
       {(filterableColumns.length > 0 || toolbar) && (
         <div className="shrink-0 flex flex-wrap items-center gap-2 sm:gap-3">

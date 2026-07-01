@@ -21,6 +21,7 @@ import type { IsoIsoItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { formatBytes, getErrorMessage } from "@/lib/utils"
 
@@ -157,11 +158,22 @@ export default function ISOs() {
     {
       accessorKey: "description",
       header: "描述",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm line-clamp-1 max-w-[200px]">
-          {row.original.description || "-"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const desc = row.original.description
+        if (!desc) return <span className="text-muted-foreground text-sm">-</span>
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-muted-foreground text-sm line-clamp-1 max-w-[200px] cursor-default">
+                {desc}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              {desc}
+            </TooltipContent>
+          </Tooltip>
+        )
+      },
     },
     {
       accessorKey: "created_at",
@@ -207,7 +219,10 @@ export default function ISOs() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">ISO 镜像</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">ISO 镜像</h1>
+          <HelpLink path="/novaix/iso" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 ISO 镜像文件</p>
       </div>
       <DataTable

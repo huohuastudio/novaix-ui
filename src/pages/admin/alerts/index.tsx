@@ -4,6 +4,7 @@ import { getAdminAlertLogs } from "@/api"
 import type { AlertAlertLogItem } from "@/api"
 import { getErrorMessage } from "@/lib/utils"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -80,7 +81,10 @@ export default function Alerts() {
     <div className="flex-1 overflow-y-auto px-6 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">告警记录</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">告警记录</h1>
+            <HelpLink path="/novaix/monitoring" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">节点资源超阈值或离线时产生的告警记录</p>
         </div>
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v === "all" ? "" : v); setPage(1) }}>

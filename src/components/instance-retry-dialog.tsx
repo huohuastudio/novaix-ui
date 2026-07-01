@@ -90,7 +90,7 @@ export default function InstanceRetryDialog({ instance, onOpenChange, onSuccess 
             <Input
               value={sourceServer}
               onChange={(e) => setSourceServer(e.target.value)}
-              placeholder="https://images.linuxcontainers.org"
+              placeholder="留空使用默认"
             />
           </div>
           <div className="space-y-2">

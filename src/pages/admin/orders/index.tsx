@@ -19,6 +19,7 @@ import type { OrderOrderItem, OrderTransactionItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeMap, refundStatusMap } from "@/lib/order-constants"
 import { ExportButton } from "@/components/export-button"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
@@ -270,6 +271,7 @@ function OrderList() {
   return (
     <>
       <DataTable
+        tourId="order-table"
         columns={columns}
         data={table.data}
         loading={table.loading}
@@ -286,7 +288,7 @@ function OrderList() {
               <Plus className="size-4" />
               新购下单
             </Button>
-            <ExportButton endpoint="orders" />
+            <ExportButton endpoint="orders" disabled={table.data.total === 0} />
           </div>
         }
         emptyState={
@@ -449,11 +451,14 @@ function OrderListPage() {
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">订单管理</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">订单管理</h1>
+            <HelpLink path="/novaix/order" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">查看和管理所有订单与交易流水</p>
         </div>
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
+          <TabsList data-tour="order-tabs">
             <TabsTrigger value="orders">订单列表</TabsTrigger>
             <TabsTrigger value="transactions">交易流水</TabsTrigger>
           </TabsList>

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SettingSkeleton } from "./setting-skeleton"
+import { HelpLink } from "@/components/help-doc"
 
 export function LifecycleSection() {
   const { data, loading, saving, save, update } = useSettings("lifecycle")
@@ -45,7 +46,10 @@ export function LifecycleSection() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="traffic_exceed_action">流量超限动作</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="traffic_exceed_action">流量超限动作</Label>
+          <HelpLink path="/novaix/setting" />
+        </div>
         <Select
           value={action}
           onValueChange={(v) => update("traffic_exceed_action", v)}

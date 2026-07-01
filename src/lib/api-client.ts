@@ -2,9 +2,9 @@ import { client } from '@/api/client.gen'
 import { toast } from 'sonner'
 import { getLoginPath, clearAuth, isImpersonating, setRequire2FASetup } from '@/lib/auth'
 import { setMaintenanceState } from '@/hooks/use-maintenance'
-import { setUnlicensed } from '@/hooks/use-license'
 
-const ERR_LICENSE_INVALID = 10460
+const ERR_FEATURE_NOT_AVAILABLE = 10470
+const ERR_NODE_QUOTA_EXCEEDED = 10471
 const ERR_ADMIN_2FA_REQUIRED = 21004
 
 client.setConfig({ throwOnError: true })
@@ -30,8 +30,9 @@ client.instance.interceptors.response.use(
     }
     if (status === 403) {
       const code = error.response?.data?.code as number | undefined
-      if (code === ERR_LICENSE_INVALID) {
-        setUnlicensed()
+      const message = error.response?.data?.message as string | undefined
+      if (code === ERR_FEATURE_NOT_AVAILABLE || code === ERR_NODE_QUOTA_EXCEEDED) {
+        toast.error(message || '此功能仅限授权版使用，请先激活授权', { id: 'feature-gate' })
       } else if (code === ERR_ADMIN_2FA_REQUIRED) {
         setRequire2FASetup(true)
         toast.error('系统要求管理员开启二次验证，请先前往个人资料页面设置', { id: 'admin-2fa-required', duration: 6000 })

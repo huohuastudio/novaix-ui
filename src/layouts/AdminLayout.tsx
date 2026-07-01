@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ExternalLink, Settings, ShieldAlert } from 'lucide-react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
@@ -6,10 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AppSidebar } from '@/components/app-sidebar'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { ActivationTrigger } from '@/components/activation-dialog'
 import { BreadcrumbNav } from '@/components/breadcrumb-nav'
 import { BreadcrumbProvider, useBreadcrumbItems } from '@/hooks/use-breadcrumb'
 import { TaskProvider } from '@/hooks/use-tasks'
+import { HelpDocProvider } from '@/components/help-doc'
 import { TaskTrigger } from '@/components/task-panel'
+import { AdminTourMenu } from '@/components/tour-menu'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { useSiteName, useAdminPath } from '@/hooks/use-site-settings'
 import { requires2FASetup } from '@/lib/auth'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -22,10 +26,13 @@ function PageTitle() {
   return null
 }
 
+
 export default function AdminLayout() {
   const adminPath = useAdminPath()
+  const { pathname, search } = useLocation()
   return (
     <TaskProvider>
+      <HelpDocProvider>
       <BreadcrumbProvider>
         <PageTitle />
         <SidebarProvider>
@@ -37,7 +44,8 @@ export default function AdminLayout() {
                 <Separator orientation="vertical" className="mr-2 h-4" />
                 <BreadcrumbNav />
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" data-tour="header-toolbar">
+                <AdminTourMenu />
                 <TaskTrigger />
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -59,6 +67,7 @@ export default function AdminLayout() {
                   </TooltipTrigger>
                   <TooltipContent>系统设置</TooltipContent>
                 </Tooltip>
+                <ActivationTrigger />
                 <ThemeToggle />
               </div>
             </header>
@@ -71,12 +80,15 @@ export default function AdminLayout() {
               </div>
             )}
             <div className="flex flex-col flex-1 min-h-0 overflow-auto">
-              <Outlet />
+              <ErrorBoundary resetKeys={[pathname, search]}>
+                <Outlet />
+              </ErrorBoundary>
               <div className="shrink-0 h-6" />
             </div>
           </SidebarInset>
         </SidebarProvider>
       </BreadcrumbProvider>
+      </HelpDocProvider>
     </TaskProvider>
   )
 }

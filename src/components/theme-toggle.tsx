@@ -6,7 +6,7 @@ import { useTheme } from "@/hooks/use-theme"
 const cycle = ["light", "dark", "system"] as const
 const labels = { light: "浅色", dark: "深色", system: "跟随系统" } as const
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string } = {}) {
   const { theme, setTheme } = useTheme()
 
   function toggle() {
@@ -17,7 +17,7 @@ export function ThemeToggle() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" onClick={toggle}>
+        <Button variant="ghost" size="icon" className={className} onClick={toggle}>
           {theme === "light" && <Sun className="size-4" />}
           {theme === "dark" && <Moon className="size-4" />}
           {theme === "system" && <Monitor className="size-4" />}

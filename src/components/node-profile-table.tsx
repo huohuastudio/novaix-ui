@@ -116,7 +116,7 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
           <p className="text-sm text-muted-foreground">
             管理该节点上的配置文件，配置文件可在创建实例时引用
           </p>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             创建配置文件
           </Button>

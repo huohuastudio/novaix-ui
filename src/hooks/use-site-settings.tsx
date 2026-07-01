@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { getSettingsPublic } from "@/api"
 import { formatAmount } from "@/lib/order-constants"
-import { setUnlicensed } from "@/hooks/use-license"
 
 interface SiteSettings {
   site_name: string
   site_url: string
   site_logo: string
+  site_copyright: string
   site_favicon: string
   currency_code: string
   currency_symbol: string
@@ -18,6 +18,7 @@ interface SiteSettings {
   registration_enabled: string
   registration_email_verify: string
   kyc_enabled: string
+  kyc_mode: string
   sms_enabled: string
   admin_path: string
   demo_mode: string
@@ -33,12 +34,15 @@ interface SiteSettings {
   captcha_provider: string
   captcha_public_config: string
   ticket_departments: string
+  edition: string
+  features: string
 }
 
 const defaultSettings: SiteSettings = {
   site_name: "Novaix",
   site_url: "",
   site_logo: "",
+  site_copyright: "",
   site_favicon: "",
   currency_code: "CNY",
   currency_symbol: "¥",
@@ -50,6 +54,7 @@ const defaultSettings: SiteSettings = {
   registration_enabled: "false",
   registration_email_verify: "true",
   kyc_enabled: "false",
+  kyc_mode: "two_factor",
   sms_enabled: "false",
   admin_path: "admin",
   demo_mode: "false",
@@ -65,6 +70,8 @@ const defaultSettings: SiteSettings = {
   captcha_provider: "",
   captcha_public_config: "",
   ticket_departments: "",
+  edition: "free",
+  features: "[]",
 }
 
 const SiteSettingsContext = createContext<SiteSettings>(defaultSettings)
@@ -85,9 +92,6 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       .then(({ data: res }) => {
         if (res?.code === 0 && res.data) {
           const data = res.data as Record<string, string>
-          if (data.licensed !== "true") {
-            setUnlicensed()
-          }
           const merged = { ...defaultSettings, ...data }
           if (merged.admin_path) {
             _adminBasePath = `/${merged.admin_path.replace(/^\/+|\/+$/g, "")}`

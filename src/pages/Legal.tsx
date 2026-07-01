@@ -43,30 +43,28 @@ export default function Legal() {
   if (!cfg || url) return null
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        <Button variant="ghost" size="sm" className="mb-6" asChild>
-          <Link to="/">
-            <ArrowLeft className="size-4" />
-            返回首页
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-bold mb-6">{cfg.title}</h1>
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-5/6" />
-          </div>
-        ) : content ? (
-          <div
-            className="markdown-body text-sm"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
-          />
-        ) : (
-          <p className="text-muted-foreground">暂无内容</p>
-        )}
-      </div>
+    <div className="max-w-3xl mx-auto px-6 py-12">
+      <Button variant="ghost" className="mb-6" asChild>
+        <Link to="/">
+          <ArrowLeft className="size-4" />
+          返回首页
+        </Link>
+      </Button>
+      <h1 className="text-2xl font-bold mb-6">{cfg.title}</h1>
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      ) : content ? (
+        <div
+          className="markdown-body text-sm"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
+        />
+      ) : (
+        <p className="text-muted-foreground">暂无内容</p>
+      )}
     </div>
   )
 }

@@ -314,7 +314,7 @@ export default function RegisterPage() {
                 {loading ? "注册中..." : "完成注册"}
               </Button>
               <div className="flex items-center justify-between text-sm">
-                <Button type="button" variant="ghost" size="sm" className="h-auto p-0" onClick={() => { setStep(1); setCode(""); setError("") }}>
+                <Button type="button" variant="ghost" className="h-auto p-0" onClick={() => { setStep(1); setCode(""); setError("") }}>
                   <ArrowLeft className="size-3.5" />
                   返回
                 </Button>

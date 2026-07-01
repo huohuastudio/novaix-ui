@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { getAdminIntegrations, deleteAdminIntegrationsById } from "@/api"
 import type { IntegrationIntegrationResponse } from "@/api"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -145,7 +146,10 @@ export default function Integrations() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">集成方管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">集成方管理</h1>
+          <HelpLink path="/novaix/integration" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           集成方是第三方系统（魔方、WHMCS 等）的稳定身份，API 密钥关联到集成方，可独立轮换而不影响业务连续性。
         </p>

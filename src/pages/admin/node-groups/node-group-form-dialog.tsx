@@ -9,6 +9,7 @@ import {
 } from "@/api"
 import type { NodeGroupNodeGroupItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { HelpLink } from "@/components/help-doc"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -179,7 +180,10 @@ export default function NodeGroupFormDialog({ open, onOpenChange, group, onSucce
             render={({ field }) => (
               <FormItem className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
-                  <FormLabel>集群模式</FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel>集群模式</FormLabel>
+                    <HelpLink path="/novaix/node-group" />
+                  </div>
                   <FormDescription>
                     启用后支持组内虚拟机在线迁移（无需停机）
                   </FormDescription>
@@ -218,7 +222,10 @@ export default function NodeGroupFormDialog({ open, onOpenChange, group, onSucce
             render={({ field }) => (
               <FormItem className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
-                  <FormLabel>私有网络 (OVN)</FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel>私有网络 (OVN)</FormLabel>
+                    <HelpLink path="/novaix/node-group" />
+                  </div>
                   <FormDescription>
                     启用后可创建 VPC 私有网络，实现实例间 L2 隔离（需集群模式）
                   </FormDescription>

@@ -16,6 +16,10 @@ import { billingCycleMap } from '@/lib/order-constants'
 
 type BillingCycle = 'hourly' | 'monthly' | 'quarterly' | 'yearly'
 
+function isPlanSoldOut(plan: PortalPurchasePlanItem): boolean {
+  return plan.stock !== undefined && plan.stock === 0
+}
+
 function getPlanPrice(plan: PortalPurchasePlanItem, cycle: BillingCycle): number {
   switch (cycle) {
     case 'hourly': return (plan as Record<string, number>).price_hourly ?? 0
@@ -58,13 +62,26 @@ export default function PortalPurchase() {
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponValidating, setCouponValidating] = useState(false)
 
+  const applyPlanDefaults = (plan: PortalPurchasePlanItem) => {
+    setSelectedPlanId(plan.id ?? null)
+    const planNodes = plan.nodes ?? []
+    const planImages = plan.images ?? []
+    setSelectedNodeId(planNodes.find(n => n.available !== false)?.id ?? null)
+    setSelectedImageId(planImages[0]?.id ?? null)
+    const cycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
+    const firstCycle = cycles.find(c => getPlanPrice(plan, c) > 0)
+    if (firstCycle) setSelectedCycle(firstCycle)
+    setCouponDiscount(0)
+  }
+
   useEffect(() => {
     getPortalSshKeys().then(({ data: res }) => setSshKeys(res?.data ?? []))
     getPortalPlans().then(({ data: res }) => {
       const items = res?.data?.plans ?? []
       setPlans(items)
       if (items.length > 0) {
-        setSelectedPlanId(items[0].id ?? null)
+        const first = items.find(p => !isPlanSoldOut(p)) ?? items[0]
+        applyPlanDefaults(first)
       }
     }).finally(() => setLoading(false))
   }, [])
@@ -77,30 +94,9 @@ export default function PortalPurchase() {
   const nodes: PortalPurchaseNodeItem[] = selectedPlan?.nodes ?? []
   const images: PortalPurchaseImageItem[] = selectedPlan?.images ?? []
 
-  useEffect(() => {
-    const planNodes = selectedPlan?.nodes ?? []
-    const planImages = selectedPlan?.images ?? []
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 套餐切换时重置选择
-    setSelectedNodeId(planNodes[0]?.id ?? null)
-    setSelectedImageId(planImages[0]?.id ?? null)
-    // 自动选择第一个有正价的计费周期
-    if (selectedPlan) {
-      const cycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
-      const firstAvailable = cycles.find(c => getPlanPrice(selectedPlan, c) > 0)
-      if (firstAvailable) {
-        setSelectedCycle(firstAvailable)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPlanId])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 套餐/周期变化时重置优惠
-    setCouponDiscount(0)
-  }, [selectedPlanId, selectedCycle])
-
   const price = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
   const finalPrice = Math.max(0, price - couponDiscount)
+  const selectedPlanSoldOut = selectedPlan ? isPlanSoldOut(selectedPlan) : false
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || price <= 0) return
@@ -211,22 +207,31 @@ export default function PortalPurchase() {
       {pageHeader}
 
       {/* 套餐选择 */}
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="purchase-plans">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择套餐</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {plans.map((plan) => {
             const active = plan.id === selectedPlanId
+            const soldOut = isPlanSoldOut(plan)
             return (
               <button
                 key={plan.id}
-                onClick={() => setSelectedPlanId(plan.id ?? null)}
+                disabled={soldOut}
+                onClick={() => applyPlanDefaults(plan)}
                 className={`relative rounded-2xl p-5 text-left transition-colors ${
-                  active
-                    ? 'bg-foreground/5 ring-2 ring-foreground/20'
-                    : 'bg-background hover:bg-foreground/[.05]'
+                  soldOut
+                    ? 'bg-background opacity-50 cursor-not-allowed'
+                    : active
+                      ? 'bg-foreground/5 ring-2 ring-foreground/20'
+                      : 'bg-background hover:bg-foreground/[.05]'
                 }`}
               >
-                {active && (
+                {soldOut && (
+                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    售罄
+                  </span>
+                )}
+                {!soldOut && active && (
                   <div className="absolute top-3 right-3 flex size-5 items-center justify-center rounded-full bg-foreground">
                     <Check className="size-3 text-background" />
                   </div>
@@ -253,8 +258,8 @@ export default function PortalPurchase() {
                     /{billingCycleMap[selectedCycle] ?? selectedCycle}
                   </span>
                 </p>
-                {plan.stock !== undefined && plan.stock >= 0 && plan.stock < 10 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">剩余 {plan.stock} 台</p>
+                {!soldOut && plan.stock !== undefined && plan.stock > 0 && plan.stock <= 5 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">仅剩 {plan.stock} 台</p>
                 )}
               </button>
             )
@@ -263,7 +268,7 @@ export default function PortalPurchase() {
       </div>
 
       {/* 计费周期 */}
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="purchase-cycle">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">计费周期</h2>
         <div className="flex gap-2">
           {(['hourly', 'monthly', 'quarterly', 'yearly'] as BillingCycle[]).map((cycle) => {
@@ -273,7 +278,7 @@ export default function PortalPurchase() {
             return (
               <button
                 key={cycle}
-                onClick={() => setSelectedCycle(cycle)}
+                onClick={() => { setSelectedCycle(cycle); setCouponDiscount(0) }}
                 className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
                   active
                     ? 'bg-foreground text-background'
@@ -297,22 +302,28 @@ export default function PortalPurchase() {
           <div className="flex flex-wrap gap-2">
             {nodes.map((node) => {
               const active = node.id === selectedNodeId
+              const unavailable = node.available === false
               return (
                 <button
                   key={node.id}
+                  disabled={unavailable}
                   onClick={() => setSelectedNodeId(node.id ?? null)}
                   className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-foreground text-background'
-                      : 'bg-background hover:bg-foreground/[.05]'
+                    unavailable
+                      ? 'bg-background opacity-50 cursor-not-allowed'
+                      : active
+                        ? 'bg-foreground text-background'
+                        : 'bg-background hover:bg-foreground/[.05]'
                   }`}
                 >
                   {node.name}
-                  {node.region && (
+                  {unavailable ? (
+                    <span className="block text-xs font-normal mt-0.5 text-muted-foreground">资源不足</span>
+                  ) : node.region ? (
                     <span className={`block text-xs font-normal mt-0.5 ${active ? 'text-background/70' : 'text-muted-foreground'}`}>
                       {node.region}
                     </span>
-                  )}
+                  ) : null}
                 </button>
               )
             })}
@@ -345,7 +356,7 @@ export default function PortalPurchase() {
       )}
 
       {/* 主机名和密码 */}
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="purchase-config">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">基本配置</h2>
         <div className="rounded-2xl bg-background p-6">
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
@@ -469,14 +480,14 @@ export default function PortalPurchase() {
               </Button>
             )}
           </div>
-          {couponDiscount > 0 && couponDiscount > 0 && (
+          {couponDiscount > 0 && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">已优惠 {formatAmount(couponDiscount)}</p>
           )}
         </div>
       </div>
 
       {/* 确认下单 */}
-      <div className="rounded-2xl bg-background p-6">
+      <div className="rounded-2xl bg-background p-6" data-tour="purchase-submit">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">
@@ -494,7 +505,7 @@ export default function PortalPurchase() {
           <Button
             size="lg"
             className="px-8"
-            disabled={submitting || !selectedPlanId || !selectedNodeId || !selectedImageId || !hostname || !password}
+            disabled={submitting || !selectedPlanId || !selectedNodeId || !selectedImageId || !hostname || !password || selectedPlanSoldOut}
             onClick={handleSubmit}
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}

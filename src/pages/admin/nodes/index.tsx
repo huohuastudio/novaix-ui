@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
-import { Plus, Pencil, Trash2, Rocket, MoreHorizontal, Wrench, ArrowRightFromLine, RotateCcw, Server } from "lucide-react"
+import { Plus, Pencil, Trash2, Rocket, MoreHorizontal, Wrench, ArrowRightFromLine, RotateCcw, Server, Plug } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ import {
   postAdminNodesByIdMaintenance,
   postAdminNodesByIdRestore,
   postAdminNodesByIdEvacuate,
+  postAdminNodesByIdTestConnection,
 } from "@/api"
 import type { NodeNodeItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
@@ -32,6 +33,7 @@ import { NODE_STATUS, statusMap, statusFilterOptions } from "@/lib/node-constant
 import NodeFormSheet from "./node-form-sheet"
 import { EmptyState } from "@/components/empty-state"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import NodeGroups from "./node-groups"
 import { getErrorMessage } from "@/lib/utils"
@@ -107,6 +109,27 @@ function NodeList() {
     if (taskId) addTask(taskId, "init_node")
     table.refresh()
   }, [table, confirm, addTask])
+
+  const handleTestConnection = useCallback(async (node: NodeNodeItem) => {
+    toast.info(`正在测试节点「${node.name}」的连接...`)
+    try {
+      const { data: res } = await postAdminNodesByIdTestConnection({ path: { id: node.id! } })
+      if (res?.code === 0 && res.data) {
+        const ssh = res.data.ssh
+        const incus = res.data.incus
+        if (ssh?.success && (!incus || incus.success)) {
+          toast.success(`节点「${node.name}」连接正常（SSH: ${ssh.latency}ms${incus ? `，服务端: ${incus.latency}ms` : ""}）`)
+        } else {
+          const parts: string[] = []
+          if (ssh && !ssh.success) parts.push(`SSH: ${ssh.message}`)
+          if (incus && !incus.success) parts.push(`服务端: ${incus.message}`)
+          toast.error(parts.join("；") || "连接测试失败")
+        }
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "测试连接失败"))
+    }
+  }, [])
 
   const handleDelete = useCallback(async (node: NodeNodeItem) => {
     const ok = await confirm({
@@ -306,7 +329,7 @@ function NodeList() {
         const isMaintenance = node.status === NODE_STATUS.MAINTENANCE
         const hasGroup = !!node.node_group_id
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" data-tour="node-actions">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-8" disabled={isDeploying} onClick={() => handleInit(node)}>
@@ -325,6 +348,10 @@ function NodeList() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleTestConnection(node)}>
+                  <Plug className="size-4 mr-2" />
+                  测试连接
+                </DropdownMenuItem>
                 {isOnline && (
                   <DropdownMenuItem onClick={() => handleMaintenance(node)}>
                     <Wrench className="size-4 mr-2" />
@@ -354,11 +381,12 @@ function NodeList() {
         )
       },
     },
-  ], [handleEdit, handleDelete, handleInit, handleMaintenance, handleRestore, handleEvacuate, formatDate, adminPath])
+  ], [handleEdit, handleDelete, handleInit, handleTestConnection, handleMaintenance, handleRestore, handleEvacuate, formatDate, adminPath])
 
   return (
     <>
       <DataTable
+        tourId="node-table"
         columns={columns}
         data={table.data}
         loading={table.loading}
@@ -370,7 +398,7 @@ function NodeList() {
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
         toolbar={
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} data-tour="node-add-btn">
             <Plus className="size-4" />
             添加节点
           </Button>
@@ -402,12 +430,15 @@ export default function Nodes() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">节点管理</h1>
+        <div data-tour="node-description">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">节点管理</h1>
+            <HelpLink path="/novaix/node" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">节点即运行实例的物理服务器。添加后需执行初始化，然后将节点加入节点组，再由套餐关联节点组进行售卖</p>
         </div>
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
+          <TabsList data-tour="node-tabs">
             <TabsTrigger value="nodes">节点列表</TabsTrigger>
             <TabsTrigger value="groups">节点组</TabsTrigger>
           </TabsList>

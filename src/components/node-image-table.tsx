@@ -101,7 +101,7 @@ const archMap: Record<string, string> = { x86_64: "amd64", aarch64: "arm64" }
 // ── Pull image dialog ──
 
 const pullSchema = z.object({
-  server: z.string().min(1, "请输入镜像服务器地址"),
+  server: z.string().max(512),
   protocol: z.enum(["simplestreams", "incus"]).default("simplestreams"),
   alias: z.string().min(1, "请输入镜像别名"),
   type: z.enum(["container", "virtual-machine"]).default("container"),
@@ -124,7 +124,7 @@ function PullImageDialog({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(pullSchema) as any,
     defaultValues: {
-      server: "https://images.linuxcontainers.org",
+      server: "",
       protocol: "simplestreams",
       alias: "",
       type: "container",
@@ -134,7 +134,7 @@ function PullImageDialog({
 
   useEffect(() => {
     if (open) form.reset({
-      server: "https://images.linuxcontainers.org",
+      server: "",
       protocol: "simplestreams",
       alias: "",
       type: "container",
@@ -180,7 +180,7 @@ function PullImageDialog({
             <FormField control={form.control} name="server" render={({ field }) => (
               <FormItem>
                 <FormLabel required>镜像服务器</FormLabel>
-                <FormControl><Input placeholder="https://images.linuxcontainers.org" {...field} /></FormControl>
+                <FormControl><Input placeholder="留空使用默认" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -286,7 +286,7 @@ export default function NodeImageTable({ nodeId }: Props) {
           <p className="text-sm text-muted-foreground">
             该节点上已缓存的镜像，创建实例时会自动从远程服务器拉取并缓存
           </p>
-          <Button variant="outline" size="sm" onClick={() => setPullOpen(true)}>
+          <Button variant="outline" onClick={() => setPullOpen(true)}>
             <Download className="size-3.5" />
             拉取镜像
           </Button>

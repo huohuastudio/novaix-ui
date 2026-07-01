@@ -7,6 +7,7 @@ import { getAdminPayments } from "@/api"
 import type { PaymentAdminPaymentItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount, useFormatDate } from "@/hooks/use-site-settings"
 import { useProviderMap } from "@/hooks/use-provider-map"
 import { paymentStatusMap } from "@/lib/payment"
@@ -134,7 +135,10 @@ export default function Payments() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">支付记录</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">支付记录</h1>
+          <HelpLink path="/novaix/payment" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">查看所有在线支付记录</p>
       </div>
       <DataTable
@@ -149,7 +153,7 @@ export default function Payments() {
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
         toolbar={
-          <ExportButton endpoint="payments" />
+          <ExportButton endpoint="payments" disabled={table.data.total === 0} />
         }
       />
     </div>

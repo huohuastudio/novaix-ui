@@ -10,11 +10,11 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { useSiteName, useFormatAmount } from '@/hooks/use-site-settings'
+import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
 import { getUser } from '@/lib/auth'
 import { useDocumentTitle } from '@uidotdev/usehooks'
-import { getPortalDashboardStats, getPortalAnnouncements } from '@/api'
-import type { PortalDashboardStatsResponse, PortalPortalAnnouncementItem } from '@/api'
+import { getPortalDashboardStats, getPublicCmsArticles } from '@/api'
+import type { PortalDashboardStatsResponse, PublicPublicArticleItem } from '@/api'
 
 const services = [
   {
@@ -43,15 +43,16 @@ const services = [
 export default function PortalDashboard() {
   const siteName = useSiteName()
   const formatAmount = useFormatAmount()
+  const formatDate = useFormatDate()
   const user = getUser()
   useDocumentTitle(`控制台 - ${siteName}`)
 
   const [stats, setStats] = useState<PortalDashboardStatsResponse | null>(null)
-  const [announcements, setAnnouncements] = useState<PortalPortalAnnouncementItem[]>([])
+  const [announcements, setAnnouncements] = useState<PublicPublicArticleItem[]>([])
   useEffect(() => {
     Promise.all([
       getPortalDashboardStats(),
-      getPortalAnnouncements({ query: { page_size: 5 } }),
+      getPublicCmsArticles({ query: { type: 'announcement', page_size: 5 } }),
     ]).then(([statsRes, announcementsRes]) => {
       setStats(statsRes.data?.data ?? null)
       setAnnouncements(announcementsRes.data?.data?.items ?? [])
@@ -74,7 +75,7 @@ export default function PortalDashboard() {
         <p className="mt-1.5 text-sm text-muted-foreground">
           欢迎使用 {siteName} 云服务平台，在这里管理您的所有云资源。
         </p>
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap gap-3" data-tour="portal-actions">
           <Button asChild>
             <Link to="/portal/purchase">
               <Plus className="size-4" />
@@ -91,7 +92,7 @@ export default function PortalDashboard() {
       </div>
 
       {/* 资源概览 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-tour="portal-stats">
         {statItems.map((stat) => (
           <Link
             key={stat.label}
@@ -115,7 +116,7 @@ export default function PortalDashboard() {
 
       {/* 产品与服务 + 公告 */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4" data-tour="portal-services">
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">产品与服务</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {services.map((svc) => (
@@ -144,7 +145,7 @@ export default function PortalDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">最新公告</h2>
-            <Link to="/portal/announcements" className="text-xs text-primary hover:underline">
+            <Link to="/articles?type=announcement" className="text-xs text-primary hover:underline">
               查看全部
             </Link>
           </div>
@@ -154,11 +155,11 @@ export default function PortalDashboard() {
                 {announcements.map((item) => (
                   <Link
                     key={item.id}
-                    to={`/portal/announcements`}
+                    to={`/articles/${encodeURIComponent(item.slug ?? "")}?type=announcement`}
                     className="block px-5 py-3 hover:bg-black/[.04] dark:hover:bg-white/[.06] transition-colors first:rounded-t-2xl last:rounded-b-2xl"
                   >
                     <p className="text-sm truncate">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.created_at}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(item.published_at || item.created_at)}</p>
                   </Link>
                 ))}
               </div>

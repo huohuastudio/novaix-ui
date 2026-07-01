@@ -6,7 +6,6 @@ import {
   Square,
   RotateCcw,
   MoreHorizontal,
-  Loader2,
   Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -27,6 +26,7 @@ import { useDocumentTitle } from '@uidotdev/usehooks'
 import { useDebounce } from "@uidotdev/usehooks"
 import { formatMemory } from "@/lib/utils"
 import { portalStatusConfig } from "@/lib/instance-constants"
+import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 
 function StatusIndicator({ status }: { status: string }) {
   const cfg = portalStatusConfig[status] ?? { label: "未知", color: "text-zinc-400", dot: "bg-zinc-400" }
@@ -49,11 +49,12 @@ function InstanceCard({
 }) {
   const formatDate = useFormatDate()
   const status = instance.status ?? "stopped"
+  const instanceBusy = instance.active_task_id != null
   const isRunning = status === "running"
-  const isStopped = status === "stopped" || status === "frozen"
+  const disabled = busy || instanceBusy
 
   return (
-    <div className="group rounded-2xl bg-background p-5 transition-colors hover:bg-foreground/[.05]">
+    <div className="group rounded-2xl bg-background p-5 transition-colors hover:bg-foreground/[.05]" data-tour="instance-card">
       <Link to={`/portal/servers/${instance.id}`} className="block">
         {/* 第一行：名称 + 状态 */}
         <div className="flex items-center justify-between gap-2">
@@ -90,40 +91,34 @@ function InstanceCard({
       </Link>
 
       {/* 操作栏 */}
-      <div className="relative z-10 flex items-center justify-end gap-1 mt-3 pt-3 border-t border-transparent group-hover:border-border/40 transition-colors" onClick={(e) => e.stopPropagation()}>
-        {isStopped && (
-          <Button
-            variant="ghost"
-            className="h-7 px-2.5 text-xs gap-1"
-            disabled={busy}
-            onClick={() => onAction(instance, "start")}
-          >
-            {busy ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
-            启动
-          </Button>
-        )}
-        {isRunning && (
-          <>
-            <Button
-              variant="ghost"
-              className="h-7 px-2.5 text-xs gap-1"
-              disabled={busy}
-              onClick={() => onAction(instance, "restart")}
-            >
-              {busy ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw className="size-3" />}
-              重启
-            </Button>
-            <Button
-              variant="ghost"
-              className="h-7 px-2.5 text-xs gap-1 text-red-600 hover:text-red-600 dark:text-red-400"
-              disabled={busy}
-              onClick={() => onAction(instance, "stop")}
-            >
-              <Square className="size-3" />
-              停止
-            </Button>
-          </>
-        )}
+      <div className="relative z-10 flex items-center justify-end gap-1 mt-3 pt-3 border-t border-transparent group-hover:border-border/40 transition-colors" data-tour="instance-actions" onClick={(e) => e.stopPropagation()}>
+        <Button
+          variant="outline"
+          className="h-7 px-2.5 text-xs gap-1"
+          disabled={disabled || isRunning}
+          onClick={() => onAction(instance, "start")}
+        >
+          <Play className="size-3" />
+          启动
+        </Button>
+        <Button
+          variant="outline"
+          className="h-7 px-2.5 text-xs gap-1"
+          disabled={disabled || !isRunning}
+          onClick={() => onAction(instance, "restart")}
+        >
+          <RotateCcw className="size-3" />
+          重启
+        </Button>
+        <Button
+          variant="outline"
+          className="h-7 px-2.5 text-xs gap-1"
+          disabled={disabled || !isRunning}
+          onClick={() => onAction(instance, "stop")}
+        >
+          <Square className="size-3" />
+          停止
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="size-7">
@@ -208,15 +203,25 @@ export default function PortalInstances() {
 
   const { handlePowerAction, loadingId, ConfirmDialog } = usePortalInstanceActions(() => fetchInstances(debouncedKeyword, page))
 
-  const hasTransitional = instances.some((i) => i.status === "creating")
+  const hasTransitional = instances.some((i) => i.active_task_id != null)
 
   useEffect(() => {
     if (!hasTransitional) return
     const timer = setInterval(() => {
       fetchInstances(debouncedKeyword, page)
-    }, 5000)
+    }, 10_000)
     return () => clearInterval(timer)
   }, [hasTransitional, fetchInstances, debouncedKeyword, page])
+
+  // SSE 事件驱动刷新（防抖合并连续事件）
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const cleanup = onPortalInstanceChange(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => fetchInstances(debouncedKeyword, page), 800)
+    })
+    return () => { clearTimeout(timer); cleanup() }
+  }, [fetchInstances, debouncedKeyword, page])
 
   if (loading) {
     return (
@@ -237,7 +242,7 @@ export default function PortalInstances() {
           <h1 className="text-2xl font-semibold tracking-tight">云服务器</h1>
           <p className="mt-1 text-sm text-muted-foreground">管理您的所有云服务器</p>
         </div>
-        <div className="relative w-full sm:w-60">
+        <div className="relative w-full sm:w-60" data-tour="instance-search">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="搜索名称或 IP..."

@@ -11,6 +11,7 @@ import type { CouponCouponItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate, useFormatAmount, useAdminPath } from "@/hooks/use-site-settings"
 import { CouponCreateSheet, CouponEditSheet } from "./coupon-form-sheet"
 import CouponDetail from "./detail"
@@ -201,7 +202,10 @@ function CouponList() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">优惠券管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">优惠券管理</h1>
+          <HelpLink path="/novaix/coupon" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">创建和管理优惠券</p>
       </div>
       <DataTable

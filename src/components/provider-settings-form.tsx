@@ -109,10 +109,19 @@ export function ProviderSettingsForm({
 
   const handleSaveMain = async () => {
     setSavingMain(true)
-    await control.save({
+    const items: Record<string, string> = {
       [`${kind}_enabled`]: enabled ? "true" : "false",
       [`${kind}_provider`]: provider,
-    })
+    }
+    const prefix = `${kind}_`
+    const providerPrefixes = descriptors.map((d) => `${kind}_${d.name}_`)
+    for (const [key, value] of Object.entries(control.data)) {
+      if (!key.startsWith(prefix)) continue
+      if (key === `${kind}_enabled` || key === `${kind}_provider`) continue
+      if (providerPrefixes.some((pp) => key.startsWith(pp))) continue
+      items[key] = value
+    }
+    await control.save(items)
     setSavingMain(false)
   }
 
@@ -850,7 +859,7 @@ function KeyValueField({
         </div>
       ))}
       {!disabled && (
-        <Button type="button" variant="outline" size="sm" onClick={add}>
+        <Button type="button" variant="outline" onClick={add}>
           <Plus className="size-3.5" />
           添加
         </Button>

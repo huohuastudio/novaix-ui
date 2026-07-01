@@ -1,4 +1,5 @@
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -141,7 +142,10 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormVa
           name="cidr"
           render={({ field }) => (
             <FormItem>
-              <FormLabel required>CIDR</FormLabel>
+              <div className="flex items-center gap-1.5">
+                <FormLabel required>CIDR</FormLabel>
+                <HelpLink path="/novaix/ip-pool" />
+              </div>
               <FormControl><Input placeholder="192.168.1.0/24" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -616,11 +620,15 @@ export default function IPs() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">IP 池管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">IP 池管理</h1>
+          <HelpLink path="/novaix/ip-pool" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 IPv4/IPv6 地址池</p>
       </div>
 
       <DataTable
+        tourId="ip-table"
         columns={columns}
         data={table.data}
         loading={table.loading}

@@ -65,6 +65,17 @@ export function SiteSection() {
         <p className="text-xs text-muted-foreground">接收系统告警和通知的邮箱</p>
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="site_copyright">版权信息</Label>
+        <Input
+          id="site_copyright"
+          value={data.site_copyright ?? ""}
+          onChange={(e) => update("site_copyright", e.target.value)}
+          placeholder="© 2026 公司名. All rights reserved."
+        />
+        <p className="text-xs text-muted-foreground">页脚版权文字，留空则自动显示"© 年份 站点名称"</p>
+      </div>
+
       <div className="pt-2">
         <Button onClick={() => save(data)} disabled={saving}>
           {saving ? "保存中..." : "保存"}

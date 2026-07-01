@@ -1,4 +1,5 @@
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -190,7 +191,10 @@ function VpcCreateDialog({
               name="cidr"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>网段 (CIDR)</FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel required>网段 (CIDR)</FormLabel>
+                    <HelpLink path="/novaix/vpc" />
+                  </div>
                   <FormControl><Input placeholder="10.0.0.0/16" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -352,7 +356,10 @@ export default function VPCs() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">VPC 管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">VPC 管理</h1>
+          <HelpLink path="/novaix/vpc" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">管理私有网络，隔离实例间的网络通信</p>
       </div>
 

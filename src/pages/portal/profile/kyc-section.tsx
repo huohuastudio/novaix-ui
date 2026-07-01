@@ -1,40 +1,51 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getPortalKyc, postPortalKycVerify } from '@/api'
+import { getPortalKyc, postPortalKycVerify, postPortalKycFaceInit, postPortalKycFaceResult } from '@/api'
 import type { ServiceKycStatus } from '@/api'
 import { getErrorMessage } from '@/lib/utils'
 import { useFormatDate } from '@/hooks/use-site-settings'
+import { useSiteSettings } from '@/hooks/use-site-settings'
 import { toast } from 'sonner'
 
 export function KYCSection() {
   const formatDate = useFormatDate()
+  const { kyc_mode } = useSiteSettings()
   const [status, setStatus] = useState<ServiceKycStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [realName, setRealName] = useState('')
   const [idNumber, setIdNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [kycToken] = useState(() => new URLSearchParams(window.location.search).get('kyc_token'))
+  const [querying, setQuerying] = useState(() => !!kycToken)
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const { data: res } = await getPortalKyc()
-      setStatus(res?.data ?? null)
-    } catch {
-      // 静默失败
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const refreshStatus = async () => {
+    const { data: res } = await getPortalKyc()
+    setStatus(res?.data ?? null)
+  }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-    void fetchStatus()
-  }, [fetchStatus])
+    getPortalKyc()
+      .then(({ data: res }) => setStatus(res?.data ?? null))
+      .catch(() => {})
+      .finally(() => setLoading(false))
 
-  const handleVerify = async () => {
+    if (kycToken) {
+      window.history.replaceState({}, '', window.location.pathname)
+      postPortalKycFaceResult({ body: { kyc_token: kycToken } })
+        .then(() => {
+          toast.success('人脸识别认证成功')
+          return refreshStatus()
+        })
+        .catch((err) => toast.error(getErrorMessage(err, '人脸识别认证失败')))
+        .finally(() => setQuerying(false))
+    }
+  }, [kycToken])
+
+  const handleTwoFactorVerify = async () => {
     if (!realName.trim() || !idNumber.trim()) {
       toast.error('请填写姓名和身份证号')
       return
@@ -47,10 +58,33 @@ export function KYCSection() {
       toast.success('实名认证成功')
       setRealName('')
       setIdNumber('')
-      fetchStatus()
+      refreshStatus()
     } catch (err) {
       toast.error(getErrorMessage(err, '认证失败'))
     } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleFaceVerify = async () => {
+    if (!realName.trim() || !idNumber.trim()) {
+      toast.error('请填写姓名和身份证号')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const { data: res } = await postPortalKycFaceInit({
+        body: { real_name: realName.trim(), id_number: idNumber.trim() },
+      })
+      const faceUrl = res?.data?.face_url
+      if (faceUrl) {
+        window.location.href = faceUrl
+      } else {
+        toast.error('人脸识别初始化异常，请稍后重试')
+        setSubmitting(false)
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, '发起人脸识别失败'))
       setSubmitting(false)
     }
   }
@@ -68,7 +102,27 @@ export function KYCSection() {
     )
   }
 
+  if (querying) {
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium">实名认证</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              正在查询人脸识别结果...
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          正在验证人脸识别结果，请稍候
+        </div>
+      </>
+    )
+  }
+
   const isVerified = status?.status === 'verified'
+  const isFaceMode = kyc_mode === 'face'
 
   return (
     <>
@@ -124,12 +178,17 @@ export function KYCSection() {
             />
           </div>
           <Button
-            onClick={handleVerify}
+            onClick={isFaceMode ? handleFaceVerify : handleTwoFactorVerify}
             disabled={submitting || !realName.trim() || !idNumber.trim()}
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            提交认证
+            {isFaceMode ? '开始人脸识别' : '提交认证'}
           </Button>
+          {isFaceMode && (
+            <p className="text-xs text-muted-foreground">
+              点击后将跳转至第三方页面完成人脸识别，验证通过后自动返回
+            </p>
+          )}
         </div>
       )}
     </>

@@ -1,5 +1,6 @@
 "use no memo";
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useAdminPath } from "@/hooks/use-site-settings"
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
@@ -247,7 +248,10 @@ export default function VPCDetailPage() {
       {/* 子网管理 */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">子网管理</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold">子网管理</h3>
+            <HelpLink path="/novaix/vpc" />
+          </div>
           <p className="text-sm text-muted-foreground">管理 VPC 中的子网</p>
         </div>
         <Button onClick={() => setSubnetOpen(true)}>
@@ -384,7 +388,10 @@ export default function VPCDetailPage() {
       {/* 安全组 */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">安全组</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold">安全组</h3>
+            <HelpLink path="/novaix/vpc" />
+          </div>
           <p className="text-sm text-muted-foreground">管理 VPC 网络访问控制策略</p>
         </div>
         <Button onClick={() => setSgOpen(true)}>

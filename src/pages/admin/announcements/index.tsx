@@ -5,27 +5,26 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { getAdminAnnouncements, deleteAdminAnnouncementsById } from "@/api"
-import type { AnnouncementAnnouncementItem } from "@/api"
+import { getAdminArticles, deleteAdminArticlesById } from "@/api"
+import type { ArticleArticleItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
-import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { AnnouncementCreateSheet, AnnouncementEditSheet } from "./announcement-form-sheet"
 
 export default function Announcements() {
-  useBreadcrumb([{ label: "公告管理" }])
   const formatDate = useFormatDate()
   const [createOpen, setCreateOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<AnnouncementAnnouncementItem | null>(null)
+  const [editingItem, setEditingItem] = useState<ArticleArticleItem | null>(null)
   const { confirm, ConfirmDialog } = useConfirm()
 
   const fetchData = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
     const sort = sorting[0]?.id as "id" | "sort_order" | "status" | "created_at" | undefined
     const order: "asc" | "desc" | undefined = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined
 
-    const { data: res } = await getAdminAnnouncements({
+    const { data: res } = await getAdminArticles({
       query: {
+        type: 'announcement',
         page,
         page_size: pageSize,
         keyword: (filters.title as string) || undefined,
@@ -48,11 +47,11 @@ export default function Announcements() {
     filterKeys: ["title", "status"],
   })
 
-  const handleEdit = useCallback((item: AnnouncementAnnouncementItem) => {
+  const handleEdit = useCallback((item: ArticleArticleItem) => {
     setEditingItem(item)
   }, [])
 
-  const handleDelete = useCallback(async (item: AnnouncementAnnouncementItem) => {
+  const handleDelete = useCallback(async (item: ArticleArticleItem) => {
     const ok = await confirm({
       title: "删除公告",
       description: `确定要删除公告「${item.title}」吗？此操作不可撤销。`,
@@ -60,7 +59,7 @@ export default function Announcements() {
       destructive: true,
     })
     if (!ok) return
-    await deleteAdminAnnouncementsById({ path: { id: item.id! } })
+    await deleteAdminArticlesById({ path: { id: item.id! } })
     table.refresh()
   }, [table, confirm])
 
@@ -70,7 +69,7 @@ export default function Announcements() {
     table.refresh()
   }
 
-  const columns: ColumnDef<AnnouncementAnnouncementItem>[] = useMemo(() => [
+  const columns: ColumnDef<ArticleArticleItem>[] = useMemo(() => [
     {
       accessorKey: "id",
       header: "ID",
@@ -158,11 +157,7 @@ export default function Announcements() {
   ], [handleEdit, handleDelete, formatDate])
 
   return (
-    <div className="px-6 pt-6 space-y-6">
-      <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">公告管理</h1>
-        <p className="mt-1 text-sm text-muted-foreground">发布和管理站点公告</p>
-      </div>
+    <div className="space-y-6">
       <DataTable
         columns={columns}
         data={table.data}

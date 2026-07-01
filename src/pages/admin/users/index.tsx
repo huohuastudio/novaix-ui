@@ -14,6 +14,7 @@ import { getUser } from "@/lib/auth"
 import { UserCreateDialog, UserEditDialog } from "./user-form-sheet"
 import { RechargeDialog, AdjustBalanceDialog } from "./balance-dialog"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { ExportButton } from "@/components/export-button"
 import { toast } from "sonner"
@@ -281,7 +282,10 @@ export default function Users() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">用户管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">用户管理</h1>
+          <HelpLink path="/novaix/user" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">管理系统中的所有用户账号</p>
       </div>
       <DataTable
@@ -301,7 +305,7 @@ export default function Users() {
               <Plus className="size-4" />
               添加用户
             </Button>
-            <ExportButton endpoint="users" />
+            <ExportButton endpoint="users" disabled={table.data.total === 0} />
           </div>
         }
       />

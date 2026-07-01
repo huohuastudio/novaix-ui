@@ -17,7 +17,7 @@ interface ImageSourceProps {
 
 export function ImageSource({ form }: ImageSourceProps) {
   return (
-    <>
+    <div className="space-y-6">
       <FormField
         control={form.control}
         name="source_alias"
@@ -44,7 +44,7 @@ export function ImageSource({ form }: ImageSourceProps) {
             <FormLabel>镜像服务器</FormLabel>
             <FormControl>
               <Input
-                placeholder="https://images.linuxcontainers.org"
+                placeholder="留空使用默认"
                 {...field}
               />
             </FormControl>
@@ -53,6 +53,6 @@ export function ImageSource({ form }: ImageSourceProps) {
           </FormItem>
         )}
       />
-    </>
+    </div>
   )
 }

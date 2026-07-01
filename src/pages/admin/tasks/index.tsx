@@ -29,6 +29,7 @@ import { getAdminTasks, getAdminTasksStats, deleteAdminTasksFinished } from "@/a
 import type { TaskTaskItem, TaskStatsResponse } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import {
@@ -281,7 +282,10 @@ export default function Tasks() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">任务管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">任务管理</h1>
+          <HelpLink path="/novaix/task" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">查看系统异步任务的执行状态与日志，点击任意行展开查看实时日志</p>
       </div>
 

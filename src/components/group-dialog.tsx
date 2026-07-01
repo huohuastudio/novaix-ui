@@ -207,11 +207,11 @@ function GroupEditor({ edit, setEdit, onSave, onCancel, saving, placeholder }: {
           <span className="text-sm">启用</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
+          <Button variant="ghost" onClick={onCancel} disabled={saving}>
             <X className="size-4" />
             取消
           </Button>
-          <Button size="sm" onClick={onSave} disabled={saving}>
+          <Button onClick={onSave} disabled={saving}>
             <Check className="size-4" />
             {saving ? "保存中..." : "保存"}
           </Button>

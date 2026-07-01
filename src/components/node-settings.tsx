@@ -306,14 +306,14 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
               <div className="text-sm font-medium">重新初始化</div>
               <div className="text-sm text-muted-foreground">通过 SSH 重新安装和配置运行环境</div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleReinit}>重新初始化</Button>
+            <Button variant="outline" onClick={handleReinit}>重新初始化</Button>
           </div>
           <div className="flex items-center justify-between p-4">
             <div>
               <div className="text-sm font-medium">删除节点</div>
               <div className="text-sm text-muted-foreground">永久删除该节点及其所有配置，此操作不可撤销</div>
             </div>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>删除节点</Button>
+            <Button variant="destructive" onClick={handleDelete}>删除节点</Button>
           </div>
         </div>
       </section>

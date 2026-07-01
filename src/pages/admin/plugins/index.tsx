@@ -46,6 +46,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { isImpersonating } from "@/lib/auth"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -740,7 +741,10 @@ export default function Plugins() {
     <div className="px-6 pt-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">插件管理</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">插件管理</h1>
+            <HelpLink path="/novaix/plugin" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             管理已安装的扩展插件，或从插件市场浏览安装
           </p>

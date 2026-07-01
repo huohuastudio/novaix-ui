@@ -280,7 +280,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
         </div>
         <div className="flex items-center gap-2">
           {loading && <Spinner className="text-muted-foreground" />}
-          <Button variant="outline" size="sm" onClick={handleToggle} disabled={toggling}>
+          <Button variant="outline" onClick={handleToggle} disabled={toggling}>
             {toggling ? <Spinner size="sm" /> : <Power className="size-3.5" />}
             关闭监控
           </Button>

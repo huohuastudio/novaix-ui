@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -567,8 +568,9 @@ export default function PortalProfile() {
           <h1 className="text-2xl font-semibold tracking-tight">个人资料</h1>
           <p className="mt-1 text-sm text-muted-foreground">管理您的账户信息</p>
         </div>
-        <div className="rounded-2xl bg-background p-6 space-y-4">
-          <Skeleton className="h-4 w-20" />
+        <div className="rounded-2xl bg-background p-6 sm:p-8 space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-20 mt-6" />
           <Skeleton className="h-10 w-full max-w-md" />
           <Skeleton className="h-4 w-20 mt-4" />
           <Skeleton className="h-10 w-full max-w-md" />
@@ -585,313 +587,329 @@ export default function PortalProfile() {
           <p className="mt-1 text-sm text-muted-foreground">管理您的账户信息</p>
         </div>
 
-        <div className="rounded-2xl bg-background p-6 sm:p-8">
-          {/* 基本信息 */}
-          <h3 className="text-sm font-medium">基本信息</h3>
-          <p className="text-xs text-muted-foreground mt-1">您的账户基本信息</p>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-            <div>
-              <Label className="text-muted-foreground text-xs">用户名</Label>
-              <p className="text-sm font-medium mt-1">{profile?.username}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground text-xs">注册时间</Label>
-              <p className="text-sm font-medium mt-1">{formatDate(profile?.created_at ?? '')}</p>
-            </div>
-          </div>
+        <Tabs defaultValue="profile">
+          <TabsList variant="line" className="mb-2">
+            <TabsTrigger value="profile">基本信息</TabsTrigger>
+            <TabsTrigger value="security">安全设置</TabsTrigger>
+            <TabsTrigger value="keys">密钥管理</TabsTrigger>
+          </TabsList>
 
-          <Separator className="my-8" />
-
-          {/* 邮箱 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">邮箱地址</h3>
-              <p className="text-xs text-muted-foreground mt-1">用于接收通知和找回密码，任意已验证邮箱均可登录</p>
-            </div>
-            {emails.length < 5 && (
-              <Button onClick={() => { setNewEmail(''); setEmailCode(''); setEmailTotpCode(''); setEmailCodeSent(false); setAddEmailOpen(true) }}>
-                <Plus className="size-4" />
-                添加邮箱
-              </Button>
-            )}
-          </div>
-          <div className="mt-4 max-w-2xl">
-            {emails.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
-                <Mail className="size-8 text-muted-foreground/25 mb-2" />
-                <p className="text-[13px] text-muted-foreground">尚未绑定邮箱</p>
+          {/* ═══ 基本信息 ═══ */}
+          <TabsContent value="profile">
+            <div className="rounded-2xl bg-background p-6 sm:p-8">
+              <h3 className="text-sm font-medium">基本信息</h3>
+              <p className="text-xs text-muted-foreground mt-1">您的账户基本信息</p>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                <div>
+                  <Label className="text-muted-foreground text-xs">用户名</Label>
+                  <p className="text-sm font-medium mt-1">{profile?.username}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">注册时间</Label>
+                  <p className="text-sm font-medium mt-1">{formatDate(profile?.created_at ?? '')}</p>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {emails.map((em) => (
-                  <div key={em.id} className="flex items-center justify-between rounded-xl border px-4 py-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Mail className="size-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate">{em.email}</span>
-                      {em.is_primary && (
-                        <Badge variant="secondary" className="shrink-0 gap-1">
-                          <Crown className="size-3" />
-                          主邮箱
-                        </Badge>
-                      )}
-                    </div>
-                    {!em.is_primary && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          className="text-xs h-7"
-                          onClick={() => handleSetPrimary(em.id!)}
-                        >
-                          <Star className="size-3" />
-                          设为主邮箱
-                        </Button>
+
+              <Separator className="my-8" />
+
+              {/* 邮箱 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">邮箱地址</h3>
+                  <p className="text-xs text-muted-foreground mt-1">用于接收通知和找回密码，任意已验证邮箱均可登录</p>
+                </div>
+                {emails.length < 5 && (
+                  <Button onClick={() => { setNewEmail(''); setEmailCode(''); setEmailTotpCode(''); setEmailCodeSent(false); setAddEmailOpen(true) }}>
+                    <Plus className="size-4" />
+                    添加邮箱
+                  </Button>
+                )}
+              </div>
+              <div className="mt-4 max-w-2xl">
+                {emails.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
+                    <Mail className="size-8 text-muted-foreground/25 mb-2" />
+                    <p className="text-[13px] text-muted-foreground">尚未绑定邮箱</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {emails.map((em) => (
+                      <div key={em.id} className="flex items-center justify-between rounded-xl border px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Mail className="size-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm truncate">{em.email}</span>
+                          {em.is_primary && (
+                            <Badge variant="secondary" className="shrink-0 gap-1">
+                              <Crown className="size-3" />
+                              主邮箱
+                            </Badge>
+                          )}
+                        </div>
+                        {!em.is_primary && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              className="text-xs h-7"
+                              onClick={() => handleSetPrimary(em.id!)}
+                            >
+                              <Star className="size-3" />
+                              设为主邮箱
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveEmail(em.id!)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-8" />
+
+              {/* 手机号 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">绑定手机号</h3>
+                  <p className="text-xs text-muted-foreground mt-1">用于接收短信验证码与找回密码</p>
+                </div>
+                <Button
+                  variant={profile?.phone ? 'outline' : 'default'}
+                  onClick={() => { setNewPhone(''); setPhoneCode(''); setPhoneTotpCode(''); setPhoneCodeSent(false); setBindPhoneOpen(true) }}
+                >
+                  <Phone className="size-4" />
+                  {profile?.phone ? '更换手机号' : '绑定手机号'}
+                </Button>
+              </div>
+              {profile?.phone && (
+                <div className="mt-4 max-w-md">
+                  <p className="text-sm font-mono">{maskPhone(profile.phone)}</p>
+                </div>
+              )}
+
+              <Separator className="my-8" />
+
+              {/* 修改密码 */}
+              <h3 className="text-sm font-medium">修改密码</h3>
+              <p className="text-xs text-muted-foreground mt-1">定期修改密码以保护账户安全</p>
+              <div className="mt-4 max-w-md space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="old-password">当前密码</Label>
+                  <Input
+                    id="old-password"
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">新密码</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                {totpEnabled && (
+                  <div className="space-y-2">
+                    <Label>二次验证码</Label>
+                    <TOTPInput value={pwdTotpCode} onChange={setPwdTotpCode} />
+                  </div>
+                )}
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={changingPwd || !oldPassword || !newPassword}
+                >
+                  {changingPwd && <Loader2 className="size-4 animate-spin" />}
+                  修改密码
+                </Button>
+              </div>
+
+              {kyc_enabled === 'true' && (
+                <>
+                  <Separator className="my-8" />
+                  <KYCSection />
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ 安全设置 ═══ */}
+          <TabsContent value="security">
+            <div className="rounded-2xl bg-background p-6 sm:p-8">
+              {/* 二次验证 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">二次验证（2FA）</h3>
+                  <p className="text-xs text-muted-foreground mt-1">使用验证器 App 增加账户安全性</p>
+                </div>
+                {totpEnabled ? (
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="size-3.5" />
+                      已启用
+                    </span>
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => { setTotpDisableCode(''); setTotpDisableOpen(true) }}
+                    >
+                      <ShieldOff className="size-4" />
+                      禁用
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={handleTOTPSetup}>
+                    <ShieldCheck className="size-4" />
+                    启用二次验证
+                  </Button>
+                )}
+              </div>
+
+              <Separator className="my-8" />
+
+              {/* 社交账号 */}
+              <OAuthAccountsSection />
+            </div>
+          </TabsContent>
+
+          {/* ═══ 密钥管理 ═══ */}
+          <TabsContent value="keys">
+            <div className="rounded-2xl bg-background p-6 sm:p-8">
+              {/* SSH 密钥 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">SSH 密钥</h3>
+                  <p className="text-xs text-muted-foreground mt-1">用于创建云服务器时自动注入公钥，免密码登录</p>
+                </div>
+                <Button onClick={() => setAddKeyOpen(true)}>
+                  <Plus className="size-4" />
+                  添加密钥
+                </Button>
+              </div>
+              <div className="mt-4">
+                {sshLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between rounded-xl border px-4 py-3">
+                        <div>
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-48 mt-1.5" />
+                        </div>
+                        <Skeleton className="size-8" />
+                      </div>
+                    ))}
+                  </div>
+                ) : sshKeys.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
+                    <Key className="size-8 text-muted-foreground/25 mb-2" />
+                    <p className="text-[13px] text-muted-foreground">尚未添加 SSH 密钥</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {sshKeys.map((key) => (
+                      <div
+                        key={key.id}
+                        className="flex items-center justify-between rounded-xl border px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{key.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                            {key.fingerprint}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            添加于 {formatDate(key.created_at ?? '')}
+                          </p>
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveEmail(em.id!)}
+                          className="size-8 text-destructive hover:text-destructive shrink-0"
+                          onClick={() => setDeleteKeyId(key.id!)}
                         >
-                          <Trash2 className="size-3.5" />
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
 
-          <Separator className="my-8" />
-
-          {/* 手机号 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">绑定手机号</h3>
-              <p className="text-xs text-muted-foreground mt-1">用于接收短信验证码与找回密码</p>
-            </div>
-            <Button
-              variant={profile?.phone ? 'outline' : 'default'}
-              onClick={() => { setNewPhone(''); setPhoneCode(''); setPhoneTotpCode(''); setPhoneCodeSent(false); setBindPhoneOpen(true) }}
-            >
-              <Phone className="size-4" />
-              {profile?.phone ? '更换手机号' : '绑定手机号'}
-            </Button>
-          </div>
-          {profile?.phone && (
-            <div className="mt-4 max-w-md">
-              <p className="text-sm font-mono">{maskPhone(profile.phone)}</p>
-            </div>
-          )}
-
-          <Separator className="my-8" />
-
-          {/* 修改密码 */}
-          <h3 className="text-sm font-medium">修改密码</h3>
-          <p className="text-xs text-muted-foreground mt-1">定期修改密码以保护账户安全</p>
-          <div className="mt-4 max-w-md space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="old-password">当前密码</Label>
-              <Input
-                id="old-password"
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">新密码</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            {totpEnabled && (
-              <div className="space-y-2">
-                <Label>二次验证码</Label>
-                <TOTPInput value={pwdTotpCode} onChange={setPwdTotpCode} />
-              </div>
-            )}
-            <Button
-              onClick={handleChangePassword}
-              disabled={changingPwd || !oldPassword || !newPassword}
-            >
-              {changingPwd && <Loader2 className="size-4 animate-spin" />}
-              修改密码
-            </Button>
-          </div>
-
-          {kyc_enabled === 'true' && (
-            <>
               <Separator className="my-8" />
-              <KYCSection />
-            </>
-          )}
 
-          <Separator className="my-8" />
-
-          {/* 二次验证 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">二次验证（2FA）</h3>
-              <p className="text-xs text-muted-foreground mt-1">使用验证器 App 增加账户安全性</p>
-            </div>
-            {totpEnabled ? (
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  <ShieldCheck className="size-3.5" />
-                  已启用
-                </span>
-                <Button
-                  variant="outline"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => { setTotpDisableCode(''); setTotpDisableOpen(true) }}
-                >
-                  <ShieldOff className="size-4" />
-                  禁用
+              {/* API 密钥 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">API 密钥</h3>
+                  <p className="text-xs text-muted-foreground mt-1">用于通过 API 访问您的资源，替代登录令牌</p>
+                </div>
+                <Button onClick={() => setCreateKeyOpen(true)}>
+                  <Plus className="size-4" />
+                  创建密钥
                 </Button>
               </div>
-            ) : (
-              <Button onClick={handleTOTPSetup}>
-                <ShieldCheck className="size-4" />
-                启用二次验证
-              </Button>
-            )}
-          </div>
-
-          <Separator className="my-8" />
-
-          {/* 社交账号 */}
-          <OAuthAccountsSection />
-
-          <Separator className="my-8" />
-
-          {/* SSH 密钥 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">SSH 密钥</h3>
-              <p className="text-xs text-muted-foreground mt-1">用于创建云服务器时自动注入公钥，免密码登录</p>
-            </div>
-            <Button onClick={() => setAddKeyOpen(true)}>
-              <Plus className="size-4" />
-              添加密钥
-            </Button>
-          </div>
-          <div className="mt-4">
-            {sshLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl border px-4 py-3">
-                    <div>
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-48 mt-1.5" />
-                    </div>
-                    <Skeleton className="size-8" />
-                  </div>
-                ))}
-              </div>
-            ) : sshKeys.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
-                <Key className="size-8 text-muted-foreground/25 mb-2" />
-                <p className="text-[13px] text-muted-foreground">尚未添加 SSH 密钥</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sshKeys.map((key) => (
-                  <div
-                    key={key.id}
-                    className="flex items-center justify-between rounded-xl border px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{key.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
-                        {key.fingerprint}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        添加于 {formatDate(key.created_at ?? '')}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive hover:text-destructive shrink-0"
-                      onClick={() => setDeleteKeyId(key.id!)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-8" />
-
-          {/* API 密钥 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">API 密钥</h3>
-              <p className="text-xs text-muted-foreground mt-1">用于通过 API 访问您的资源，替代登录令牌</p>
-            </div>
-            <Button onClick={() => setCreateKeyOpen(true)}>
-              <Plus className="size-4" />
-              创建密钥
-            </Button>
-          </div>
-          <div className="mt-4">
-            {apiKeysLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl border px-4 py-3">
-                    <div>
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-36 mt-1.5" />
-                    </div>
-                    <Skeleton className="size-8" />
-                  </div>
-                ))}
-              </div>
-            ) : apiKeys.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
-                <KeyRound className="size-8 text-muted-foreground/25 mb-2" />
-                <p className="text-[13px] text-muted-foreground">尚未创建 API 密钥</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {apiKeys.map((key) => (
-                  <div
-                    key={key.id}
-                    className="flex items-center justify-between rounded-xl border px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{key.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                        {key.prefix}••••••••
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {getPermissionLabel(key.permissions)}
-                      </p>
-                      <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                        <span>创建于 {formatDate(key.created_at ?? '')}</span>
-                        {key.last_used_at && <span>最后使用 {formatDate(key.last_used_at)}</span>}
-                        {key.expires_at && <span>过期于 {formatDate(key.expires_at)}</span>}
+              <div className="mt-4">
+                {apiKeysLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between rounded-xl border px-4 py-3">
+                        <div>
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-36 mt-1.5" />
+                        </div>
+                        <Skeleton className="size-8" />
                       </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive hover:text-destructive shrink-0"
-                      onClick={() => setDeleteApiKeyId(key.id!)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    ))}
                   </div>
-                ))}
+                ) : apiKeys.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
+                    <KeyRound className="size-8 text-muted-foreground/25 mb-2" />
+                    <p className="text-[13px] text-muted-foreground">尚未创建 API 密钥</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {apiKeys.map((key) => (
+                      <div
+                        key={key.id}
+                        className="flex items-center justify-between rounded-xl border px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{key.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                            {key.prefix}••••••••
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {getPermissionLabel(key.permissions)}
+                          </p>
+                          <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                            <span>创建于 {formatDate(key.created_at ?? '')}</span>
+                            {key.last_used_at && <span>最后使用 {formatDate(key.last_used_at)}</span>}
+                            {key.expires_at && <span>过期于 {formatDate(key.expires_at)}</span>}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive shrink-0"
+                          onClick={() => setDeleteApiKeyId(key.id!)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* 添加 SSH 密钥 */}

@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { HelpLink } from "@/components/help-doc"
 import { Switch } from "@/components/ui/switch"
 import { FormSheet } from "@/components/form-sheet"
 import { PaginatedMultiSelect, type PaginatedMultiSelectItem } from "@/components/paginated-multi-select"
@@ -305,8 +306,8 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
       }
     >
       <Form {...form}>
-        <form id="plan-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-          <section>
+        <form id="plan-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6" data-tour="plan-form">
+          <section data-tour="plan-form-basic">
             <h3 className="text-sm font-medium">基础信息</h3>
             <p className="text-xs text-muted-foreground mt-1">套餐名称、描述和分组</p>
             <div className="mt-4 flex flex-col gap-4">
@@ -360,7 +361,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
 
           <Separator />
 
-          <section>
+          <section data-tour="plan-form-resource">
             <h3 className="text-sm font-medium">资源配置</h3>
             <p className="text-xs text-muted-foreground mt-1">CPU、内存、磁盘和网络</p>
             <div className="mt-4 flex flex-col gap-4">
@@ -426,7 +427,10 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   }}
                 />
                 <div>
-                  <Label>NAT 模式</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label>NAT 模式</Label>
+                    <HelpLink path="/novaix/shared-ip" />
+                  </div>
                   <p className="text-xs text-muted-foreground">启用后实例共享公网 IP，通过端口转发访问</p>
                 </div>
               </div>
@@ -523,7 +527,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
 
           <Separator />
 
-          <section>
+          <section data-tour="plan-form-price">
             <h3 className="text-sm font-medium">定价</h3>
             <p className="text-xs text-muted-foreground mt-1">价格单位为分（如 2000 = ¥20.00）</p>
             <div className="mt-4 flex flex-col gap-4">
@@ -646,7 +650,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
 
           <Separator />
 
-          <section>
+          <section data-tour="plan-form-sales">
             <h3 className="text-sm font-medium">销售设置</h3>
             <p className="text-xs text-muted-foreground mt-1">库存、可用节点和镜像限制</p>
             <div className="mt-4 flex flex-col gap-4">

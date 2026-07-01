@@ -1536,7 +1536,7 @@ export default function InstanceDetail() {
           {/* eslint-disable-next-line react-hooks/refs */}
           {visitedRef.current.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardSection instanceId={Number(id)} />
+              <PortForwardSection instanceId={Number(id)} isNAT={!!instance.nat_info} />
             </div>
           )}
           {/* eslint-disable-next-line react-hooks/refs */}

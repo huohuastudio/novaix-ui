@@ -37,6 +37,9 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   rescue_instance: "进入救援",
   unrescue_instance: "退出救援",
   evacuate_node: "疏散节点",
+  add_nat_dedicated_ip: "添加 NAT 独享 IP",
+  remove_nat_dedicated_ip: "移除 NAT 独享 IP",
+  change_nat_dedicated_ip: "更换 NAT 独享 IP",
 }
 
 export function taskTypeLabel(type: string) {

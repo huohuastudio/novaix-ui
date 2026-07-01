@@ -22,7 +22,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const navGroups = useMemo(() => buildNavGroups(adminPath), [adminPath])
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
+    <Sidebar variant="inset" collapsible="icon" data-tour="sidebar" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

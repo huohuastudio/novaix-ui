@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { SettingSkeleton } from "./setting-skeleton"
+import { HelpLink } from "@/components/help-doc"
 
 export function AgentSection() {
   const { data, loading, saving, save, update } = useSettings("agent")
@@ -16,7 +17,10 @@ export function AgentSection() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Label>代理功能</Label>
+          <div className="flex items-center gap-1.5">
+            <Label>代理功能</Label>
+            <HelpLink path="/novaix/agent" />
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">启用后允许用户成为代理并获得推荐返佣</p>
         </div>
         <Switch

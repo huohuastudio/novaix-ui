@@ -35,6 +35,7 @@ import type { AgentAgentItem, AgentGroupItem } from "@/api"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useFormatDate, useFormatAmount } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import { UserPopover } from "@/components/user-popover"
@@ -370,7 +371,10 @@ export default function Agents() {
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">代理管理</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">代理管理</h1>
+            <HelpLink path="/novaix/agent" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">管理代理用户、返佣设置与代理分组</p>
         </div>
         <Tabs value={tab} onValueChange={setTab}>

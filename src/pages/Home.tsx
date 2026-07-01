@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, Check, ChevronDown, Cpu, Globe, Shield, Zap,
+  ArrowRight, Check, Cpu, Globe, Shield, Zap, ExternalLink,
   Server, Activity, Clock, Gauge, Network, Terminal as TerminalIcon, MousePointerClick,
+  Star, MapPin, Quote,
   type LucideIcon,
 } from 'lucide-react'
 import { motion, useInView, AnimatePresence } from 'motion/react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { FaqItem } from '@/components/faq-item'
 import { getPlansPublic, getSettingsHomepage } from '@/api'
-import type { PublicPublicPlanGroup, PublicPublicPlanItem } from '@/api'
-import { useSiteName, useFormatAmount, useAdminPath } from '@/hooks/use-site-settings'
-import { isAuthenticated, getUser } from '@/lib/auth'
+import type {
+  PublicPublicPlanGroup, PublicPublicPlanItem,
+  PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicDataCenterItem,
+} from '@/api'
+import { useSiteName, useFormatAmount } from '@/hooks/use-site-settings'
+import { useBootstrapData } from '@/hooks/use-bootstrap'
+import { isAuthenticated } from '@/lib/auth'
 import { formatMemory, parseJSON } from '@/lib/utils'
-import type { HomepageConfig, HeroConfig, StatItem, FeatureItem, StepItem, FaqItemConfig, CtaConfig, FooterConfig, FeatureIcon } from '@/types/homepage'
+import type { HomepageConfig, HeroConfig, StatItem, FeatureItem, StepItem, CtaConfig, FeatureIcon } from '@/types/homepage'
 
 const iconMap: Record<FeatureIcon, LucideIcon> = { zap: Zap, globe: Globe, shield: Shield, cpu: Cpu }
 
@@ -24,9 +30,7 @@ function parseHomepageConfig(raw: Record<string, string>): HomepageConfig {
     stats: parseJSON<StatItem[]>(raw.homepage_stats, []),
     features: parseJSON<FeatureItem[]>(raw.homepage_features, []),
     steps: parseJSON<StepItem[]>(raw.homepage_steps, []),
-    faq: parseJSON<FaqItemConfig[]>(raw.homepage_faq, []),
     cta: parseJSON<CtaConfig>(raw.homepage_cta, { title: '', subtitle: '', button_text: '' }),
-    footer: parseJSON<FooterConfig>(raw.homepage_footer, { sections: [], copyright: '' }),
   }
 }
 
@@ -480,34 +484,6 @@ function ManageVisual() {
   )
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="border-b border-border/50">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between py-5 text-left text-[15px] font-medium text-foreground cursor-pointer"
-      >
-        {q}
-        <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="pb-5 text-sm text-muted-foreground leading-relaxed">{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
 /* ================================================================
    价格
    ================================================================ */
@@ -525,6 +501,8 @@ function PlanCard({ plan, cycle, formatAmount, index }: {
     { label: '带宽', value: (plan.bandwidth ?? 0) > 0 ? `${plan.bandwidth} Mbps` : '不限' },
   ]
   if ((plan.traffic ?? 0) > 0) specs.push({ label: '流量', value: `${plan.traffic} GB/月` })
+
+  const authed = isAuthenticated()
 
   return (
     <motion.div
@@ -551,11 +529,178 @@ function PlanCard({ plan, cycle, formatAmount, index }: {
             ))}
           </div>
           <Button className="w-full" variant="outline" asChild>
-            <Link to={isAuthenticated() ? '/portal/purchase' : '/register'}>选择方案</Link>
+            <Link to={authed ? '/portal/purchase' : '/register'}>选择方案</Link>
           </Button>
         </div>
       </GlowCard>
     </motion.div>
+  )
+}
+
+/* ================================================================
+   Hero 轮播背景
+   ================================================================ */
+
+function HeroBannerBackground({ banners }: { banners: PublicPublicBannerItem[] }) {
+  const [current, setCurrent] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval>>(undefined)
+
+  useEffect(() => {
+    if (banners.length <= 1) return
+    timerRef.current = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % banners.length)
+    }, 6000)
+    return () => clearInterval(timerRef.current)
+  }, [banners.length])
+
+  const banner = banners[current]
+
+  const resetTimer = () => {
+    clearInterval(timerRef.current)
+    if (banners.length > 1) {
+      timerRef.current = setInterval(() => {
+        setCurrent((prev) => (prev + 1) % banners.length)
+      }, 6000)
+    }
+  }
+
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
+          className="absolute inset-0"
+        >
+          {banners[current]?.image ? (
+            <img src={banners[current].image} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full" style={{ background: "radial-gradient(ellipse at top, #312e81, #0f172a 50%, #000)" }} />
+          )}
+        </motion.div>
+      </AnimatePresence>
+      <div className={`absolute inset-0 ${banners[current]?.image ? "bg-black/50" : "bg-black/20"}`} />
+      {banner?.url && (() => {
+        const isExt = banner.url.startsWith("http")
+        const cls = "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-white/90 text-sm hover:bg-white/25 transition-colors"
+        const label = banner.title || "了解更多"
+        const icon = isExt ? <ExternalLink className="size-3" /> : <ArrowRight className="size-3" />
+        const target = banner.target || (isExt ? "_self" : undefined)
+        const rel = banner.target === "_blank" ? "noopener noreferrer" : undefined
+        return (
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
+            {isExt ? (
+              <a href={banner.url} target={target} rel={rel} className={cls}>{label}{icon}</a>
+            ) : (
+              <Link to={banner.url} target={target} rel={rel} className={cls}>{label}{icon}</Link>
+            )}
+          </div>
+        )
+      })()}
+      {banners.length > 1 && (
+        <div className={`absolute left-1/2 -translate-x-1/2 flex gap-2 z-10 ${banner?.url ? "bottom-8" : "bottom-12"}`}>
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`第 ${i + 1} 张轮播图`}
+              aria-current={i === current || undefined}
+              onClick={() => { setCurrent(i); resetTimer() }}
+              className={`h-1.5 rounded-full transition-all cursor-pointer ${i === current ? 'bg-white w-6' : 'bg-white/40 w-1.5'}`}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ================================================================
+   CMS Section: 客户评价
+   ================================================================ */
+
+function TestimonialSection({ testimonials }: { testimonials: PublicPublicTestimonialItem[] }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {testimonials.map((t, i) => (
+        <Reveal key={t.id} delay={i * 0.06}>
+          <GlowCard>
+            <div className="p-6">
+              <Quote className="size-5 text-primary/30 mb-3" />
+              <p className="text-sm text-foreground leading-relaxed">{t.content}</p>
+              <div className="mt-4 flex items-center gap-3">
+                {t.avatar ? (
+                  <img src={t.avatar} alt={t.name} className="size-10 rounded-full object-cover" />
+                ) : (
+                  <div className="size-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
+                    {t.name?.charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">{t.name}</div>
+                  {(t.position || t.company) && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      {[t.position, t.company].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
+                </div>
+                {(t.rating ?? 0) > 0 && (
+                  <div className="ml-auto flex gap-0.5 shrink-0">
+                    {Array.from({ length: 5 }, (_, j) => (
+                      <Star key={j} className={`size-3 ${j < (t.rating ?? 0) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </GlowCard>
+        </Reveal>
+      ))}
+    </div>
+  )
+}
+
+/* ================================================================
+   CMS Section: 数据中心
+   ================================================================ */
+
+function DataCenterSection({ dataCenters }: { dataCenters: PublicPublicDataCenterItem[] }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {dataCenters.slice(0, 6).map((dc, i) => (
+        <Reveal key={dc.id} delay={i * 0.06}>
+          <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+            {dc.image && (
+              <div className="aspect-[16/9] bg-muted">
+                <img src={dc.image} alt={dc.name} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-5">
+              <div className="flex items-start gap-2">
+                <MapPin className="size-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">{dc.name}</h4>
+                  <p className="text-xs text-muted-foreground">{[dc.city, dc.country].filter(Boolean).join(', ')}</p>
+                </div>
+              </div>
+              {dc.description && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{dc.description}</p>}
+              {(dc.features?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {dc.features!.map((f) => (
+                    <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
+                  ))}
+                </div>
+              )}
+              {dc.test_ip && (
+                <p className="text-xs text-muted-foreground mt-3 font-mono">测试 IP: {dc.test_ip}</p>
+              )}
+            </div>
+          </div>
+        </Reveal>
+      ))}
+    </div>
   )
 }
 
@@ -572,16 +717,18 @@ const featureVisuals: Record<number, React.ReactNode> = {
 export default function Home() {
   const siteName = useSiteName()
   const formatAmount = useFormatAmount()
-  const adminPath = useAdminPath()
   const [groups, setGroups] = useState<PublicPublicPlanGroup[]>([])
   const [loadingPlans, setLoadingPlans] = useState(true)
   const [cfg, setCfg] = useState<HomepageConfig | null>(null)
   const [cycle, setCycle] = useState<string>('monthly')
-  const [scrolled, setScrolled] = useState(false)
+
+  const { banners, testimonials, dataCenters, faqs, homeReady } = useBootstrapData()
 
   const authed = isAuthenticated()
-  const user = getUser()
-  const isAdmin = user?.role === 'admin'
+
+  useEffect(() => {
+    document.title = siteName
+  }, [siteName])
 
   useEffect(() => {
     getSettingsHomepage()
@@ -595,72 +742,56 @@ export default function Home() {
       .finally(() => setLoadingPlans(false))
   }, [])
 
-  useEffect(() => {
-    const fn = () => { const next = window.scrollY > 20; setScrolled(prev => prev === next ? prev : next) }
-    window.addEventListener('scroll', fn, { passive: true })
-    return () => window.removeEventListener('scroll', fn)
-  }, [])
+  const hasBanners = banners.length > 0
+
+  if (!homeReady) {
+    return <div className="min-h-[100svh] bg-muted/30 animate-pulse" />
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground antialiased" style={{ marginTop: 'var(--demo-banner-height)' }}>
-      {/* ═══ 导航栏 ═══ */}
-      <nav className={`sticky top-[var(--demo-banner-height)] z-50 w-full transition-[background-color,border-color,backdrop-filter] duration-300 ${
-        scrolled ? 'bg-background/80 backdrop-blur-sm border-b border-border/60' : 'bg-background border-b border-transparent'
-      }`}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between h-16 px-6">
-          <Link to="/" className="text-base font-bold tracking-tight">{siteName}</Link>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            {authed ? (
-              <Button size="sm" asChild>
-                <Link to={isAdmin ? adminPath : '/portal'}>{isAdmin ? '管理后台' : '控制台'}</Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild><Link to="/login">登录</Link></Button>
-                <Button size="sm" asChild><Link to="/register">注册</Link></Button>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
-
+    <>
       {/* ═══ Hero ═══ */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <DotGrid />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/30 to-background" />
-        </div>
-        <div className="relative max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-20 sm:pb-28">
+      <section className={`relative overflow-hidden ${hasBanners ? "min-h-[100svh]" : ""}`}>
+        {hasBanners ? (
+          <HeroBannerBackground banners={banners} />
+        ) : (
+          <div className="absolute inset-0">
+            <DotGrid />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/30 to-background" />
+          </div>
+        )}
+        <div className={`relative max-w-6xl mx-auto px-6 flex flex-col ${hasBanners ? "min-h-[100svh] justify-center pt-16" : "pt-16 sm:pt-24 pb-20 sm:pb-28"}`}>
           <div className="text-center max-w-3xl mx-auto">
             <BlurIn>
-              <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tighter text-pretty leading-[1.08]">
+              <h1 className={`text-4xl sm:text-5xl md:text-7xl font-bold tracking-tighter text-pretty leading-[1.08] ${hasBanners ? "text-white" : ""}`}>
                 {cfg?.hero.title}
                 <br />
-                <span className="text-muted-foreground">{cfg?.hero.subtitle}</span>
+                <span className={hasBanners ? "text-white/70" : "text-muted-foreground"}>{cfg?.hero.subtitle}</span>
               </h1>
             </BlurIn>
             <BlurIn delay={0.15}>
-              <p className="mt-5 text-lg sm:text-xl tracking-tight text-balance text-muted-foreground max-w-2xl mx-auto">
+              <p className={`mt-5 text-lg sm:text-xl tracking-tight text-balance max-w-2xl mx-auto ${hasBanners ? "text-white/70" : "text-muted-foreground"}`}>
                 {cfg?.hero.description}
               </p>
             </BlurIn>
             <BlurIn delay={0.3} className="mt-8 sm:mt-10 flex items-center justify-center gap-3">
-              <Button size="lg" className="h-12 gap-2.5 rounded-lg px-6 text-lg font-normal group/btn" asChild>
+              <Button size="lg" className={`h-12 gap-2.5 rounded-lg px-6 text-lg font-normal border-0 group/btn ${hasBanners ? "bg-white text-black hover:bg-white/90" : ""}`} asChild>
                 <Link to={authed ? '/portal/purchase' : '/register'}>
                   开始使用
                   <ArrowRight className="size-4 transition-transform duration-150 ease-out group-hover/btn:translate-x-0.5" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" className="h-12 gap-2.5 rounded-lg px-6 text-lg font-normal" asChild>
+              <Button size="lg" className={`h-12 gap-2.5 rounded-lg px-6 text-lg font-normal border-0 ${hasBanners ? "bg-white/20 text-white hover:bg-white/30" : "bg-muted text-foreground hover:bg-muted/80"}`} asChild>
                 <a href="#pricing">查看方案</a>
               </Button>
             </BlurIn>
           </div>
 
-          <BlurIn delay={0.5} className="mt-14 sm:mt-20">
-            <DashboardPreview />
-          </BlurIn>
+          {!hasBanners && (
+            <BlurIn delay={0.5} className="mt-14 sm:mt-20">
+              <DashboardPreview />
+            </BlurIn>
+          )}
         </div>
       </section>
 
@@ -697,6 +828,21 @@ export default function Home() {
         </div>
       </section>}
 
+      {/* ═══ 客户评价 ═══ */}
+      {testimonials.length > 0 && (
+        <section className="border-t border-dashed border-border/60 bg-muted/20">
+          <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
+            <Reveal>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tighter text-center text-pretty">客户评价</h2>
+              <p className="mt-4 text-lg text-muted-foreground text-center tracking-tight">来自真实用户的反馈</p>
+            </Reveal>
+            <div className="mt-14">
+              <TestimonialSection testimonials={testimonials} />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ═══ 工作流程 ═══ */}
       {(cfg?.steps.length ?? 0) > 0 && <section className="border-t border-dashed border-border/60 bg-muted/20">
         <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
@@ -732,6 +878,28 @@ export default function Home() {
           </div>
         </div>
       </section>}
+
+      {/* ═══ 数据中心 ═══ */}
+      {dataCenters.length > 0 && (
+        <section className="border-t border-dashed border-border/60">
+          <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
+            <Reveal>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tighter text-center text-pretty">全球数据中心</h2>
+              <p className="mt-4 text-lg text-muted-foreground text-center tracking-tight">多地域部署，低延迟覆盖全球</p>
+            </Reveal>
+            <div className="mt-14">
+              <DataCenterSection dataCenters={dataCenters} />
+            </div>
+            {dataCenters.length > 6 && (
+              <div className="mt-8 text-center">
+                <Button variant="outline" asChild>
+                  <Link to="/data-centers">查看全部数据中心</Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ═══ 定价 ═══ */}
       <section id="pricing" className="border-t border-dashed border-border/60">
@@ -788,14 +956,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ FAQ ═══ */}
-      {(cfg?.faq.length ?? 0) > 0 && <section className="border-t border-dashed border-border/60">
+      {/* ═══ FAQ (CMS) ═══ */}
+      {faqs.length > 0 && <section className="border-t border-dashed border-border/60">
         <div className="max-w-3xl mx-auto px-6 py-20 sm:py-28">
           <Reveal>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter text-center">常见问题</h2>
           </Reveal>
           <div className="mt-10">
-            {cfg!.faq.map((f) => <FaqItem key={f.question} q={f.question} a={f.answer} />)}
+            {faqs.map((f) => <FaqItem key={f.id} q={f.question ?? ''} a={f.answer ?? ''} />)}
+          </div>
+          <div className="mt-8 text-center">
+            <Button variant="outline" asChild>
+              <Link to="/faq">查看更多问题</Link>
+            </Button>
           </div>
         </div>
       </section>}
@@ -820,38 +993,6 @@ export default function Home() {
           </Reveal>
         </div>
       </section>}
-
-      {/* ═══ 页脚 ═══ */}
-      <footer className="border-t border-border/60">
-        <div className="max-w-6xl mx-auto px-6 py-12 sm:py-16">
-          {(cfg?.footer.sections.length ?? 0) > 0 && (
-            <div className={`grid grid-cols-2 gap-8 ${{ 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }[cfg!.footer.sections.length] ?? 'sm:grid-cols-4'}`}>
-              {cfg!.footer.sections.map((section) => (
-                <div key={section.title}>
-                  <h4 className="text-sm font-semibold text-foreground mb-4">{section.title}</h4>
-                  <ul className="space-y-2.5 text-sm text-muted-foreground">
-                    {section.links.map((link) => (
-                      <li key={link.label}>
-                        {link.url.startsWith('http') ? (
-                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">{link.label}</a>
-                        ) : link.url.startsWith('#') ? (
-                          <a href={link.url} className="hover:text-foreground transition-colors">{link.label}</a>
-                        ) : (
-                          <Link to={link.url} className="hover:text-foreground transition-colors">{link.label}</Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-10 pt-6 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <span>&copy; {new Date().getFullYear()} {siteName}</span>
-            <span className="text-xs">{cfg?.footer.copyright || 'All rights reserved.'}</span>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </>
   )
 }

@@ -123,7 +123,7 @@ function normalizeImageValues(values: any, isEdit: boolean): any {
 const librarySchema = z.object({
   ...createFields,
   alias: z.string().min(1, "请选择镜像").max(128),
-  source_server: z.string().min(1).max(255),
+  source_server: z.string().max(255),
 })
 
 // 远程下载 - 填写 HTTP 下载链接
@@ -151,7 +151,7 @@ const extraDefaults = {
 
 const libraryDefaults: LibraryFormValues = {
   name: "", os: "", version: "", arch: "amd64", type: "virtual-machine",
-  alias: "", source_server: "https://images.linuxcontainers.org",
+  alias: "", source_server: "",
   ...extraDefaults,
 }
 

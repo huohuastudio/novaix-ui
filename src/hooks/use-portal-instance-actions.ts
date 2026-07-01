@@ -8,10 +8,19 @@ import {
 } from "@/api"
 import type { PortalPortalInstanceItem } from "@/api"
 import { useConfirm } from "@/hooks/use-confirm"
+import { usePortalTasks } from "@/hooks/use-portal-tasks"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 
 export type PortalPowerAction = "start" | "stop" | "restart" | "rescue" | "unrescue"
+
+const ACTION_TASK_TYPES: Record<PortalPowerAction, string> = {
+  start: "start_instance",
+  stop: "stop_instance",
+  restart: "restart_instance",
+  rescue: "rescue_instance",
+  unrescue: "unrescue_instance",
+}
 
 const actionConfig: Record<PortalPowerAction, {
   label: string
@@ -58,6 +67,7 @@ const actionConfig: Record<PortalPowerAction, {
 
 export function usePortalInstanceActions(onRefresh: () => void) {
   const { confirm, ConfirmDialog } = useConfirm()
+  const { addTask } = usePortalTasks()
   const [loadingId, setLoadingId] = useState<number | null>(null)
 
   const handlePowerAction = useCallback(async (
@@ -79,6 +89,10 @@ export function usePortalInstanceActions(onRefresh: () => void) {
     try {
       const { data: res } = await cfg.fn({ path: { id: instance.id! } })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) {
+          addTask(taskId, ACTION_TASK_TYPES[action], instance.id!)
+        }
         toast.success(`${cfg.label}任务已提交`)
         onRefresh()
       } else {
@@ -89,7 +103,7 @@ export function usePortalInstanceActions(onRefresh: () => void) {
     } finally {
       setLoadingId(null)
     }
-  }, [onRefresh, confirm])
+  }, [onRefresh, confirm, addTask])
 
   return { handlePowerAction, loadingId, ConfirmDialog }
 }

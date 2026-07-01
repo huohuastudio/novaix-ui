@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 
-export function PortForwardSection({ instanceId }: { instanceId: number }) {
+export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; isNAT?: boolean }) {
   const api = useMemo(() => ({
     list: getAdminInstancesByIdPortForwardRules,
     create: postAdminInstancesByIdPortForwardRules,
@@ -56,7 +56,7 @@ export function PortForwardSection({ instanceId }: { instanceId: number }) {
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <Badge variant="outline" className="uppercase">{rule.protocol}</Badge>
                     <span className="text-sm font-mono text-muted-foreground">
-                      0.0.0.0:{rule.listen_port}
+                      {rule.listen_address || "0.0.0.0"}:{rule.listen_port}
                     </span>
                     <span className="text-xs text-muted-foreground">→</span>
                     <span className="text-sm font-mono text-muted-foreground">
@@ -98,6 +98,7 @@ export function PortForwardSection({ instanceId }: { instanceId: number }) {
         setFormData={pf.setFormData}
         submitting={pf.submitting}
         onSubmit={pf.handleSubmit}
+        isNAT={isNAT}
       />
 
       <PortForwardDeleteDialog

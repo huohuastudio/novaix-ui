@@ -155,7 +155,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
 
   const handleSelect = (img: ImageOption) => {
     onChange(img.alias)
-    onServerChange?.("https://images.linuxcontainers.org")
+    onServerChange?.("")
     onProtocolChange?.("simplestreams")
     onImageSelect?.({ alias: img.alias, os: img.os, version: img.version, variant: img.variant, arch: img.arch })
     setOpen(false)
@@ -163,7 +163,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
 
   return (
     <>
-      <Button type="button" variant="default" size="sm" onClick={() => setOpen(true)}>
+      <Button type="button" variant="default" onClick={() => setOpen(true)}>
         浏览镜像库
       </Button>
 
@@ -172,7 +172,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
           <DialogHeader className="shrink-0">
             <DialogTitle>选择镜像</DialogTitle>
             <DialogDescription>
-              从 images.linuxcontainers.org 镜像库选择操作系统镜像
+              从镜像库选择操作系统镜像
             </DialogDescription>
           </DialogHeader>
 

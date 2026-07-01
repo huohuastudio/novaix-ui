@@ -11,7 +11,7 @@ import { PortForwardRuleFormDialog, PortForwardDeleteDialog } from "@/components
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function PortForwardTab({ instanceId }: { instanceId: number }) {
+export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId: number; instanceBusy: boolean; isNAT?: boolean }) {
   const api = useMemo(() => ({
     list: getPortalInstancesByIdPortForwardRules,
     create: postPortalInstancesByIdPortForwardRules,
@@ -48,7 +48,7 @@ export function PortForwardTab({ instanceId }: { instanceId: number }) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">端口转发</h2>
-          <Button onClick={pf.openCreate}>
+          <Button onClick={pf.openCreate} disabled={instanceBusy}>
             <Plus className="size-3.5" />
             添加规则
           </Button>
@@ -70,7 +70,7 @@ export function PortForwardTab({ instanceId }: { instanceId: number }) {
                       {rule.protocol}
                     </span>
                     <span className="text-[12px] text-muted-foreground font-mono">
-                      0.0.0.0:{rule.listen_port}
+                      {rule.listen_address || "0.0.0.0"}:{rule.listen_port}
                     </span>
                     <span className="text-[11px] text-muted-foreground">→</span>
                     <span className="text-[12px] text-muted-foreground font-mono">
@@ -85,13 +85,14 @@ export function PortForwardTab({ instanceId }: { instanceId: number }) {
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" className="size-7" onClick={() => pf.openEdit(rule)}>
+                  <Button variant="ghost" size="icon" className="size-7" disabled={instanceBusy} onClick={() => pf.openEdit(rule)}>
                     <Pencil className="size-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-7 text-destructive hover:text-destructive"
+                    disabled={instanceBusy}
                     onClick={() => pf.setDeleteConfirm(rule)}
                   >
                     <Trash2 className="size-3.5" />
@@ -111,6 +112,7 @@ export function PortForwardTab({ instanceId }: { instanceId: number }) {
         setFormData={pf.setFormData}
         submitting={pf.submitting}
         onSubmit={pf.handleSubmit}
+        isNAT={isNAT}
       />
 
       <PortForwardDeleteDialog

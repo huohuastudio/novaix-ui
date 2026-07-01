@@ -12,6 +12,7 @@ import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { EmptyState } from "@/components/empty-state"
 import ImageFormSheet from "./image-form-sheet"
 import DistributeDialog from "./distribute-dialog"
@@ -260,10 +261,14 @@ export default function Images() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">镜像管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">镜像管理</h1>
+          <HelpLink path="/novaix/image" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">添加操作系统镜像后，需通过「分发」将镜像推送到目标节点，用户购买时才能选择对应系统</p>
       </div>
       <DataTable
+        tourId="image-table"
         columns={columns}
         data={table.data}
         loading={table.loading}

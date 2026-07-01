@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SettingSkeleton } from "./setting-skeleton"
+import { HelpLink } from "@/components/help-doc"
 
 export function RDNSSection() {
   const { data, loading, saving, save, update } = useSettings("rdns")
@@ -24,7 +25,10 @@ export function RDNSSection() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Label>rDNS 功能</Label>
+          <div className="flex items-center gap-1.5">
+            <Label>rDNS 功能</Label>
+            <HelpLink path="/novaix/rdns" />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">开启后用户可为 IP 地址设置反向 DNS 记录</p>
         </div>
         <Switch

@@ -14,9 +14,9 @@ import { toast } from "sonner"
 
 const links = [
   {
-    label: "火花网络科技工作室官网",
-    url: "https://huohuastudio.com",
-    description: "了解更多关于我们的信息",
+    label: "Novaix 官网",
+    url: "https://novaix.cc",
+    description: "了解产品功能、最新动态与使用指南",
     icon: Globe,
   },
   {
@@ -130,12 +130,12 @@ export default function About() {
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 text-sm">
-                <span className="text-muted-foreground">授权状态</span>
+                <span className="text-muted-foreground">版本</span>
                 <span className="font-medium">
-                  {licenseInfo?.licensed ? (
-                    <span className="text-green-600 dark:text-green-400">已授权</span>
+                  {licenseInfo?.edition === "paid" ? (
+                    <span className="text-green-600 dark:text-green-400">授权版</span>
                   ) : (
-                    <span className="text-destructive">未授权</span>
+                    <span className="text-amber-600 dark:text-amber-400">免费版</span>
                   )}
                 </span>
                 {licenseInfo?.licensed && (

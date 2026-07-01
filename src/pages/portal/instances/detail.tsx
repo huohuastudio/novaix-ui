@@ -28,6 +28,7 @@ import {
   postPortalInstancesByIdResetPassword,
   postPortalInstancesByIdReinstall,
   postPortalInstancesByIdAutoBackup,
+  getPortalBackupPolicy,
   getPortalPlans,
   getPortalInstancesByIdRdns,
   putPortalInstancesByIdIpsByIpIdRdns,
@@ -38,12 +39,13 @@ import {
   getPortalInstancesByIdTrafficPackages,
   postPortalInstancesByIdTrafficPackages,
 } from "@/api"
-import type { PortalPortalInstanceItem, ServiceSnapshotItem, PortalPurchaseImageItem, EntityRdns, PortalPortalIpItem, PortalPortalTrafficPackageItem } from "@/api"
+import type { PortalPortalInstanceItem, ServiceSnapshotItem, PortalPurchaseImageItem, EntityRdns, PortalPortalIpItem, PortalPortalTrafficPackageItem, ServiceBackupPolicy } from "@/api"
 import { Badge } from "@/components/ui/badge"
 import { formatBytes, formatMemory, formatDisk, getErrorMessage } from "@/lib/utils"
 import { portalStatusConfig } from "@/lib/instance-constants"
 import { usePortalInstanceState } from "@/hooks/use-portal-instance-state"
 import { usePortalInstanceActions } from "@/hooks/use-portal-instance-actions"
+import { onPortalInstanceChange, usePortalTasks } from "@/hooks/use-portal-tasks"
 import type { PortalPowerAction } from "@/hooks/use-portal-instance-actions"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -132,6 +134,8 @@ function MetricTile({
 function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstanceItem; onRefresh: () => void }) {
   const navigate = useNavigate()
   const formatPrice = useFormatAmount()
+  const { addTask } = usePortalTasks()
+  const instanceBusy = instance.active_task_id != null
 
   const [renewOpen, setRenewOpen] = useState(false)
   const [renewCycle, setRenewCycle] = useState("monthly")
@@ -226,6 +230,8 @@ function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstance
         body: { password: newPassword },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, "reset_password", instance.id)
         toast.success("密码重置任务已提交，重启后生效")
         setResetPwdOpen(false)
         setNewPassword("")
@@ -263,6 +269,8 @@ function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstance
         body: { image_id: selectedImageId, password: reinstallPassword },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, "reinstall_instance", instance.id)
         toast.success("重装系统任务已提交")
         setReinstallOpen(false)
         setReinstallPassword("")
@@ -444,7 +452,7 @@ function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstance
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetPwdOpen(false)}>取消</Button>
-            <Button onClick={handleResetPassword} disabled={resettingPwd || !newPassword}>
+            <Button onClick={handleResetPassword} disabled={instanceBusy || resettingPwd || !newPassword}>
               {resettingPwd && <Loader2 className="size-4 animate-spin" />}
               确认重置
             </Button>
@@ -493,7 +501,7 @@ function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstance
             <Button
               variant="destructive"
               onClick={handleReinstall}
-              disabled={reinstalling || !selectedImageId || !reinstallPassword}
+              disabled={instanceBusy || reinstalling || !selectedImageId || !reinstallPassword}
             >
               {reinstalling && <Loader2 className="size-4 animate-spin" />}
               确认重装
@@ -507,6 +515,8 @@ function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstance
 
 function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanceItem; onRefresh: () => void }) {
   const navigate = useNavigate()
+  const { addTask } = usePortalTasks()
+  const instanceBusy = instance.active_task_id != null
   const [ips, setIps] = useState<PortalPortalIpItem[]>([])
   const [rdnsMap, setRdnsMap] = useState<Record<number, EntityRdns>>({})
   const [loading, setLoading] = useState(true)
@@ -589,7 +599,9 @@ function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanc
         path: { id: instance.id, ipId: releaseConfirm.id! },
       })
       if (res?.code === 0) {
-        toast.success("IP 已释放")
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, instance.nat_info ? "remove_nat_dedicated_ip" : "remove_ip", instance.id)
+        toast.success("释放 IP 任务已提交")
         setReleaseConfirm(null)
         fetchIps()
         onRefresh()
@@ -612,6 +624,8 @@ function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanc
         body: { shared_ip_id: ip.id },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, instance.nat_info ? "change_nat_dedicated_ip" : "change_ip", instance.id)
         toast.success("换 IP 任务已提交，请稍候刷新")
         fetchIps()
         onRefresh()
@@ -733,7 +747,7 @@ function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanc
                         variant="ghost"
                         className="h-7 text-xs"
                         onClick={() => handleChangeIP(ip)}
-                        disabled={changingIP}
+                        disabled={instanceBusy || changingIP}
                       >
                         换 IP
                       </Button>
@@ -742,6 +756,7 @@ function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanc
                       <Button
                         variant="ghost"
                         className="h-7 text-xs text-destructive hover:text-destructive"
+                        disabled={instanceBusy}
                         onClick={() => setReleaseConfirm(ip)}
                       >
                         释放
@@ -800,7 +815,7 @@ function NetworkSection({ instance, onRefresh }: { instance: PortalPortalInstanc
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={handleRelease}
-              disabled={releasing}
+              disabled={instanceBusy || releasing}
             >
               {releasing && <Loader2 className="size-4 animate-spin" />}
               确认释放
@@ -980,13 +995,15 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
   )
 }
 
-function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange }: {
+function SnapshotsTab({ instanceId, instanceBusy, autoBackup, lastBackupAt, onAutoBackupChange }: {
   instanceId: number
+  instanceBusy: boolean
   autoBackup?: boolean
   lastBackupAt?: string
   onAutoBackupChange: (enabled: boolean) => void
 }) {
   const formatDate = useFormatDate()
+  const { addTask } = usePortalTasks()
   const [snapshots, setSnapshots] = useState<ServiceSnapshotItem[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
@@ -996,6 +1013,24 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
   const [restoreConfirm, setRestoreConfirm] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [toggling, setToggling] = useState(false)
+  const [backupPolicy, setBackupPolicy] = useState<ServiceBackupPolicy | null>(null)
+  const [policyLoaded, setPolicyLoaded] = useState(false)
+  const [policyError, setPolicyError] = useState(false)
+
+  useEffect(() => {
+    getPortalBackupPolicy().then(({ data: res }) => {
+      if (res?.code === 0 && res.data) setBackupPolicy(res.data)
+      else setPolicyError(true)
+    }).catch(() => setPolicyError(true)).finally(() => setPolicyLoaded(true))
+  }, [])
+
+  const autoBackupDesc = () => {
+    if (!policyLoaded) return "加载中..."
+    if (policyError) return "自动备份策略加载失败"
+    if (backupPolicy?.enabled !== true) return "管理员尚未启用自动备份功能"
+    if (autoBackup && lastBackupAt) return `上次备份: ${formatDate(lastBackupAt)}`
+    return "系统按策略自动创建快照"
+  }
 
   const handleToggleAutoBackup = async (checked: boolean) => {
     setToggling(true)
@@ -1046,6 +1081,8 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
         body: { name: snapshotName.trim() },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, "snapshot_create", instanceId)
         toast.success("创建快照任务已提交")
         setCreateOpen(false)
         setSnapshotName("")
@@ -1068,6 +1105,8 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
         path: { id: instanceId, name },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, "snapshot_restore", instanceId)
         toast.success("恢复快照任务已提交")
       } else {
         toast.error((res as Record<string, unknown>)?.message as string || "恢复快照失败")
@@ -1087,6 +1126,8 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
         path: { id: instanceId, name },
       })
       if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) addTask(taskId, "snapshot_delete", instanceId)
         toast.success("删除快照任务已提交")
         setTimeout(fetchSnapshots, 2000)
       } else {
@@ -1124,28 +1165,44 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
   return (
     <>
       <div>
-        <div className="flex items-center justify-between rounded-2xl bg-background px-5 py-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Clock className="size-4 text-muted-foreground" />
-            <div>
-              <div className="text-[13px] font-medium">自动备份</div>
-              <div className="text-[12px] text-muted-foreground">
-                {autoBackup && lastBackupAt
-                  ? `上次备份: ${formatDate(lastBackupAt)}`
-                  : "系统按策略自动创建快照"}
+        <div className="rounded-2xl bg-background px-5 py-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className="size-4 text-muted-foreground" />
+              <div>
+                <div className="text-[13px] font-medium">自动备份</div>
+                <div className="text-[12px] text-muted-foreground">
+                  {autoBackupDesc()}
+                </div>
               </div>
             </div>
+            <Switch
+              checked={autoBackup ?? false}
+              onCheckedChange={handleToggleAutoBackup}
+              disabled={toggling || !policyLoaded || (backupPolicy?.enabled !== true && !autoBackup)}
+            />
           </div>
-          <Switch
-            checked={autoBackup ?? false}
-            onCheckedChange={handleToggleAutoBackup}
-            disabled={toggling}
-          />
+          {backupPolicy && backupPolicy.enabled && (
+            <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-4 text-[12px]">
+              <div>
+                <span className="text-muted-foreground">执行频率</span>
+                <p className="font-medium mt-0.5">{backupPolicy.frequency === "weekly" ? "每周一次" : "每天一次"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">执行时间</span>
+                <p className="font-medium mt-0.5">{String(backupPolicy.hour ?? 3).padStart(2, "0")}:00</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">保留数量</span>
+                <p className="font-medium mt-0.5">最近 {backupPolicy.retention ?? 3} 份</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">快照管理</h2>
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} disabled={instanceBusy}>
             <Plus className="size-3.5" />
             创建快照
           </Button>
@@ -1172,7 +1229,7 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
                   <Button
                     variant="ghost"
                     className="h-7 text-xs"
-                    disabled={actionLoading === snap.name}
+                    disabled={instanceBusy || actionLoading === snap.name}
                     onClick={() => setRestoreConfirm(snap.name!)}
                   >
                     {actionLoading === snap.name ? <Spinner /> : <History className="size-3.5" />}
@@ -1182,7 +1239,7 @@ function SnapshotsTab({ instanceId, autoBackup, lastBackupAt, onAutoBackupChange
                     variant="ghost"
                     size="icon"
                     className="size-7 text-destructive hover:text-destructive"
-                    disabled={actionLoading === snap.name}
+                    disabled={instanceBusy || actionLoading === snap.name}
                     onClick={() => setDeleteConfirm(snap.name!)}
                   >
                     <Trash2 className="size-3.5" />
@@ -1323,7 +1380,7 @@ export default function PortalInstanceDetail() {
 
   const refreshInstance = useCallback(() => fetchInstance(true), [fetchInstance])
   const { handlePowerAction, loadingId, ConfirmDialog } = usePortalInstanceActions(refreshInstance)
-  const busy = loadingId === Number(id)
+  const busy = loadingId === Number(id) || instance?.active_task_id != null
 
   const navigateToTab = useCallback(
     (tab: string) => {
@@ -1345,6 +1402,20 @@ export default function PortalInstanceDetail() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
     fetchInstance(false)
   }, [fetchInstance])
+
+  // SSE 事件驱动刷新（防抖合并连续事件）
+  useEffect(() => {
+    const instanceId = Number(id)
+    if (!instanceId) return
+    let timer: ReturnType<typeof setTimeout>
+    const cleanup = onPortalInstanceChange((changedId) => {
+      if (changedId === instanceId) {
+        clearTimeout(timer)
+        timer = setTimeout(() => fetchInstance(true), 800)
+      }
+    })
+    return () => { clearTimeout(timer); cleanup() }
+  }, [id, fetchInstance])
 
   const doPower = (action: PortalPowerAction) => {
     if (!instance) return
@@ -1373,7 +1444,7 @@ export default function PortalInstanceDetail() {
                 <ArrowLeft className="size-4" />
               </Link>
             </Button>
-            <div>
+            <div data-tour="instance-info">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-semibold tracking-tight">{instance.name}</h1>
                 <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium ${cfg.color}`}>
@@ -1387,42 +1458,35 @@ export default function PortalInstanceDetail() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap ml-11 sm:ml-0">
-            {isStopped && (
-              <Button onClick={() => doPower("start")} disabled={busy}>
-                {busy ? <Spinner /> : <Play className="size-3.5" />}
-                启动
-              </Button>
-            )}
-            {isRunning && (
-              <>
-                <Button variant="outline" onClick={() => doPower("restart")} disabled={busy}>
-                  {busy ? <Spinner /> : <RotateCw className="size-3.5" />}
-                  重启
-                </Button>
-                <Button variant="outline" onClick={() => doPower("stop")} disabled={busy}>
-                  {busy ? <Spinner /> : <Square className="size-3.5" />}
-                  停止
-                </Button>
-              </>
-            )}
-            {isRescue && (
-              <Button variant="outline" onClick={() => doPower("unrescue")} disabled={busy}>
+          <div className="flex items-center gap-2 flex-wrap ml-11 sm:ml-0" data-tour="instance-power">
+            <Button onClick={() => doPower("start")} disabled={busy || isRunning || isRescue}>
+              <Play className="size-3.5" />
+              启动
+            </Button>
+            <Button variant="outline" className="bg-background" onClick={() => doPower("restart")} disabled={busy || !isRunning}>
+              <RotateCw className="size-3.5" />
+              重启
+            </Button>
+            <Button variant="outline" className="bg-background" onClick={() => doPower("stop")} disabled={busy || !isRunning}>
+              <Square className="size-3.5" />
+              停止
+            </Button>
+            {isRescue ? (
+              <Button variant="outline" className="bg-background" onClick={() => doPower("unrescue")} disabled={busy}>
                 {busy ? <Spinner /> : <LifeBuoy className="size-3.5" />}
                 退出救援
               </Button>
-            )}
-            {!isRescue && isVM && (isStopped || isRunning) && (
-              <Button variant="outline" onClick={() => doPower("rescue")} disabled={busy}>
+            ) : isVM ? (
+              <Button variant="outline" className="bg-background" onClick={() => doPower("rescue")} disabled={busy || !(isStopped || isRunning)}>
                 {busy ? <Spinner /> : <LifeBuoy className="size-3.5" />}
                 救援模式
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
 
         {/* Tab */}
-        <div className="flex gap-1 rounded-xl bg-background p-1 w-fit">
+        <div className="flex gap-1 rounded-xl bg-background p-1 w-fit" data-tour="instance-tabs">
           {([
             { key: "overview", icon: Activity, label: "概览" },
             { key: "monitor", icon: ChartLine, label: "监控" },
@@ -1461,13 +1525,13 @@ export default function PortalInstanceDetail() {
 
           {visitedTabs.has("firewall") && (
             <div className={activeTab !== "firewall" ? "hidden" : undefined}>
-              <FirewallTab instanceId={Number(id)} />
+              <FirewallTab instanceId={Number(id)} instanceBusy={busy} />
             </div>
           )}
 
           {visitedTabs.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardTab instanceId={Number(id)} />
+              <PortForwardTab instanceId={Number(id)} instanceBusy={busy} isNAT={!!instance.nat_info} />
             </div>
           )}
 
@@ -1475,6 +1539,7 @@ export default function PortalInstanceDetail() {
             <div className={activeTab !== "snapshots" ? "hidden" : undefined}>
               <SnapshotsTab
                 instanceId={Number(id)}
+                instanceBusy={busy}
                 autoBackup={instance.auto_backup}
                 lastBackupAt={instance.last_backup_at}
                 onAutoBackupChange={(enabled) => setInstance((prev) => prev ? { ...prev, auto_backup: enabled } : prev)}

@@ -12,7 +12,7 @@ const targetPrefixMap: Record<string, string> = {
   node: "节点",
   instance: "实例",
   order: "订单",
-  announcement: "公告",
+  article: "文章",
   setting: "设置",
   coupon: "优惠券",
   api_key: "API 密钥",

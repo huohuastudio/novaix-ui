@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { getErrorMessage } from "@/lib/utils"
 
 interface ThemeInfo {
@@ -432,7 +433,7 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
           >
             <div className="pt-1">
               {item.installed && !hasUpdate ? (
-                <Button size="sm" variant="outline" disabled>
+                <Button variant="outline" disabled>
                   已安装
                 </Button>
               ) : (
@@ -489,7 +490,10 @@ export default function Themes() {
     <div className="px-6 pt-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">主题管理</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">主题管理</h1>
+            <HelpLink path="/novaix/theme" />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             自定义前端界面外观，安装和切换主题
           </p>

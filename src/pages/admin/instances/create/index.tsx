@@ -33,6 +33,7 @@ import {
   IPSelector,
 } from "@/components/incus-config-sections"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useAdminPath } from "@/hooks/use-site-settings"
 
 export default function CreateInstance() {
@@ -86,7 +87,10 @@ export default function CreateInstance() {
   return (
     <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">创建实例</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">创建实例</h1>
+          <HelpLink path="/novaix/instance" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           配置和创建新的容器或虚拟机实例
         </p>
@@ -100,11 +104,13 @@ export default function CreateInstance() {
             mainSection={
               <ConfigSection title="主要配置">
                 <div className="space-y-6">
+                  <div data-tour="create-instance-node">
                   {presetNodeId ? (
                     <NodeReadonly nodeId={presetNodeId} description="从节点详情页进入，已自动选择宿主机" />
                   ) : (
                     <NodeSelector form={form} onNodeSwitch={handleNodeSwitch} />
                   )}
+                  </div>
                   <IPSelector form={form} />
 
                   <FormField
@@ -122,8 +128,12 @@ export default function CreateInstance() {
                     )}
                   />
 
-                  <TypeSelector form={form} />
-                  <ImageSource form={form} />
+                  <div data-tour="create-instance-type">
+                    <TypeSelector form={form} />
+                  </div>
+                  <div data-tour="create-instance-image">
+                    <ImageSource form={form} />
+                  </div>
                   <ProfileSelector form={form} nodeResources={nodeResources} nodeId={selectedNodeId || undefined} />
 
                   <FormField

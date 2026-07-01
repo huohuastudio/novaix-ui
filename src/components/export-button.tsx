@@ -11,9 +11,10 @@ import { downloadExport, type ExportFormat } from "@/lib/export"
 interface ExportButtonProps {
   endpoint: string
   params?: Record<string, string>
+  disabled?: boolean
 }
 
-export function ExportButton({ endpoint, params }: ExportButtonProps) {
+export function ExportButton({ endpoint, params, disabled }: ExportButtonProps) {
   const handleExport = (format: ExportFormat) => {
     downloadExport(endpoint, format, params)
   }
@@ -21,7 +22,7 @@ export function ExportButton({ endpoint, params }: ExportButtonProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" disabled={disabled}>
           <Download data-icon="inline-start" className="size-4" />
           导出
         </Button>

@@ -1,14 +1,16 @@
 {
-  "name": "ui",
+  "name": "novaix",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "api:gen": "openapi-ts"
+    "api:gen": "openapi-ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@codemirror/lang-html": "^6.4.11",
@@ -47,6 +49,7 @@
     "cmdk": "^1.1.1",
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.5",
+    "driver.js": "^1.4.0",
     "github-markdown-css": "^5.9.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.14.0",
@@ -69,11 +72,13 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@hey-api/openapi-ts": "^0.97.1",
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "^0.28.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -83,5 +88,8 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }

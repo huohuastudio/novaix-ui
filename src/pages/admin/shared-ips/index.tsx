@@ -1,4 +1,5 @@
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { HelpLink } from "@/components/help-doc"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -114,7 +115,10 @@ function SharedIpFormFields({
         name="mode"
         render={({ field }) => (
           <FormItem>
-            <FormLabel required>模式</FormLabel>
+            <div className="flex items-center gap-1.5">
+              <FormLabel required>模式</FormLabel>
+              <HelpLink path="/novaix/shared-ip" />
+            </div>
             <Select value={field.value} onValueChange={field.onChange}>
               <FormControl>
                 <SelectTrigger>
@@ -525,11 +529,15 @@ export default function SharedIPs() {
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">共享 IP 管理</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">共享 IP 管理</h1>
+          <HelpLink path="/novaix/shared-ip" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 NAT 模式下的共享公网 IP 及端口范围</p>
       </div>
 
       <DataTable
+        tourId="shared-ip-table"
         columns={columns}
         data={table.data}
         loading={table.loading}

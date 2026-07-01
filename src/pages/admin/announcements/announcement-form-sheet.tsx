@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { postAdminAnnouncements, putAdminAnnouncementsById } from "@/api"
-import type { AnnouncementAnnouncementItem } from "@/api"
+import { postAdminArticles, putAdminArticlesById } from "@/api"
+import type { ArticleArticleItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,6 +127,17 @@ export function AnnouncementCreateSheet({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
+  if (!open) return null
+  return <AnnouncementCreateForm onOpenChange={onOpenChange} onSuccess={onSuccess} />
+}
+
+function AnnouncementCreateForm({
+  onOpenChange,
+  onSuccess,
+}: {
+  onOpenChange: (open: boolean) => void
+  onSuccess: () => void
+}) {
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormValues>({
@@ -135,18 +146,22 @@ export function AnnouncementCreateSheet({
     defaultValues,
   })
 
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setServerError("")
-      form.reset(defaultValues)
-    }
-  }, [open, form])
-
   const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
-      const { data: res } = await postAdminAnnouncements({ body: values })
+      const suffix = crypto.randomUUID().slice(0, 8)
+      const slug = (values.title
+        .toLowerCase()
+        .replace(/[^a-z0-9一-鿿]+/g, '-')
+        .replace(/^-|-$/g, '')
+        || 'announcement') + `-${suffix}`
+      const { data: res } = await postAdminArticles({
+        body: {
+          ...values,
+          type: 'announcement',
+          slug,
+        },
+      })
       if (res?.code !== 0) {
         handleServerErrors(res, {
           setError: form.setError,
@@ -164,7 +179,7 @@ export function AnnouncementCreateSheet({
 
   return (
     <FormSheet
-      open={open}
+      open
       onOpenChange={onOpenChange}
       title="发布公告"
       description="创建一条新的站点公告"
@@ -194,7 +209,26 @@ export function AnnouncementEditSheet({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  announcement: AnnouncementAnnouncementItem
+  announcement: ArticleArticleItem
+  onSuccess: () => void
+}) {
+  if (!open) return null
+  return (
+    <AnnouncementEditForm
+      onOpenChange={onOpenChange}
+      announcement={announcement}
+      onSuccess={onSuccess}
+    />
+  )
+}
+
+function AnnouncementEditForm({
+  onOpenChange,
+  announcement,
+  onSuccess,
+}: {
+  onOpenChange: (open: boolean) => void
+  announcement: ArticleArticleItem
   onSuccess: () => void
 }) {
   const [serverError, setServerError] = useState("")
@@ -202,26 +236,18 @@ export function AnnouncementEditSheet({
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(formSchema) as any,
-    defaultValues,
+    defaultValues: {
+      title: announcement.title ?? "",
+      content: announcement.content ?? "",
+      status: announcement.status ?? 1,
+      sort_order: announcement.sort_order ?? 0,
+    },
   })
-
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setServerError("")
-      form.reset({
-        title: announcement.title ?? "",
-        content: announcement.content ?? "",
-        status: announcement.status ?? 1,
-        sort_order: announcement.sort_order ?? 0,
-      })
-    }
-  }, [open, announcement, form])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
-      const { data: res } = await putAdminAnnouncementsById({
+      const { data: res } = await putAdminArticlesById({
         path: { id: announcement.id! },
         body: values,
       })
@@ -242,7 +268,7 @@ export function AnnouncementEditSheet({
 
   return (
     <FormSheet
-      open={open}
+      open
       onOpenChange={onOpenChange}
       title="编辑公告"
       description="修改公告内容"

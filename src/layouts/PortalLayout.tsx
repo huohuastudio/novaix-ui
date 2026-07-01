@@ -19,19 +19,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { PortalTourMenuItem, PortalTourMenu } from '@/components/tour-menu'
+import { PortalActivityCenter } from '@/components/portal-activity-center'
+import { PortalTaskProvider } from '@/hooks/use-portal-tasks'
 import { useSiteSettings, useAdminPath } from '@/hooks/use-site-settings'
 import { getUser, logout } from '@/lib/auth'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { getPortalNotificationsUnreadCount } from '@/api'
 
 const CURRENT_YEAR = new Date().getFullYear()
-
-const baseNavItems = [
-  { to: '/portal', label: '控制台', end: true },
-  { to: '/portal/servers', label: '云服务器' },
-  { to: '/portal/vpcs', label: '私有网络' },
-  { to: '/portal/orders', label: '费用订单' },
-  { to: '/portal/tickets', label: '工单' },
-]
 
 const desktopBase = 'relative flex items-center px-3 text-sm transition-colors h-full'
 const desktopActive = `${desktopBase} text-foreground font-medium`
@@ -41,11 +37,23 @@ const mobileActive = `${mobileBase} bg-accent text-foreground`
 const mobileInactive = `${mobileBase} text-muted-foreground hover:bg-accent hover:text-foreground`
 
 function useNavItems() {
+  const { edition } = useSiteSettings()
+  const isPaid = edition === 'paid'
   const user = getUser()
-  if (user?.role === 'agent') {
-    return [...baseNavItems, { to: '/portal/agent', label: '代理中心' }]
+
+  const items = [
+    { to: '/portal', label: '控制台', end: true },
+    { to: '/portal/servers', label: '云服务器' },
+    ...(isPaid ? [{ to: '/portal/vpcs', label: '私有网络' }] : []),
+    { to: '/portal/orders', label: '费用订单' },
+    { to: '/portal/tickets', label: '工单' },
+  ]
+
+  if (user?.role === 'agent' && isPaid) {
+    items.push({ to: '/portal/agent', label: '代理中心' })
   }
-  return baseNavItems
+
+  return items
 }
 
 function NavLinks({ mobile, onClick }: { mobile?: boolean; onClick?: () => void }) {
@@ -120,7 +128,7 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors outline-none">
+        <button data-tour="portal-user-menu" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors outline-none">
           <div className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
             {user?.username?.charAt(0).toUpperCase() || 'U'}
           </div>
@@ -141,6 +149,7 @@ function UserMenu() {
           <Wallet className="size-4" />
           我的钱包
         </DropdownMenuItem>
+        <PortalTourMenuItem />
         {user?.role === 'admin' && (
           <>
             <DropdownMenuSeparator />
@@ -161,10 +170,12 @@ function UserMenu() {
 }
 
 export default function PortalLayout() {
-  const { site_name: siteName, site_logo: logo, tos_url: tosUrl, privacy_url: privacyUrl } = useSiteSettings()
+  const { site_name: siteName, site_logo: logo, tos_url: tosUrl, privacy_url: privacyUrl, edition } = useSiteSettings()
+  const { pathname, search } = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
+    <PortalTaskProvider>
     <div className="min-h-screen flex flex-col bg-secondary" style={{ marginTop: 'var(--demo-banner-height)' }}>
       <header className="sticky top-[var(--demo-banner-height)] z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-24">
@@ -177,11 +188,13 @@ export default function PortalLayout() {
                   <span className="font-semibold text-base tracking-tight">{siteName}</span>
                 )}
               </Link>
-              <nav className="hidden md:flex items-center gap-1 h-full">
+              <nav className="hidden md:flex items-center gap-1 h-full" data-tour="portal-nav">
                 <NavLinks />
               </nav>
             </div>
             <div className="flex items-center gap-1">
+              <PortalTourMenu />
+              <PortalActivityCenter />
               <NotificationBell />
               <ThemeToggle />
               <div className="mx-1 h-4 w-px bg-border hidden sm:block" />
@@ -204,14 +217,24 @@ export default function PortalLayout() {
 
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-24 py-6">
-          <Outlet />
+          <ErrorBoundary resetKeys={[pathname, search]}>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
 
       <footer className="border-t bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-24 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <p>&copy; {CURRENT_YEAR} {siteName}. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <p>&copy; {CURRENT_YEAR} {siteName}. All rights reserved.</p>
+              {edition !== "paid" && (
+                <span>
+                  Powered by{" "}
+                  <a href="https://novaix.cc" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Novaix</a>
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-6">
               {tosUrl && (
                 <a href={tosUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
@@ -228,5 +251,6 @@ export default function PortalLayout() {
         </div>
       </footer>
     </div>
+    </PortalTaskProvider>
   )
 }

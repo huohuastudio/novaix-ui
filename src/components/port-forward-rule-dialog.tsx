@@ -38,6 +38,7 @@ interface PortForwardRuleFormDialogProps {
   setFormData: React.Dispatch<React.SetStateAction<ServicePortForwardRuleInput>>
   submitting: boolean
   onSubmit: () => void
+  isNAT?: boolean
 }
 
 export function PortForwardRuleFormDialog({
@@ -48,6 +49,7 @@ export function PortForwardRuleFormDialog({
   setFormData,
   submitting,
   onSubmit,
+  isNAT,
 }: PortForwardRuleFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,7 +77,7 @@ export function PortForwardRuleFormDialog({
             <div className="space-y-2">
               <Label>监听端口</Label>
               <Input
-                placeholder="宿主机端口，如 8080"
+                placeholder={isNAT ? "留空自动分配" : "宿主机端口，如 8080"}
                 value={formData.listen_port ?? ""}
                 onChange={(e) => setFormData((prev) => ({ ...prev, listen_port: e.target.value }))}
               />
