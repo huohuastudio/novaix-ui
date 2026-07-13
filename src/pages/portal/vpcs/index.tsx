@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import {
   Network,
   Plus,
@@ -23,16 +24,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
-  getPortalVpcs,
-  getPortalVpcsById,
   postPortalVpcs,
   deletePortalVpcsById,
   postPortalVpcsByIdSubnets,
   deletePortalVpcsByIdSubnetsBySubnetId,
   postPortalVpcsByIdAttach,
   deletePortalVpcsByIdAttachmentsByAttachmentId,
-  getPortalVpcNodeGroups,
 } from "@/api"
+import {
+  getPortalVpcsOptions,
+  getPortalVpcsQueryKey,
+  getPortalVpcsByIdOptions,
+  getPortalVpcsByIdQueryKey,
+  getPortalVpcNodeGroupsOptions,
+} from "@/api/@tanstack/react-query.gen"
 import type {
   PortalPortalVpcItem,
   PortalPortalSubnetItem,
@@ -73,24 +78,42 @@ export default function PortalVpcs() {
   const siteName = useSiteName()
   useDocumentTitle(`私有网络 - ${siteName}`)
 
-  const [vpcs, setVpcs] = useState<PortalPortalVpcItem[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
+
+  // VPC 列表
+  const listQuery = useQuery({
+    ...getPortalVpcsOptions({ query: { page, page_size: pageSize } }),
+    placeholderData: keepPreviousData,
+  })
+  const vpcs = listQuery.data?.data?.items ?? []
+  const total = listQuery.data?.data?.total ?? 0
+  const loading = listQuery.isPending
 
   // 展开状态
   const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [detailMap, setDetailMap] = useState<Record<number, VpcDetail>>({})
+
+  // 展开行的详情按需取数
+  const detailQuery = useQuery({
+    ...getPortalVpcsByIdOptions({ path: { id: expandedId ?? 0 } }),
+    enabled: expandedId != null,
+  })
+  // 该接口的 SDK 响应体 data 为 unknown（后端未标注具体结构），按详情结构做最小标注
+  const expandedRaw = detailQuery.data?.data as Partial<VpcDetail> | undefined
+  const expandedDetail: VpcDetail = {
+    subnets: expandedRaw?.subnets ?? [],
+    attachments: expandedRaw?.attachments ?? [],
+  }
+  const detailLoading = detailQuery.isPending
+
+  useEffect(() => {
+    if (detailQuery.isError) toast.error(getErrorMessage(detailQuery.error, "获取详情失败"))
+  }, [detailQuery.isError, detailQuery.error])
 
   // 可用节点组
-  const [nodeGroups, setNodeGroups] = useState<{ id: number; name: string }[]>([])
-  useEffect(() => {
-    getPortalVpcNodeGroups().then(({ data: res }) => {
-      setNodeGroups((res?.data as { id: number; name: string }[] | undefined) ?? [])
-    })
-  }, [])
+  const nodeGroupsQuery = useQuery(getPortalVpcNodeGroupsOptions())
+  const nodeGroups = (nodeGroupsQuery.data?.data as { id: number; name: string }[] | undefined) ?? []
 
   // 创建 VPC 对话框
   const [createOpen, setCreateOpen] = useState(false)
@@ -117,50 +140,17 @@ export default function PortalVpcs() {
 
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const fetchVpcs = useCallback(async (p: number) => {
-    try {
-      const { data: res } = await getPortalVpcs({
-        query: { page: p, page_size: pageSize },
-      })
-      setVpcs(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchVpcs(page)
-  }, [fetchVpcs, page])
-
-  // 展开/收起 VPC 详情
-  const toggleExpand = async (vpcId: number) => {
-    if (expandedId === vpcId) {
-      setExpandedId(null)
-      return
-    }
-    setExpandedId(vpcId)
-    await fetchDetail(vpcId)
+  // 写操作成功后失效缓存触发刷新
+  const invalidateVpcs = () => {
+    queryClient.invalidateQueries({ queryKey: getPortalVpcsQueryKey() })
+  }
+  const invalidateDetail = (vpcId: number) => {
+    queryClient.invalidateQueries({ queryKey: getPortalVpcsByIdQueryKey({ path: { id: vpcId } }) })
   }
 
-  const fetchDetail = async (vpcId: number): Promise<VpcDetail | null> => {
-    setDetailLoading(true)
-    try {
-      const { data: res } = await getPortalVpcsById({ path: { id: vpcId } })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = (res as any)?.data
-      const detail: VpcDetail = {
-        subnets: d?.subnets ?? [],
-        attachments: d?.attachments ?? [],
-      }
-      setDetailMap((prev) => ({ ...prev, [vpcId]: detail }))
-      return detail
-    } catch (err) {
-      toast.error(getErrorMessage(err, "获取详情失败"))
-      return null
-    } finally {
-      setDetailLoading(false)
-    }
+  // 展开/收起 VPC 详情
+  const toggleExpand = (vpcId: number) => {
+    setExpandedId((prev) => (prev === vpcId ? null : vpcId))
   }
 
   // 创建 VPC
@@ -191,7 +181,7 @@ export default function PortalVpcs() {
       toast.success("私有网络已创建")
       setCreateOpen(false)
       setCreateForm({ name: "", node_group_id: "", cidr: "10.0.0.0/16", description: "" })
-      fetchVpcs(page)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "创建失败"))
     } finally {
@@ -217,7 +207,7 @@ export default function PortalVpcs() {
       if (res?.code !== 0) { toast.error(res?.message ?? "删除失败"); return }
       toast.success("已删除")
       if (expandedId === vpc.id) setExpandedId(null)
-      fetchVpcs(page)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "删除失败"))
     }
@@ -244,8 +234,8 @@ export default function PortalVpcs() {
       if (res?.code !== 0) { toast.error(res?.message ?? "创建子网失败"); return }
       toast.success("子网已创建")
       setSubnetOpen(false)
-      await fetchDetail(subnetVpcId)
-      fetchVpcs(page)
+      invalidateDetail(subnetVpcId)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "创建子网失败"))
     } finally {
@@ -272,23 +262,25 @@ export default function PortalVpcs() {
       })
       if (res?.code !== 0) { toast.error(res?.message ?? "删除子网失败"); return }
       toast.success("子网已删除")
-      await fetchDetail(vpcId)
-      fetchVpcs(page)
+      invalidateDetail(vpcId)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "删除子网失败"))
     }
   }
 
-  // 挂载实例
+  // 挂载实例（打开对话框时按需取该 VPC 的子网，命中缓存则不重复请求）
   const openAttachDialog = async (vpcId: number) => {
     setAttachVpcId(vpcId)
     setAttachForm({ subnet_id: "", instance_id: "" })
-    let subnets: typeof detailMap[number]["subnets"] | undefined = detailMap[vpcId]?.subnets
-    if (!subnets) {
-      const detail = await fetchDetail(vpcId)
-      subnets = detail?.subnets
+    try {
+      const res = await queryClient.fetchQuery(getPortalVpcsByIdOptions({ path: { id: vpcId } }))
+      const d = res?.data as Partial<VpcDetail> | undefined
+      setAttachSubnets(d?.subnets ?? [])
+    } catch (err) {
+      toast.error(getErrorMessage(err, "获取详情失败"))
+      setAttachSubnets([])
     }
-    setAttachSubnets(subnets ?? [])
     setAttachOpen(true)
   }
 
@@ -309,8 +301,8 @@ export default function PortalVpcs() {
       if (res?.code !== 0) { toast.error(res?.message ?? "挂载失败"); return }
       toast.success("实例已挂载")
       setAttachOpen(false)
-      await fetchDetail(attachVpcId)
-      fetchVpcs(page)
+      invalidateDetail(attachVpcId)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "挂载失败"))
     } finally {
@@ -337,8 +329,8 @@ export default function PortalVpcs() {
       })
       if (res?.code !== 0) { toast.error(res?.message ?? "卸载失败"); return }
       toast.success("已卸载")
-      await fetchDetail(vpcId)
-      fetchVpcs(page)
+      invalidateDetail(vpcId)
+      invalidateVpcs()
     } catch (err) {
       toast.error(getErrorMessage(err, "卸载失败"))
     }
@@ -384,7 +376,7 @@ export default function PortalVpcs() {
           <div className="space-y-3">
             {vpcs.map((vpc) => {
               const isExpanded = expandedId === vpc.id
-              const detail = vpc.id != null ? detailMap[vpc.id] : undefined
+              const detail = isExpanded ? expandedDetail : undefined
 
               return (
                 <div key={vpc.id} className="rounded-md border">

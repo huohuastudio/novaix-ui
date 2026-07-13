@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { Bell, CheckCheck, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,10 +8,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SimplePagination } from '@/components/simple-pagination'
 import { useSiteSettings, useFormatDate } from '@/hooks/use-site-settings'
 import {
-  getPortalNotifications,
   putPortalNotificationsByIdRead,
   putPortalNotificationsReadAll,
 } from '@/api'
+import {
+  getPortalNotificationsOptions,
+  getPortalNotificationsQueryKey,
+  getPortalNotificationsUnreadCountQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import type { PortalNotificationItem } from '@/api'
 
 const typeLabels: Record<string, string> = {
@@ -37,39 +42,49 @@ export default function NotificationsPage() {
   const formatDate = useFormatDate()
   const navigate = useNavigate()
 
-  const [items, setItems] = useState<PortalNotificationItem[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
+
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
   const [unreadOnly, setUnreadOnly] = useState(false)
 
-  const fetchNotifications = useCallback(async (p: number, unread: boolean) => {
-    try {
-      const { data: res } = await getPortalNotifications({
-        query: { page: p, page_size: pageSize, unread_only: unread },
-      })
-      if (res?.code === 0) {
-        setItems((res.data as { items: PortalNotificationItem[] })?.items ?? [])
-        setTotal((res.data as { total: number })?.total ?? 0)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  // 通知列表（分页/未读筛选进 key）
+  const notificationsQuery = useQuery({
+    ...getPortalNotificationsOptions({
+      query: { page, page_size: pageSize, unread_only: unreadOnly },
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const loading = notificationsQuery.isPending
+  const items = notificationsQuery.data?.data?.items ?? []
+  const total = notificationsQuery.data?.data?.total ?? 0
 
-  useEffect(() => {
-    fetchNotifications(page, unreadOnly)
-  }, [fetchNotifications, page, unreadOnly])
+  const currentKey = getPortalNotificationsQueryKey({
+    query: { page, page_size: pageSize, unread_only: unreadOnly },
+  })
 
   const handleMarkRead = async (id: number) => {
     await putPortalNotificationsByIdRead({ path: { id } })
-    setItems(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    // 当前页做本地补丁（与迁移前行为一致，不触发整页重取）；
+    // 其余分页缓存仅标记过期不主动重取，顶栏未读角标即时刷新
+    queryClient.setQueryData(currentKey, (old: typeof notificationsQuery.data) => {
+      if (!old?.data?.items) return old
+      return {
+        ...old,
+        data: {
+          ...old.data,
+          items: old.data.items.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+        },
+      }
+    })
+    queryClient.invalidateQueries({ queryKey: getPortalNotificationsQueryKey(), refetchType: "none" })
+    queryClient.invalidateQueries({ queryKey: getPortalNotificationsUnreadCountQueryKey() })
   }
 
   const handleMarkAllRead = async () => {
     await putPortalNotificationsReadAll()
-    setItems(prev => prev.map(n => ({ ...n, is_read: true })))
+    queryClient.invalidateQueries({ queryKey: getPortalNotificationsQueryKey() })
+    queryClient.invalidateQueries({ queryKey: getPortalNotificationsUnreadCountQueryKey() })
   }
 
   const handleClick = (notif: PortalNotificationItem) => {

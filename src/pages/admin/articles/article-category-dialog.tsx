@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,12 +16,15 @@ import {
 import { useConfirm } from "@/hooks/use-confirm"
 import { getErrorMessage } from "@/lib/utils"
 import {
-  getAdminArticleCategories,
   postAdminArticleCategories,
   putAdminArticleCategoriesById,
   deleteAdminArticleCategoriesById,
 } from "@/api"
 import type { ArticlecategoryArticleCategoryItem } from "@/api"
+import {
+  getAdminArticleCategoriesOptions,
+  getAdminArticleCategoriesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 
 interface EditState {
   id?: number
@@ -50,29 +54,30 @@ interface Props {
 }
 
 export default function ArticleCategoryDialog({ open, onOpenChange, onChanged }: Props) {
-  const [items, setItems] = useState<ArticlecategoryArticleCategoryItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
   const [edit, setEdit] = useState<EditState | null>(null)
   const [saving, setSaving] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminArticleCategories({ query: { page: 1, page_size: 100 } })
-      setItems(res?.data?.items ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  // 分类列表：对话框打开时才取数
+  const categoriesQuery = useQuery({
+    ...getAdminArticleCategoriesOptions({ query: { page: 1, page_size: 100 } }),
+    enabled: open,
+  })
+  const items = categoriesQuery.data?.data?.items ?? []
+  const loading = categoriesQuery.isPending
+
+  const invalidateCategories = () =>
+    queryClient.invalidateQueries({
+      queryKey: getAdminArticleCategoriesQueryKey({ query: { page: 1, page_size: 100 } }),
+    })
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 打开时重置编辑状态
       setEdit(null)
-      fetchItems()
     }
-  }, [open, fetchItems])
+  }, [open])
 
   const handleSave = async () => {
     if (!edit) return
@@ -97,7 +102,7 @@ export default function ArticleCategoryDialog({ open, onOpenChange, onChanged }:
       }
       toast.success(edit.id ? "分类已更新" : "分类已创建")
       setEdit(null)
-      await fetchItems()
+      await invalidateCategories()
       onChanged()
     } catch (err) {
       toast.error(getErrorMessage(err, "请求失败，请重试"))
@@ -120,7 +125,7 @@ export default function ArticleCategoryDialog({ open, onOpenChange, onChanged }:
       return
     }
     toast.success("分类已删除")
-    await fetchItems()
+    await invalidateCategories()
     onChanged()
   }
 

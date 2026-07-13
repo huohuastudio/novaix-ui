@@ -12,6 +12,7 @@ import {
   profileToFormValues,
 } from "@/pages/admin/profiles/schema"
 import type { ProfileFormValues } from "@/pages/admin/profiles/schema"
+import { asIncusConfigForm } from "@/types/incus-config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -144,8 +145,7 @@ function ProfileEditForm({
   const nodeResources = useNodeResources(nodeId)
 
   const form = useForm<ProfileFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(profileFormSchema) as any,
+    resolver: zodResolver(profileFormSchema),
     defaultValues: profileToFormValues(profile),
   })
 
@@ -183,7 +183,7 @@ function ProfileEditForm({
                   <Input value={profile.name} disabled />
                   <FormDescription>配置文件名称创建后不可修改</FormDescription>
                 </FormItem>
-                <TypeSelector form={form} />
+                <TypeSelector form={asIncusConfigForm(form)} />
                 <FormField
                   control={form.control}
                   name="description"

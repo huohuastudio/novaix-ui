@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { X } from "lucide-react"
@@ -37,11 +37,12 @@ const formSchema = z.object({
   features: z.string().optional().or(z.literal("")),
   test_ip: z.string().max(255, "测试 IP 不能超过 255 个字符").optional().or(z.literal("")),
   image: z.string().optional().or(z.literal("")),
-  status: z.coerce.number().int(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  status: z.coerce.number<number | string>().int(),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -129,7 +130,7 @@ function FeaturesTagInput({
   )
 }
 
-function DataCenterFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function DataCenterFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -277,9 +278,8 @@ export function DataCenterCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -358,9 +358,8 @@ export function DataCenterEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

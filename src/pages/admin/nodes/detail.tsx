@@ -15,9 +15,17 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Spinner } from "@/components/ui/spinner"
-import { getAdminNodesById, getAdminNodesByIdInstanceStats, getAdminNodesByIdMetrics, postAdminNodesByIdSync } from "@/api"
+import { postAdminNodesByIdSync } from "@/api"
 import type { NodeNodeItem, NodeMetricPoint } from "@/api"
+import {
+  getAdminNodesByIdOptions,
+  getAdminNodesByIdQueryKey,
+  getAdminNodesByIdInstanceStatsOptions,
+  getAdminNodesByIdMetricsOptions,
+  getAdminNodesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { formatBytes, getErrorMessage} from "@/lib/utils"
 import { incus } from "@/lib/incus"
 import type { IncusStoragePoolDetail } from "@/types/incus"
@@ -96,54 +104,28 @@ interface InstanceStats {
   creating: number
 }
 
-function useInstanceStats(nodeId: number) {
-  const [stats, setStats] = useState<InstanceStats>({ total: 0, running: 0, stopped: 0, error: 0, creating: 0 })
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data: res } = await getAdminNodesByIdInstanceStats({ path: { id: nodeId } })
-        if (cancelled) return
-        const d = res?.data
-        const running = d?.running ?? 0
-        const stopped = d?.stopped ?? 0
-        const error = d?.error ?? 0
-        const creating = d?.creating ?? 0
-        setStats({ total: running + stopped + error + creating, running, stopped, error, creating })
-      } catch {
-        // ignore
-      }
-    })()
-    return () => { cancelled = true }
-  }, [nodeId])
-
-  return stats
+function useInstanceStats(nodeId: number): InstanceStats {
+  const { data } = useQuery({
+    ...getAdminNodesByIdInstanceStatsOptions({ path: { id: nodeId } }),
+    select: (res) => res.data,
+  })
+  const running = data?.running ?? 0
+  const stopped = data?.stopped ?? 0
+  const error = data?.error ?? 0
+  const creating = data?.creating ?? 0
+  return { total: running + stopped + error + creating, running, stopped, error, creating }
 }
 
 function useLatestMetrics(nodeId: number, monitorEnabled: boolean) {
-  const [latest, setLatest] = useState<NodeMetricPoint | null>(null)
-
-  useEffect(() => {
-    if (!monitorEnabled) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data: res } = await getAdminNodesByIdMetrics({
-          path: { id: nodeId },
-          query: { range: "1h" },
-        })
-        if (cancelled) return
-        const points = (res?.data ?? []) as NodeMetricPoint[]
-        if (points.length > 0) setLatest(points[points.length - 1])
-      } catch {
-        // ignore
-      }
-    })()
-    return () => { cancelled = true }
-  }, [nodeId, monitorEnabled])
-
-  return latest
+  const { data } = useQuery({
+    ...getAdminNodesByIdMetricsOptions({ path: { id: nodeId }, query: { range: "1h" } }),
+    enabled: monitorEnabled,
+    select: (res) => {
+      const points = (res?.data ?? []) as NodeMetricPoint[]
+      return points.length > 0 ? points[points.length - 1] : null
+    },
+  })
+  return data ?? null
 }
 
 interface PoolUsage {
@@ -540,8 +522,7 @@ export default function NodeDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const adminPath = useAdminPath()
-  const [node, setNode] = useState<NodeNodeItem | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [instanceSheetOpen, setInstanceSheetOpen] = useState(false)
   const [terminalStatus, setTerminalStatus] = useState<ConnectionStatus>("connecting")
   const [pendingTab, setPendingTab] = useState<string | null>(null)
@@ -551,6 +532,23 @@ export default function NodeDetail() {
   const activeTab = id ? resolveTab(location.pathname, id, adminPath) : "overview"
   const visitedRef = useRef(new Set<TabValue>(["overview", activeTab]))
   const terminalConnected = activeTab === "terminal" && terminalStatus === "connected"
+
+  const nodeQuery = useQuery({
+    ...getAdminNodesByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const node: NodeNodeItem | null =
+    nodeQuery.data?.code === 0 && nodeQuery.data.data
+      ? (nodeQuery.data.data as NodeNodeItem)
+      : null
+  const loading = nodeQuery.isPending
+
+  // 加载结束仍无数据（不存在或请求失败）时返回列表页
+  useEffect(() => {
+    if (!loading && !node) {
+      navigate(`${adminPath}/nodes`, { replace: true })
+    }
+  }, [loading, node, navigate, adminPath])
 
   useBreadcrumb([
     { label: "节点管理", href: `${adminPath}/nodes` },
@@ -575,24 +573,11 @@ export default function NodeDetail() {
     navigateToTab(tab)
   }
 
-  const fetchNode = useCallback(async (silent = false) => {
-    if (!id) return
-    if (!silent) setLoading(true)
-    try {
-      const { data: res } = await getAdminNodesById({ path: { id: Number(id) } })
-      if (res?.code === 0 && res.data) {
-        setNode(res.data as NodeNodeItem)
-      } else if (!silent) {
-        navigate(`${adminPath}/nodes`, { replace: true })
-      }
-    } catch {
-      if (!silent) navigate(`${adminPath}/nodes`, { replace: true })
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [id, navigate, adminPath])
-
-  const refreshNode = useCallback(() => fetchNode(true), [fetchNode])
+  // 操作成功后刷新节点详情缓存，并失效节点列表的全部分页缓存
+  const refreshNode = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getAdminNodesByIdQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getAdminNodesQueryKey() })
+  }, [queryClient, id])
 
   const handleSync = async () => {
     if (!node || syncing) return
@@ -613,11 +598,6 @@ export default function NodeDetail() {
       setSyncing(false)
     }
   }
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchNode(false)
-  }, [fetchNode])
 
   if (loading) return <DetailSkeleton tab={activeTab} />
   if (!node) return null

@@ -1,18 +1,24 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
   postAdminPlans,
   putAdminPlansById,
-  getAdminPlanGroups,
   getAdminNodes,
   getAdminImages,
 } from "@/api"
 import type {
   ProductPlanItem,
-  ProductPlanGroupItem,
+  ProductPlanCreateRequest,
+  ProductPlanUpdateRequest,
 } from "@/api"
+import {
+  getAdminPlanGroupsOptions,
+  getAdminNodesOptions,
+  getAdminImagesOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,40 +44,46 @@ import { Label } from "@/components/ui/label"
 import { HelpLink } from "@/components/help-doc"
 import { Switch } from "@/components/ui/switch"
 import { FormSheet } from "@/components/form-sheet"
+import { Checkbox } from "@/components/ui/checkbox"
 import { PaginatedMultiSelect, type PaginatedMultiSelectItem } from "@/components/paginated-multi-select"
+import { billingCycleMap } from "@/lib/order-constants"
+
+const BILLING_CYCLES = Object.entries(billingCycleMap).map(([value, label]) => ({ value, label }))
 
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   description: z.string().max(512).default(""),
   group_id: z.string().default(""),
   type: z.enum(["vm", "container"]).default("vm"),
-  cpu: z.coerce.number().int().min(1, "至少 1 核"),
-  memory: z.coerce.number().int().min(1, "请输入内存大小"),
-  disk: z.coerce.number().int().min(1, "请输入磁盘大小"),
-  bandwidth: z.coerce.number().int().min(0).default(0),
-  traffic: z.coerce.number().int().min(0).default(0),
-  ip_count: z.coerce.number().int().min(0).default(1),
+  cpu: z.coerce.number<number | string>().int().min(1, "至少 1 核"),
+  memory: z.coerce.number<number | string>().int().min(1, "请输入内存大小"),
+  disk: z.coerce.number<number | string>().int().min(1, "请输入磁盘大小"),
+  bandwidth: z.coerce.number<number | string>().int().min(0).default(0),
+  traffic: z.coerce.number<number | string>().int().min(0).default(0),
+  ip_count: z.coerce.number<number | string>().int().min(0).default(1),
   arch: z.enum(["amd64", "arm64"]).default("amd64"),
   profile_name: z.string().max(64).default(""),
   storage_pool: z.string().max(64).default(""),
   network_name: z.string().max(64).default(""),
-  price_hourly: z.coerce.number().int().min(0).default(0),
-  price_monthly: z.coerce.number().int().min(0).default(0),
-  price_quarterly: z.coerce.number().int().min(0).default(0),
-  price_yearly: z.coerce.number().int().min(0).default(0),
-  extra_ip_price: z.coerce.number().int().min(0).default(0),
-  max_extra_ips: z.coerce.number().int().min(0).default(0),
+  enabled_cycles: z.array(z.string()).min(1, "请至少选择一个计费周期").default([]),
+  price_hourly: z.coerce.number<number | string>().int().min(0).default(0),
+  price_monthly: z.coerce.number<number | string>().int().min(0).default(0),
+  price_quarterly: z.coerce.number<number | string>().int().min(0).default(0),
+  price_yearly: z.coerce.number<number | string>().int().min(0).default(0),
+  extra_ip_price: z.coerce.number<number | string>().int().min(0).default(0),
+  max_extra_ips: z.coerce.number<number | string>().int().min(0).default(0),
   nat_mode: z.boolean().default(false),
-  port_count: z.coerce.number().int().min(1).default(20),
-  cpu_allowance: z.coerce.number().int().min(0).max(100).default(0),
-  stock: z.coerce.number().int().default(-1),
+  port_count: z.coerce.number<number | string>().int().min(1).default(20),
+  cpu_allowance: z.coerce.number<number | string>().int().min(0).max(100).default(0),
+  stock: z.coerce.number<number | string>().int().default(-1),
   node_ids: z.array(z.string()).default([]),
   image_ids: z.array(z.string()).default([]),
   status: z.string().default("1"),
-  sort_order: z.coerce.number().int().min(0).default(0),
+  sort_order: z.coerce.number<number | string>().int().min(0).default(0),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -88,6 +100,7 @@ const defaultValues: FormValues = {
   profile_name: "",
   storage_pool: "",
   network_name: "",
+  enabled_cycles: [],
   price_hourly: 0,
   price_monthly: 0,
   price_quarterly: 0,
@@ -127,9 +140,43 @@ const PAGE_SIZE = 20
 export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: Props) {
   const isEdit = !!plan
   const [serverError, setServerError] = useState("")
-  const [groups, setGroups] = useState<ProductPlanGroupItem[]>([])
-  const [initialNodeItems, setInitialNodeItems] = useState<PaginatedMultiSelectItem[]>([])
-  const [initialImageItems, setInitialImageItems] = useState<PaginatedMultiSelectItem[]>([])
+
+  // 套餐分组选项：弹窗打开时才取数
+  const groupsQuery = useQuery({
+    ...getAdminPlanGroupsOptions({ query: { page_size: 100, status: 1 } }),
+    enabled: open,
+  })
+  const groups = groupsQuery.data?.data?.items ?? []
+
+  // 编辑时已选节点/镜像的初始展示项：ids 经 options 进入 query key
+  const nodeIds = useMemo(() => parseIds(plan?.node_ids), [plan?.node_ids])
+  const imageIds = useMemo(() => parseIds(plan?.image_ids), [plan?.image_ids])
+
+  const initialNodesQuery = useQuery({
+    ...getAdminNodesOptions({ query: { page: 1, page_size: 100, ids: nodeIds.join(",") } }),
+    enabled: open && isEdit && nodeIds.length > 0,
+  })
+  const initialNodeItems = useMemo<PaginatedMultiSelectItem[]>(
+    () =>
+      (initialNodesQuery.data?.data?.items ?? []).map((n) => ({
+        id: String(n.id),
+        label: n.name ?? `节点 ${n.id}`,
+      })),
+    [initialNodesQuery.data]
+  )
+
+  const initialImagesQuery = useQuery({
+    ...getAdminImagesOptions({ query: { page: 1, page_size: 100, ids: imageIds.join(",") } }),
+    enabled: open && isEdit && imageIds.length > 0,
+  })
+  const initialImageItems = useMemo<PaginatedMultiSelectItem[]>(
+    () =>
+      (initialImagesQuery.data?.data?.items ?? []).map((img) => ({
+        id: String(img.id),
+        label: img.name ?? `镜像 ${img.id}`,
+      })),
+    [initialImagesQuery.data]
+  )
 
   const fetchNodeOptions = useCallback(async (page: number, keyword: string) => {
     const { data: res } = await getAdminNodes({
@@ -157,9 +204,8 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
     return { items, hasMore: items.length >= PAGE_SIZE }
   }, [])
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues,
   })
   const natMode = useWatch({ control: form.control, name: "nat_mode" })
@@ -170,14 +216,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setServerError("")
 
-    getAdminPlanGroups({ query: { page_size: 100, status: 1 } }).then(({ data: res }) => {
-      setGroups(res?.data?.items ?? [])
-    })
-
     if (plan) {
-      const nodeIds = parseIds(plan.node_ids)
-      const imageIds = parseIds(plan.image_ids)
-
       form.reset({
         name: plan.name ?? "",
         description: plan.description ?? "",
@@ -193,6 +232,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         profile_name: plan.profile_name ?? "",
         storage_pool: plan.storage_pool ?? "",
         network_name: plan.network_name ?? "",
+        enabled_cycles: plan.enabled_cycles ? plan.enabled_cycles.split(',').filter(Boolean) : [],
         price_hourly: plan.price_hourly ?? 0,
         price_monthly: plan.price_monthly ?? 0,
         price_quarterly: plan.price_quarterly ?? 0,
@@ -208,35 +248,16 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         status: String(plan.status ?? 1),
         sort_order: plan.sort_order ?? 0,
       })
-
-      if (nodeIds.length > 0) {
-        getAdminNodes({ query: { page: 1, page_size: 100, ids: nodeIds.join(",") } }).then(({ data: res }) => {
-          const nodes = res?.data?.items ?? []
-          setInitialNodeItems(nodes.map((n) => ({ id: String(n.id), label: n.name ?? `节点 ${n.id}` })))
-        }).catch(() => {})
-      } else {
-        setInitialNodeItems([])
-      }
-
-      if (imageIds.length > 0) {
-        getAdminImages({ query: { page: 1, page_size: 100, ids: imageIds.join(",") } }).then(({ data: res }) => {
-          const images = res?.data?.items ?? []
-          setInitialImageItems(images.map((img) => ({ id: String(img.id), label: img.name ?? `镜像 ${img.id}` })))
-        }).catch(() => {})
-      } else {
-        setInitialImageItems([])
-      }
     } else {
       form.reset(defaultValues)
-      setInitialNodeItems([])
-      setInitialImageItems([])
     }
-  }, [open, plan, form])
+  }, [open, plan, form, nodeIds, imageIds])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
-      const body: Record<string, unknown> = {
+      // 创建/更新共用请求体：clear_group_id 仅存在于更新请求类型中
+      const body: ProductPlanCreateRequest & Pick<ProductPlanUpdateRequest, "clear_group_id"> = {
         name: values.name,
         description: values.description || undefined,
         type: values.type,
@@ -250,6 +271,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         profile_name: values.profile_name || undefined,
         storage_pool: values.storage_pool || undefined,
         network_name: values.network_name || undefined,
+        enabled_cycles: values.enabled_cycles.join(','),
         price_hourly: values.price_hourly,
         price_monthly: values.price_monthly,
         price_quarterly: values.price_quarterly,
@@ -272,14 +294,12 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         body.clear_group_id = true
       }
 
-      /* eslint-disable @typescript-eslint/no-explicit-any */
       const { data: res } = isEdit
-        ? await putAdminPlansById({ path: { id: plan!.id! }, body: body as any })
-        : await postAdminPlans({ body: body as any })
-      /* eslint-enable @typescript-eslint/no-explicit-any */
+        ? await putAdminPlansById({ path: { id: plan!.id! }, body })
+        : await postAdminPlans({ body })
 
       if (res?.code !== 0) {
-        handleServerErrors<FormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()
@@ -529,8 +549,36 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
 
           <section data-tour="plan-form-price">
             <h3 className="text-sm font-medium">定价</h3>
-            <p className="text-xs text-muted-foreground mt-1">价格单位为分（如 2000 = ¥20.00）</p>
+            <p className="text-xs text-muted-foreground mt-1">勾选启用的计费周期，价格单位为分（如 2000 = ¥20.00），价格为 0 表示免费</p>
             <div className="mt-4 flex flex-col gap-4">
+              <FormField
+                control={form.control}
+                name="enabled_cycles"
+                render={({ field }) => {
+                  const cycles = field.value ?? []
+                  return (
+                  <FormItem>
+                    <div className="flex items-center gap-6">
+                      {BILLING_CYCLES.map((cycle) => (
+                        <label key={cycle.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            checked={cycles.includes(cycle.value)}
+                            onCheckedChange={(checked) => {
+                              const next = checked
+                                ? [...cycles, cycle.value]
+                                : cycles.filter((v: string) => v !== cycle.value)
+                              field.onChange(next)
+                            }}
+                          />
+                          {cycle.label}
+                        </label>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                  )
+                }}
+              />
               <div className="grid grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
@@ -538,7 +586,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>时付 (分)</FormLabel>
-                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                      <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -549,7 +597,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>月付 (分)</FormLabel>
-                      <FormControl><Input type="number" placeholder="2000" {...field} /></FormControl>
+                      <FormControl><Input type="number" min={0} placeholder="2000" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -560,7 +608,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>季付 (分)</FormLabel>
-                      <FormControl><Input type="number" placeholder="5400" {...field} /></FormControl>
+                      <FormControl><Input type="number" min={0} placeholder="5400" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -571,7 +619,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>年付 (分)</FormLabel>
-                      <FormControl><Input type="number" placeholder="19200" {...field} /></FormControl>
+                      <FormControl><Input type="number" min={0} placeholder="19200" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -584,7 +632,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{natMode ? '独享 IP 月价 (分)' : '附加 IP 月价 (分)'}</FormLabel>
-                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                      <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
                       <FormDescription>{natMode ? '独享公网 IP（独立出口 + 全端口入站）的月费用，0 表示不支持' : '每个附加 IP 的月费用，0 表示不支持附加 IP'}</FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -707,7 +755,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                     <FormLabel>可用节点</FormLabel>
                     <FormControl>
                       <PaginatedMultiSelect
-                        value={field.value}
+                        value={field.value ?? []}
                         onChange={field.onChange}
                         fetchFn={fetchNodeOptions}
                         initialItems={initialNodeItems}
@@ -729,7 +777,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                     <FormLabel>可用镜像</FormLabel>
                     <FormControl>
                       <PaginatedMultiSelect
-                        value={field.value}
+                        value={field.value ?? []}
                         onChange={field.onChange}
                         fetchFn={fetchImageOptions}
                         initialItems={initialImageItems}

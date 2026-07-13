@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminPartners, putAdminPartnersById } from "@/api"
@@ -31,11 +31,12 @@ const formSchema = z.object({
   logo: z.string().min(1, "Logo 不能为空"),
   url: z.string().max(500, "链接不能超过 500 个字符").optional().or(z.literal("")),
   description: z.string().max(1000, "描述不能超过 1000 个字符").optional().or(z.literal("")),
-  status: z.coerce.number().int(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  status: z.coerce.number<number | string>().int(),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -48,7 +49,7 @@ const defaultValues: FormValues = {
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
-function PartnerFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function PartnerFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -154,9 +155,8 @@ export function PartnerCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -231,9 +231,8 @@ export function PartnerEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminChangelogs, deleteAdminChangelogsById } from "@/api"
 import type { CmschangelogCmsChangelogItem } from "@/api"
+import { getAdminChangelogsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -43,6 +44,7 @@ export default function Changelogs() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminChangelogsQueryKey(),
     filterKeys: ["version", "status"],
   })
 
@@ -156,6 +158,7 @@ export default function Changelogs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

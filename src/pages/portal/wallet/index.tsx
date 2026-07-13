@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw, Plus } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { getPortalProfile, getPortalTransactions } from '@/api'
-import type { PortalPortalTransactionItem } from '@/api'
+import {
+  getPortalProfileOptions,
+  getPortalProfileQueryKey,
+  getPortalTransactionsOptions,
+  getPortalTransactionsQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import { SimplePagination } from '@/components/simple-pagination'
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -16,34 +21,24 @@ export default function PortalWallet() {
   const formatDate = useFormatDate()
   useDocumentTitle(`钱包 - ${siteName}`)
 
-  const [balance, setBalance] = useState<number | null>(null)
-  const [transactions, setTransactions] = useState<PortalPortalTransactionItem[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
+
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
   const [rechargeOpen, setRechargeOpen] = useState(false)
 
-  const loadBalance = () => {
-    getPortalProfile().then(({ data: res }) => {
-      setBalance(res?.data?.balance ?? 0)
-    })
-  }
+  // 账户余额
+  const profileQuery = useQuery(getPortalProfileOptions())
+  const balance = profileQuery.data?.data?.balance ?? null
 
-  useEffect(() => {
-    loadBalance()
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 加载数据
-    setLoading(true)
-    getPortalTransactions({ query: { page, page_size: pageSize } })
-      .then(({ data: res }) => {
-        setTransactions(res?.data?.items ?? [])
-        setTotal(res?.data?.total ?? 0)
-      })
-      .finally(() => setLoading(false))
-  }, [page])
+  // 交易记录（分页进 key）
+  const transactionsQuery = useQuery({
+    ...getPortalTransactionsOptions({ query: { page, page_size: pageSize } }),
+    placeholderData: keepPreviousData,
+  })
+  const loading = transactionsQuery.isPending
+  const transactions = transactionsQuery.data?.data?.items ?? []
+  const total = transactionsQuery.data?.data?.total ?? 0
 
   return (
     <div className="space-y-6">
@@ -79,7 +74,9 @@ export default function PortalWallet() {
         open={rechargeOpen}
         onOpenChange={setRechargeOpen}
         onSuccess={() => {
-          loadBalance()
+          // 充值成功后失效余额和交易记录缓存
+          queryClient.invalidateQueries({ queryKey: getPortalProfileQueryKey() })
+          queryClient.invalidateQueries({ queryKey: getPortalTransactionsQueryKey() })
           setPage(1)
         }}
       />

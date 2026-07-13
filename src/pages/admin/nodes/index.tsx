@@ -26,6 +26,7 @@ import {
   postAdminNodesByIdTestConnection,
 } from "@/api"
 import type { NodeNodeItem } from "@/api"
+import { getAdminNodesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useTasks } from "@/hooks/use-tasks"
@@ -72,6 +73,7 @@ function NodeList() {
 
   const table = useDataTable({
     fetchFn: fetchNodes,
+    queryKey: getAdminNodesQueryKey(),
     filterKeys: ["name", "status"],
   })
 
@@ -390,6 +392,7 @@ function NodeList() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,8 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { getAdminNodes, getAdminImages, postAdminPlansByIdTrial } from "@/api"
-import type { ProductPlanItem, NodeNodeItem, ImageImageItem } from "@/api"
+import { postAdminPlansByIdTrial } from "@/api"
+import type { ProductPlanItem } from "@/api"
+import { getAdminNodesOptions, getAdminImagesOptions } from "@/api/@tanstack/react-query.gen"
 import { useTasks } from "@/hooks/use-tasks"
 import { getErrorMessage } from "@/lib/utils"
 import { toast } from "sonner"
@@ -35,29 +37,29 @@ export default function TrialDialog({ open, onOpenChange, plan }: TrialDialogPro
 
 function TrialDialogContent({ onOpenChange, plan }: Omit<TrialDialogProps, 'open'>) {
   const { addTask } = useTasks()
-  const [nodes, setNodes] = useState<NodeNodeItem[]>([])
-  const [images, setImages] = useState<ImageImageItem[]>([])
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("")
-  const [selectedImageId, setSelectedImageId] = useState<string>("")
+  const [userNodeId, setUserNodeId] = useState<string>("")
+  const [userImageId, setUserImageId] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    getAdminNodes({ query: { page_size: 100, status: 1 } }).then(({ data: res }) => {
-      const items = res?.data?.items ?? []
-      const nodeIds = plan.node_ids?.split(",").map(Number).filter(Boolean)
-      const filtered = nodeIds?.length ? items.filter(n => nodeIds.includes(n.id!)) : items
-      setNodes(filtered)
-      if (filtered.length > 0) setSelectedNodeId(String(filtered[0].id))
-    })
+  // 组件仅在对话框打开时挂载，直接取数即可
+  const nodesQuery = useQuery(getAdminNodesOptions({ query: { page_size: 100, status: 1 } }))
+  const imagesQuery = useQuery(getAdminImagesOptions({ query: { page_size: 100, status: 1 } }))
 
-    getAdminImages({ query: { page_size: 100, status: 1 } }).then(({ data: res }) => {
-      const items = res?.data?.items ?? []
-      const imageIds = plan.image_ids?.split(",").map(Number).filter(Boolean)
-      const filtered = imageIds?.length ? items.filter(i => imageIds.includes(i.id!)) : items
-      setImages(filtered)
-      if (filtered.length > 0) setSelectedImageId(String(filtered[0].id))
-    })
-  }, [plan])
+  const nodes = useMemo(() => {
+    const items = nodesQuery.data?.data?.items ?? []
+    const nodeIds = plan.node_ids?.split(",").map(Number).filter(Boolean)
+    return nodeIds?.length ? items.filter(n => nodeIds.includes(n.id!)) : items
+  }, [nodesQuery.data, plan.node_ids])
+
+  const images = useMemo(() => {
+    const items = imagesQuery.data?.data?.items ?? []
+    const imageIds = plan.image_ids?.split(",").map(Number).filter(Boolean)
+    return imageIds?.length ? items.filter(i => imageIds.includes(i.id!)) : items
+  }, [imagesQuery.data, plan.image_ids])
+
+  // 默认选中首项：用户选择 ?? 列表首项（派生值，与全站同模式；后台刷新不会覆盖用户选择）
+  const selectedNodeId = userNodeId || (nodes[0]?.id != null ? String(nodes[0].id) : "")
+  const selectedImageId = userImageId || (images[0]?.id != null ? String(images[0].id) : "")
 
   const handleSubmit = async () => {
     if (!selectedNodeId || !selectedImageId) {
@@ -99,7 +101,7 @@ function TrialDialogContent({ onOpenChange, plan }: Omit<TrialDialogProps, 'open
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
             <Label>节点</Label>
-            <Select value={selectedNodeId} onValueChange={setSelectedNodeId}>
+            <Select value={selectedNodeId} onValueChange={setUserNodeId}>
               <SelectTrigger>
                 <SelectValue placeholder="选择节点" />
               </SelectTrigger>
@@ -112,7 +114,7 @@ function TrialDialogContent({ onOpenChange, plan }: Omit<TrialDialogProps, 'open
           </div>
           <div className="space-y-2">
             <Label>镜像</Label>
-            <Select value={selectedImageId} onValueChange={setSelectedImageId}>
+            <Select value={selectedImageId} onValueChange={setUserImageId}>
               <SelectTrigger>
                 <SelectValue placeholder="选择镜像" />
               </SelectTrigger>

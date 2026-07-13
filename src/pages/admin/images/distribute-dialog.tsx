@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { InfoIcon, Search } from "lucide-react"
 import { useDebounce } from "@uidotdev/usehooks"
-import { getAdminNodes, postAdminImagesByIdDistribute } from "@/api"
+import { postAdminImagesByIdDistribute } from "@/api"
 import type { ImageImageItem, NodeNodeItem } from "@/api"
+import { getAdminNodesOptions } from "@/api/@tanstack/react-query.gen"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,32 +31,23 @@ interface DistributeDialogProps {
 }
 
 export default function DistributeDialog({ open, onOpenChange, image }: DistributeDialogProps) {
-  const [nodes, setNodes] = useState<NodeNodeItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const keyword = useDebounce(search, 300)
-  const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [submitting, setSubmitting] = useState(false)
   const { addTask } = useTasks()
 
-  const fetchIdRef = useRef(0)
-
-  const fetchNodes = useCallback(async (p: number, kw: string) => {
-    const id = ++fetchIdRef.current
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminNodes({
-        query: { page: p, page_size: PAGE_SIZE, status: 1, keyword: kw || undefined },
-      })
-      if (id !== fetchIdRef.current) return
-      setNodes(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      if (id === fetchIdRef.current) setLoading(false)
-    }
-  }, [])
+  // 在线节点列表：对话框打开时才取数，page/keyword 经 options 进入 query key
+  const nodesQuery = useQuery({
+    ...getAdminNodesOptions({
+      query: { page, page_size: PAGE_SIZE, status: 1, keyword: keyword || undefined },
+    }),
+    enabled: open,
+  })
+  const nodes = useMemo(() => nodesQuery.data?.data?.items ?? [], [nodesQuery.data])
+  const total = nodesQuery.data?.data?.total ?? 0
+  const loading = nodesQuery.isPending
 
   useEffect(() => {
     if (!open) return
@@ -63,11 +56,6 @@ export default function DistributeDialog({ open, onOpenChange, image }: Distribu
     setSearch("")
     setPage(1)
   }, [open])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- keyword 变化时获取数据
-    if (open) fetchNodes(page, keyword)
-  }, [open, page, keyword, fetchNodes])
 
   // 按区域分组
   const regions = useMemo(() => {

@@ -6,6 +6,7 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { getAdminInstances, postAdminInstancesByIdRenew } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
+import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useInstanceActions } from "@/hooks/use-instance-actions"
 import { useConfirm as useConfirmRenew } from "@/hooks/use-confirm"
@@ -57,6 +58,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
 
   const table = useDataTable({
     fetchFn: fetchInstances,
+    queryKey: getAdminInstancesQueryKey(),
     filterKeys: ["name", "status", "type"],
   })
 
@@ -199,6 +201,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function FirewallTab({ instanceId, instanceBusy }: { instanceId: number; instanceBusy: boolean }) {
   const api = useMemo(() => ({
+    scope: "portal" as const,
     list: getPortalInstancesByIdFirewallRules,
     create: postPortalInstancesByIdFirewallRules,
     update: putPortalInstancesByIdFirewallRulesByRuleId,

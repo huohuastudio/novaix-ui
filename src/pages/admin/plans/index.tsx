@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal } from "lucide-react"
 import { DataTable } from "@/components/data-table"
@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   getAdminPlans,
-  getAdminPlanGroups,
   deleteAdminPlansById,
 } from "@/api"
 import type { ProductPlanItem, ProductPlanGroupItem } from "@/api"
+import { getAdminPlansQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -26,6 +26,8 @@ import { EmptyState } from "@/components/empty-state"
 import PlanFormDialog from "./plan-form-dialog"
 import PlanGroupDialog from "./plan-group-dialog"
 import TrialDialog from "./trial-dialog"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminPlanGroupsOptions } from "@/api/@tanstack/react-query.gen"
 
 const activeBadgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
 
@@ -40,14 +42,11 @@ export default function Plans() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<ProductPlanItem | undefined>()
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
-  const [groups, setGroups] = useState<ProductPlanGroupItem[]>([])
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const loadGroups = useCallback(() => {
-    getAdminPlanGroups({ query: { page: 1, page_size: 100 } }).then(({ data: res }) => setGroups(res?.data?.items ?? []))
-  }, [])
-
-  useEffect(() => { loadGroups() }, [loadGroups])
+  // 套餐分组字典（与分组管理弹窗共享同一缓存条目，弹窗内增删改后由弹窗负责失效；查询参数须与 plan-group-dialog.tsx 保持一致）
+  const groupsQuery = useQuery(getAdminPlanGroupsOptions({ query: { page: 1, page_size: 100 } }))
+  const groups = useMemo<ProductPlanGroupItem[]>(() => groupsQuery.data?.data?.items ?? [], [groupsQuery.data])
 
   const groupNameMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -82,6 +81,7 @@ export default function Plans() {
 
   const table = useDataTable({
     fetchFn: fetchPlans,
+    queryKey: getAdminPlansQueryKey(),
     filterKeys: ["name", "status", "group_id"],
   })
 
@@ -268,6 +268,7 @@ export default function Plans() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
@@ -305,7 +306,7 @@ export default function Plans() {
       <PlanGroupDialog
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
-        onChanged={() => { loadGroups(); table.refresh() }}
+        onChanged={() => table.refresh()}
       />
       {trialPlan && (
         <TrialDialog

@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import {
-  getAdminPlans,
-  getAdminAgentGroupsByIdRates,
-  putAdminAgentGroupsByIdRates,
-} from "@/api"
+import { putAdminAgentGroupsByIdRates } from "@/api"
 import type { AgentGroupItem } from "@/api"
+import {
+  getAdminPlansOptions,
+  getAdminAgentGroupsByIdRatesOptions,
+  getAdminAgentGroupsByIdRatesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import {
   Dialog,
   DialogContent,
@@ -52,68 +54,58 @@ function toNum(v: string): number | undefined {
 }
 
 export default function PlanRateMatrixDialog({ open, onOpenChange, group }: Props) {
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [saving, setSaving] = useState(false)
-  const [plans, setPlans] = useState<PlanRow[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [overrides, setOverrides] = useState<Record<number, RowOverride>>({})
-  const [ratesLoaded, setRatesLoaded] = useState(false)
-  const [ratesFailed, setRatesFailed] = useState(false)
 
-  const loadRates = useCallback(async () => {
-    try {
-      const { data: res } = await getAdminAgentGroupsByIdRates({ path: { id: group.id! } })
-      const map: Record<number, RowOverride> = {}
-      for (const r of res?.data ?? []) {
-        if (r.plan_id == null) continue
-        map[r.plan_id] = {
-          first: r.commission_rate_first != null ? String(r.commission_rate_first) : "",
-          recurring: r.commission_rate_recurring != null ? String(r.commission_rate_recurring) : "",
-          discount: r.discount_rate != null ? String(r.discount_rate) : "",
-        }
-      }
-      setOverrides(map)
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载费率矩阵失败"))
-      setRatesFailed(true)
-    } finally {
-      setRatesLoaded(true)
-    }
-  }, [group.id])
+  // 费率矩阵：对话框打开时才取数，group.id 经 options 进入 query key
+  const ratesQuery = useQuery({
+    ...getAdminAgentGroupsByIdRatesOptions({ path: { id: group.id! } }),
+    enabled: open && !!group.id,
+  })
+  const ratesFailed = ratesQuery.isError
 
-  const loadPlans = useCallback(async (p: number) => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminPlans({ query: { page: p, page_size: PAGE_SIZE } })
-      const planItems = (res?.data?.items ?? []).map((p) => ({
+  // 套餐列表：等费率加载完成（成功或失败）后再取，保持原有的加载顺序
+  const plansQuery = useQuery({
+    ...getAdminPlansOptions({ query: { page, page_size: PAGE_SIZE } }),
+    enabled: open && !ratesQuery.isPending,
+  })
+  const loading = plansQuery.isPending
+
+  const plans = useMemo<PlanRow[]>(
+    () =>
+      (plansQuery.data?.data?.items ?? []).map((p) => ({
         id: p.id!,
         name: p.name ?? `套餐 ${p.id}`,
         spec: [`${p.cpu}C`, formatMemory(p.memory ?? 0), formatDisk(p.disk ?? 0)].join(" / "),
-      }))
-      setPlans(planItems)
-      setTotal(res?.data?.total ?? 0)
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载套餐列表失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      })),
+    [plansQuery.data]
+  )
+  const total = plansQuery.data?.data?.total ?? 0
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置状态并加载数据
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置分页
       setPage(1)
-      setRatesLoaded(false)
-      setRatesFailed(false)
-      loadRates()
     }
-  }, [open, loadRates])
+  }, [open])
 
+  // 服务器费率数据 → 本地编辑缓冲的同步（打开或数据更新时重建覆盖值）
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 依赖 ratesLoaded 触发加载套餐
-    if (open && ratesLoaded) loadPlans(page)
-  }, [open, ratesLoaded, page, loadPlans])
+    if (!open) return
+    const map: Record<number, RowOverride> = {}
+    for (const r of ratesQuery.data?.data ?? []) {
+      if (r.plan_id == null) continue
+      map[r.plan_id] = {
+        first: r.commission_rate_first != null ? String(r.commission_rate_first) : "",
+        recurring: r.commission_rate_recurring != null ? String(r.commission_rate_recurring) : "",
+        discount: r.discount_rate != null ? String(r.discount_rate) : "",
+      }
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 服务器数据同步到编辑缓冲
+    setOverrides(map)
+  }, [open, ratesQuery.data])
 
   const setField = (planId: number, key: keyof RowOverride, value: string) => {
     setOverrides((prev) => ({
@@ -146,6 +138,9 @@ export default function PlanRateMatrixDialog({ open, onOpenChange, group }: Prop
       })
       if (res?.code === 0) {
         toast.success("费率矩阵已保存")
+        queryClient.invalidateQueries({
+          queryKey: getAdminAgentGroupsByIdRatesQueryKey({ path: { id: group.id! } }),
+        })
         onOpenChange(false)
       } else {
         toast.error(res?.message ?? "保存失败")
@@ -166,6 +161,12 @@ export default function PlanRateMatrixDialog({ open, onOpenChange, group }: Prop
             为单个套餐覆盖该分组的默认比例，留空表示沿用分组默认（首单 {group.commission_rate_first ?? 0}% / 后续 {group.commission_rate_recurring ?? 0}% / 折扣 {group.discount_rate ?? 0}%）
           </DialogDescription>
         </DialogHeader>
+
+        {ratesFailed && (
+          <p className="text-sm text-destructive">
+            {getErrorMessage(ratesQuery.error, "加载费率矩阵失败")}
+          </p>
+        )}
 
         {loading ? (
           <div className="space-y-2">

@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2, Loader2, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useDebounce } from "@uidotdev/usehooks"
 import {
-  getAdminNodeGroupsByIdNodes,
   postAdminNodeGroupsByIdNodes,
   deleteAdminNodeGroupsByIdNodesByNodeId,
-  getAdminNodes,
 } from "@/api"
-import type { NodeGroupNodeInGroupItem, NodeNodeItem } from "@/api"
+import type { NodeGroupNodeInGroupItem } from "@/api"
+import {
+  getAdminNodeGroupsByIdNodesOptions,
+  getAdminNodeGroupsByIdNodesQueryKey,
+  getAdminNodesOptions,
+  getAdminNodesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -33,64 +38,59 @@ interface Props {
 }
 
 export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Props) {
-  const [nodes, setNodes] = useState<NodeGroupNodeInGroupItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [availableNodes, setAvailableNodes] = useState<NodeNodeItem[]>([])
-  const [availableTotal, setAvailableTotal] = useState(0)
+  const queryClient = useQueryClient()
   const [availablePage, setAvailablePage] = useState(1)
   const [selectedNodeId, setSelectedNodeId] = useState<string>("")
   const [adding, setAdding] = useState(false)
   const [nodeSearch, setNodeSearch] = useState("")
   const keyword = useDebounce(nodeSearch, 300)
-  const fetchIdRef = useRef(0)
 
-  const fetchNodes = useCallback(async () => {
-    if (!group?.id) return
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminNodeGroupsByIdNodes({ path: { id: group.id } })
-      setNodes((res?.data as NodeGroupNodeInGroupItem[]) ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [group?.id])
+  // 组内节点：group.id 经 options 进入 query key，对话框打开（group 存在）时才取数
+  const groupNodesQuery = useQuery({
+    ...getAdminNodeGroupsByIdNodesOptions({ path: { id: group?.id ?? 0 } }),
+    enabled: !!group?.id,
+  })
+  const nodes = (groupNodesQuery.data?.data as NodeGroupNodeInGroupItem[]) ?? []
+  const loading = groupNodesQuery.isPending
 
-  const fetchAvailableNodes = useCallback(async (p: number, kw: string) => {
-    const id = ++fetchIdRef.current
-    try {
-      const { data: res } = await getAdminNodes({
-        query: { page: p, page_size: PAGE_SIZE, ungrouped: true, keyword: kw || undefined },
-      })
-      if (id !== fetchIdRef.current) return
-      const items = res?.data?.items ?? []
-      const total = res?.data?.total ?? 0
-      if (items.length === 0 && p > 1 && total > 0) {
-        const lastPage = Math.ceil(total / PAGE_SIZE)
-        setAvailablePage(Math.max(1, lastPage))
-        return
-      }
-      setAvailableNodes(items)
-      setAvailableTotal(total)
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  // 可添加的独立节点：分页 + 搜索关键字经 options 进入 query key
+  const availableQuery = useQuery({
+    ...getAdminNodesOptions({
+      query: { page: availablePage, page_size: PAGE_SIZE, ungrouped: true, keyword: keyword || undefined },
+    }),
+    enabled: !!group?.id,
+  })
+  const availableNodes = availableQuery.data?.data?.items ?? []
+  const availableTotal = availableQuery.data?.data?.total ?? 0
 
   useEffect(() => {
     if (group?.id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-      fetchNodes()
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 打开时重置搜索与选中状态
       setNodeSearch("")
       setSelectedNodeId("")
       setAvailablePage(1)
     }
-  }, [group?.id, fetchNodes])
+  }, [group?.id])
 
+  // 当前页数据为空但总数不为 0 时（如移除后页码越界），回退到最后一页
   useEffect(() => {
-    if (!group?.id) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- keyword 变化时获取数据
-    fetchAvailableNodes(availablePage, keyword)
-  }, [group?.id, availablePage, keyword, fetchAvailableNodes])
+    const items = availableQuery.data?.data?.items
+    const total = availableQuery.data?.data?.total ?? 0
+    if (items && items.length === 0 && availablePage > 1 && total > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 服务器数据驱动的页码修正
+      setAvailablePage(Math.max(1, Math.ceil(total / PAGE_SIZE)))
+    }
+  }, [availableQuery.data, availablePage])
+
+  const invalidateNodeQueries = () => {
+    if (group?.id) {
+      queryClient.invalidateQueries({
+        queryKey: getAdminNodeGroupsByIdNodesQueryKey({ path: { id: group.id } }),
+      })
+    }
+    // 前缀匹配失效所有节点列表查询（覆盖不同分页/关键字）
+    queryClient.invalidateQueries({ queryKey: getAdminNodesQueryKey() })
+  }
 
   const handleAdd = async () => {
     if (!group?.id || !selectedNodeId) return
@@ -102,8 +102,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
       })
       toast.success("节点已添加")
       setSelectedNodeId("")
-      fetchNodes()
-      fetchAvailableNodes(availablePage, keyword)
+      invalidateNodeQueries()
       onChanged?.()
     } catch (err) {
       toast.error(getErrorMessage(err, "添加失败"))
@@ -119,8 +118,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
         path: { id: group.id, nodeId },
       })
       toast.success("节点已移除")
-      fetchNodes()
-      fetchAvailableNodes(availablePage, keyword)
+      invalidateNodeQueries()
       onChanged?.()
     } catch (err) {
       toast.error(getErrorMessage(err, "移除失败，节点上可能还有实例"))

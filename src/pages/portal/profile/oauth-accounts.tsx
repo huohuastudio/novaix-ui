@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Trash2, Link as LinkIcon } from "lucide-react"
 import { toast } from "sonner"
 import { useSiteSettings } from "@/hooks/use-site-settings"
@@ -15,11 +16,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  getPortalOauthAccounts,
   getPortalOauthAccountsByNameLink,
   deletePortalOauthAccountsById,
-  getOauthProviders,
 } from "@/api"
+import {
+  getOauthProvidersOptions,
+  getPortalOauthAccountsOptions,
+  getPortalOauthAccountsQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 
 interface ProviderInfo {
   name: string
@@ -43,38 +47,26 @@ function providerKey(p: ProviderInfo): string {
 
 export function OAuthAccountsSection() {
   const { oauth_providers } = useSiteSettings()
-  const [providerInfos, setProviderInfos] = useState<ProviderInfo[]>([])
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    if (!oauth_providers) return
-    void (async () => {
-      try {
-        const { data: res } = await getOauthProviders()
-        if (res?.code === 0 && res.data?.providers) {
-          setProviderInfos(res.data.providers as ProviderInfo[])
-        }
-      } catch { /* ignore */ }
-    })()
-  }, [oauth_providers])
+  // 站点启用了社交登录才请求提供商列表
+  const providersQuery = useQuery({
+    ...getOauthProvidersOptions(),
+    enabled: !!oauth_providers,
+  })
+  const providerInfos = providersQuery.data?.code === 0 && providersQuery.data.data?.providers
+    ? (providersQuery.data.data.providers as ProviderInfo[])
+    : []
 
   const providerTitleMap = new Map(providerInfos.map((p) => [providerKey(p), p.title]))
-  const [accounts, setAccounts] = useState<OAuthAccount[]>([])
-  const [loading, setLoading] = useState(true)
   const [unlinkId, setUnlinkId] = useState<number | null>(null)
   const [unlinking, setUnlinking] = useState(false)
 
-  const fetchAccounts = async () => {
-    try {
-      const { data: res } = await getPortalOauthAccounts()
-      if (res?.code === 0 && res.data) {
-        setAccounts(res.data as OAuthAccount[])
-      }
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-  useEffect(() => { fetchAccounts() }, [])
+  const accountsQuery = useQuery(getPortalOauthAccountsOptions())
+  const accounts = accountsQuery.data?.code === 0 && accountsQuery.data.data
+    ? (accountsQuery.data.data as OAuthAccount[])
+    : []
+  const loading = accountsQuery.isPending
 
   if (providerInfos.length === 0 && accounts.length === 0) return null
 
@@ -104,7 +96,7 @@ export function OAuthAccountsSection() {
       const { data: res } = await deletePortalOauthAccountsById({ path: { id: unlinkId } })
       if (res?.code === 0) {
         toast.success("已解除关联")
-        setAccounts((prev) => prev.filter((a) => a.id !== unlinkId))
+        queryClient.invalidateQueries({ queryKey: getPortalOauthAccountsQueryKey() })
       } else {
         toast.error(res?.message ?? "解除关联失败")
       }

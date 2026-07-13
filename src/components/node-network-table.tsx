@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/table"
 import { formatBytes } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
-import { toast } from "sonner"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import type { IncusNetworkDetail } from "@/types/incus"
+import { queryKeys } from "@/lib/query-keys"
 
 interface Props {
   nodeId: number
@@ -36,25 +37,21 @@ interface DHCPLease {
 }
 
 function NetworkSection({ net, nodeId }: { net: IncusNetworkDetail; nodeId: number }) {
-  const [state, setState] = useState<NetworkState | null>(null)
-  const [leases, setLeases] = useState<DHCPLease[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const [s, l] = await Promise.all([
+  // 单个网络的运行状态 + DHCP 租约聚合查询（走通用 proxy），与原实现一致：单项失败降级为空数据
+  const detailQuery = useQuery({
+    queryKey: queryKeys.nodeNetworkState(nodeId, net.name, !!net.managed),
+    queryFn: async () => {
+      const [state, leases] = await Promise.all([
         incus<NetworkState>(nodeId, `1.0/networks/${net.name}/state`).catch(() => null),
         net.managed
-          ? incus<DHCPLease[]>(nodeId, `1.0/networks/${net.name}/leases`).catch(() => [])
-          : Promise.resolve([]),
+          ? incus<DHCPLease[]>(nodeId, `1.0/networks/${net.name}/leases`).catch(() => [] as DHCPLease[])
+          : Promise.resolve([] as DHCPLease[]),
       ])
-      if (!cancelled) {
-        setState(s)
-        setLeases(l ?? [])
-      }
-    })()
-    return () => { cancelled = true }
-  }, [nodeId, net.name, net.managed])
+      return { state, leases: leases ?? [] }
+    },
+  })
+  const state = detailQuery.data?.state ?? null
+  const leases = detailQuery.data?.leases ?? []
 
   const configEntries = Object.entries(net.config ?? {}).filter(
     ([k]) => !k.startsWith("volatile."),
@@ -242,27 +239,19 @@ export function NetworkTableSkeleton() {
 }
 
 export default function NodeNetworkTable({ nodeId }: Props) {
-  const [networks, setNetworks] = useState<IncusNetworkDetail[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetchNetworks = useCallback(async () => {
-    setLoading(true)
-    try {
+  // 节点网络列表走通用 proxy（lib/incus.ts，无生成 SDK），使用集中登记的手工 key
+  const query = useQuery({
+    queryKey: queryKeys.nodeNetworks(nodeId),
+    queryFn: async () => {
       const data = await incus<IncusNetworkDetail[]>(nodeId, "1.0/networks", { params: { recursion: "1" } })
-      setNetworks(data ?? [])
-    } catch (err) {
-      toast.error(incusErrorMessage(err, "获取网络列表失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [nodeId])
+      return data ?? []
+    },
+  })
+  const networks = query.data ?? []
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchNetworks()
-  }, [fetchNetworks])
+  useQueryErrorToast(query.error, "获取网络列表失败", incusErrorMessage)
 
-  if (loading) {
+  if (query.isPending) {
     return <NetworkTableSkeleton />
   }
 

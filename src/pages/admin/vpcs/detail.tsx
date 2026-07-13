@@ -2,8 +2,9 @@
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useAdminPath } from "@/hooks/use-site-settings"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { useParams } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -26,17 +27,22 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
-  getAdminVpcsById,
   postAdminVpcsByIdSubnets,
   deleteAdminVpcsByIdSubnetsBySubnetId,
   postAdminVpcsByIdAttach,
   deleteAdminVpcsByIdAttachmentsByAttachmentId,
   postAdminVpcsByIdSecurityGroups,
   deleteAdminVpcsByIdSecurityGroupsBySgId,
-  getAdminVpcsByIdSecurityGroupsBySgIdRules,
   postAdminVpcsByIdSecurityGroupsBySgIdRules,
   deleteAdminVpcsByIdSecurityGroupsBySgIdRulesByRuleId,
 } from "@/api"
+import {
+  getAdminVpcsByIdOptions,
+  getAdminVpcsByIdQueryKey,
+  getAdminVpcsQueryKey,
+  getAdminVpcsByIdSecurityGroupsBySgIdRulesOptions,
+  getAdminVpcsByIdSecurityGroupsBySgIdRulesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { useConfirm } from "@/hooks/use-confirm"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
@@ -72,11 +78,15 @@ export default function VPCDetailPage() {
   const { id: idStr } = useParams<{ id: string }>()
   const id = Number(idStr)
 
-  const [vpc, setVpc] = useState<VPCData | null>(null)
-  const [subnets, setSubnets] = useState<SubnetData[]>([])
-  const [attachments, setAttachments] = useState<AttachData[]>([])
-  const [securityGroups, setSGs] = useState<SGData[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  const vpcQuery = useQuery(getAdminVpcsByIdOptions({ path: { id } }))
+  const detail = vpcQuery.data?.data as Record<string, unknown> | undefined
+  const vpc = (detail as unknown as VPCData | undefined) ?? null
+  const subnets = (detail?.subnets as SubnetData[] | undefined) ?? []
+  const attachments = (detail?.attachments as AttachData[] | undefined) ?? []
+  const securityGroups = (detail?.security_groups as SGData[] | undefined) ?? []
+  const loading = vpcQuery.isPending
 
   const adminPath = useAdminPath()
 
@@ -85,21 +95,11 @@ export default function VPCDetailPage() {
     { label: vpc?.name ?? "加载中..." },
   ])
 
-  const fetchData = useCallback(async () => {
-    try {
-      const { data: res } = await getAdminVpcsById({ path: { id } })
-      const d = res?.data as Record<string, unknown> | undefined
-      if (d) {
-        setVpc(d as unknown as VPCData)
-        setSubnets((d as Record<string, unknown>).subnets as SubnetData[] ?? [])
-        setAttachments((d as Record<string, unknown>).attachments as AttachData[] ?? [])
-        setSGs((d as Record<string, unknown>).security_groups as SGData[] ?? [])
-      }
-    } catch { /* ignore */ } finally { setLoading(false) }
-  }, [id])
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-  useEffect(() => { fetchData() }, [fetchData])
+  // 操作成功后刷新 VPC 详情缓存，并失效 VPC 列表的全部分页缓存
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getAdminVpcsByIdQueryKey({ path: { id } }) })
+    queryClient.invalidateQueries({ queryKey: getAdminVpcsQueryKey() })
+  }, [queryClient, id])
 
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -439,21 +439,25 @@ function SecurityGroupCard({ vpcId, sg, onDelete, onRefresh, confirm }: {
   confirm: (opts: { title: string; description: string; destructive?: boolean }) => Promise<boolean>
 }) {
   const [expanded, setExpanded] = useState(false)
-  const [rules, setRules] = useState<RuleData[]>([])
-  const [rulesLoaded, setRulesLoaded] = useState(false)
   const [ruleOpen, setRuleOpen] = useState(false)
+  const queryClient = useQueryClient()
 
-  const loadRules = async (force = false) => {
-    if (rulesLoaded && !force) return
-    try {
-      const { data: res } = await getAdminVpcsByIdSecurityGroupsBySgIdRules({ path: { id: vpcId, sgId: sg.id } })
-      setRules((res?.data as RuleData[] | undefined) ?? [])
-      setRulesLoaded(true)
-    } catch { /* ignore */ }
+  // 展开时才加载规则列表（enabled 惰性触发），vpcId/sgId 通过 path 进入 queryKey
+  const rulesQuery = useQuery({
+    ...getAdminVpcsByIdSecurityGroupsBySgIdRulesOptions({ path: { id: vpcId, sgId: sg.id } }),
+    enabled: expanded,
+    select: (res) => (res?.data as RuleData[] | undefined) ?? [],
+  })
+  const rules = rulesQuery.data ?? []
+
+  // 规则增删后刷新规则列表缓存
+  const refreshRules = () => {
+    queryClient.invalidateQueries({
+      queryKey: getAdminVpcsByIdSecurityGroupsBySgIdRulesQueryKey({ path: { id: vpcId, sgId: sg.id } }),
+    })
   }
 
   const toggleExpand = () => {
-    if (!expanded) loadRules()
     setExpanded(!expanded)
   }
 
@@ -477,7 +481,7 @@ function SecurityGroupCard({ vpcId, sg, onDelete, onRefresh, confirm }: {
       toast.success("规则已创建")
       setRuleOpen(false)
       ruleForm.reset()
-      loadRules(true)
+      refreshRules()
       onRefresh()
     } catch (err) { toast.error(getErrorMessage(err, "创建规则失败")) }
   }
@@ -489,7 +493,7 @@ function SecurityGroupCard({ vpcId, sg, onDelete, onRefresh, confirm }: {
       const { data: res } = await deleteAdminVpcsByIdSecurityGroupsBySgIdRulesByRuleId({ path: { id: vpcId, sgId: sg.id, ruleId } })
       if (res?.code !== 0) { toast.error(res?.message ?? "删除规则失败"); return }
       toast.success("规则已删除")
-      loadRules(true)
+      refreshRules()
       onRefresh()
     } catch (err) { toast.error(getErrorMessage(err, "删除规则失败")) }
   }

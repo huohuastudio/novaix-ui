@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form"
+import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { Input } from "@/components/ui/input"
 import {
   FormControl,
@@ -11,8 +12,7 @@ import {
 import { ImageSelector } from "@/components/image-selector"
 
 interface ImageSourceProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<InstanceFormValues>
 }
 
 export function ImageSource({ form }: ImageSourceProps) {
@@ -25,7 +25,7 @@ export function ImageSource({ form }: ImageSourceProps) {
           <FormItem>
             <FormLabel required>镜像</FormLabel>
             <ImageSelector
-              value={field.value}
+              value={field.value ?? ""}
               onChange={field.onChange}
               onServerChange={(s) => form.setValue("source_server", s)}
               onProtocolChange={(p) => form.setValue("source_protocol", p)}

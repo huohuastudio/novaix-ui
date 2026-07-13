@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminTestimonials, deleteAdminTestimonialsById } from "@/api"
 import type { TestimonialTestimonialItem } from "@/api"
+import { getAdminTestimonialsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -43,6 +44,7 @@ export default function Testimonials() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminTestimonialsQueryKey(),
     filterKeys: ["name", "status"],
   })
 
@@ -186,6 +188,7 @@ export default function Testimonials() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

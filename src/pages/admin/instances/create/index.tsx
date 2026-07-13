@@ -5,9 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { postAdminInstances } from "@/api"
 import type { NodeNodeItem } from "@/api"
-import { handleServerErrors } from "@/lib/form-utils"
+import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
 import { instanceFormSchema, defaultValues, buildCreateBody, fieldNames } from "../schema"
+import { asIncusConfigForm } from "@/types/incus-config"
 import type { InstanceFormValues } from "../schema"
 import { Form } from "@/components/ui/form"
 import { Button } from "@/components/ui/button"
@@ -48,8 +49,7 @@ export default function CreateInstance() {
   const presetNodeId = searchParams.get("node_id") ? Number(searchParams.get("node_id")) : undefined
 
   const form = useForm<InstanceFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(instanceFormSchema) as any,
+    resolver: zodResolver(instanceFormSchema),
     defaultValues: presetNodeId ? { ...defaultValues, node_id: presetNodeId } : defaultValues,
   })
 
@@ -66,17 +66,15 @@ export default function CreateInstance() {
   const onSubmit = async (values: InstanceFormValues) => {
     const body = buildCreateBody(values)
     const result = await postAdminInstances({ body })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = result.data ?? (result as any).error
+    const res = unwrapResponse(result)
     if (res?.code !== 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      handleServerErrors<InstanceFormValues>(res as any, {
+      handleServerErrors(res, {
         setError: form.setError,
         fieldNames,
       })
       return
     }
-    const taskId = res?.data?.create_task_id
+    const taskId = (res?.data as Record<string, unknown> | undefined)?.create_task_id as number | undefined
     if (taskId) {
       addTask(taskId, "create_instance")
       toast.success("实例创建任务已提交", { description: `任务 #${taskId} 正在后台执行` })
@@ -129,7 +127,7 @@ export default function CreateInstance() {
                   />
 
                   <div data-tour="create-instance-type">
-                    <TypeSelector form={form} />
+                    <TypeSelector form={asIncusConfigForm(form)} />
                   </div>
                   <div data-tour="create-instance-image">
                     <ImageSource form={form} />

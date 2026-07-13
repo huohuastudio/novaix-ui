@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { DataTable } from "@/components/data-table"
@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminNavMenus, deleteAdminNavMenusById } from "@/api"
 import type { NavmenuNavMenuItem } from "@/api"
+import { getAdminNavMenusOptions, getAdminNavMenusQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { NavMenuCreateSheet, NavMenuEditSheet } from "./nav-menu-form-sheet"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 const locationLabels: Record<string, string> = {
   header: "顶部导航",
@@ -24,17 +26,13 @@ export default function NavMenus() {
   const [editingItem, setEditingItem] = useState<NavmenuNavMenuItem | null>(null)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const [allMenus, setAllMenus] = useState<NavmenuNavMenuItem[]>([])
-
+  // 全量菜单字典（供父级菜单选择，与主列表共用接口、以 page_size 判别缓存）
+  const queryClient = useQueryClient()
+  const allMenusQuery = useQuery(getAdminNavMenusOptions({ query: { page: 1, page_size: 100 } }))
+  const allMenus = useMemo<NavmenuNavMenuItem[]>(() => allMenusQuery.data?.data?.items ?? [], [allMenusQuery.data])
   const refreshAllMenus = useCallback(() => {
-    getAdminNavMenus({ query: { page: 1, page_size: 100 } }).then(({ data: res }) => {
-      setAllMenus(res?.data?.items ?? [])
-    })
-  }, [])
-
-  useEffect(() => {
-    refreshAllMenus()
-  }, [refreshAllMenus])
+    void queryClient.invalidateQueries({ queryKey: getAdminNavMenusQueryKey() })
+  }, [queryClient])
 
   const fetchData = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
     const sort = sorting[0]?.id as "id" | "sort_order" | "created_at" | undefined
@@ -61,6 +59,7 @@ export default function NavMenus() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminNavMenusQueryKey(),
     filterKeys: ["location", "status"],
   })
 
@@ -224,6 +223,7 @@ export default function NavMenus() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

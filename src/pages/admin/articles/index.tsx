@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, FolderTree } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { getAdminArticles, deleteAdminArticlesById, getAdminArticleCategories } from "@/api"
+import { getAdminArticles, deleteAdminArticlesById } from "@/api"
 import type { ArticleArticleItem, ArticlecategoryArticleCategoryItem } from "@/api"
+import { getAdminArticlesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { ArticleCreateSheet, ArticleEditSheet } from "./article-form-sheet"
 import ArticleCategoryDialog from "./article-category-dialog"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getAdminArticleCategoriesOptions, getAdminArticleCategoriesQueryKey } from "@/api/@tanstack/react-query.gen"
 
 const TYPE_MAP: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   news: { label: "新闻", variant: "default" },
@@ -26,17 +29,16 @@ export default function Articles() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const [categories, setCategories] = useState<ArticlecategoryArticleCategoryItem[]>([])
-
-  const fetchCategories = useCallback(async () => {
-    const { data: res } = await getAdminArticleCategories({ query: { page: 1, page_size: 100 } })
-    setCategories(res?.data?.items ?? [])
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchCategories()
-  }, [fetchCategories])
+  // 分类字典（与分类管理弹窗共享同一缓存 key）
+  const queryClient = useQueryClient()
+  const categoriesQuery = useQuery(getAdminArticleCategoriesOptions({ query: { page: 1, page_size: 100 } }))
+  const categories = useMemo<ArticlecategoryArticleCategoryItem[]>(
+    () => categoriesQuery.data?.data?.items ?? [],
+    [categoriesQuery.data],
+  )
+  const fetchCategories = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: getAdminArticleCategoriesQueryKey() })
+  }, [queryClient])
 
   const categoryMap = useMemo(() => {
     const map = new Map<number, string>()
@@ -73,6 +75,7 @@ export default function Articles() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminArticlesQueryKey(),
     filterKeys: ["title", "type", "category_id", "status"],
   })
 
@@ -228,6 +231,7 @@ export default function Articles() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

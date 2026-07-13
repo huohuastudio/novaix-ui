@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminArticles, putAdminArticlesById } from "@/api"
@@ -30,11 +30,12 @@ import { RichTextEditor } from "@/components/rich-text-editor"
 const formSchema = z.object({
   title: z.string().min(1, "标题不能为空").max(255, "标题不能超过 255 个字符"),
   content: z.string().min(1, "内容不能为空"),
-  status: z.coerce.number().int(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  status: z.coerce.number<number | string>().int(),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   title: "",
@@ -47,7 +48,7 @@ const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
 // ── Shared form fields ──
 
-function AnnouncementFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function AnnouncementFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -140,9 +141,8 @@ function AnnouncementCreateForm({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -233,9 +233,8 @@ function AnnouncementEditForm({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: announcement.title ?? "",
       content: announcement.content ?? "",

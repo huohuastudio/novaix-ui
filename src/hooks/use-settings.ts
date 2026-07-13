@@ -1,31 +1,29 @@
-import { useState, useEffect, useCallback } from "react"
-import { getAdminSettingsByGroup, putAdminSettingsByGroup } from "@/api"
+import { useState, useMemo, useCallback } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { putAdminSettingsByGroup } from "@/api"
+import type { GetAdminSettingsByGroupResponse } from "@/api"
+import {
+  getAdminSettingsByGroupOptions,
+  getAdminSettingsByGroupQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 
 export function useSettings(group: string) {
-  const [data, setData] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  // 服务端数据走 useQuery 缓存，本地编辑以 overrides 覆盖层叠加，保持 data/update 原有语义
+  const query = useQuery(getAdminSettingsByGroupOptions({ path: { group } }))
+  const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminSettingsByGroup({ path: { group } })
-      if (res?.code === 0 && res.data) {
-        setData(res.data as unknown as Record<string, string>)
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载设置失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [group])
+  useQueryErrorToast(query.error, "加载设置失败")
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载设置数据
-    void load()
-  }, [load])
+  const serverData = query.data?.data as Record<string, string> | undefined
+  const data = useMemo(
+    () => ({ ...(serverData ?? {}), ...overrides }),
+    [serverData, overrides],
+  )
 
   const save = useCallback(async (items: Record<string, string>) => {
     setSaving(true)
@@ -41,7 +39,13 @@ export function useSettings(group: string) {
         } else {
           toast.success("保存成功")
         }
-        setData((prev) => ({ ...prev, ...items }))
+        // 保存成功后将已保存项合并进缓存，保持缓存与服务端一致（原实现为本地 setData 合并）
+        queryClient.setQueryData<GetAdminSettingsByGroupResponse>(
+          getAdminSettingsByGroupQueryKey({ path: { group } }),
+          (old) => old
+            ? { ...old, data: { ...(old.data as Record<string, string> | undefined ?? {}), ...items } }
+            : old,
+        )
         return true
       }
       toast.error(res?.message ?? "保存失败")
@@ -52,11 +56,19 @@ export function useSettings(group: string) {
     } finally {
       setSaving(false)
     }
-  }, [group])
+  }, [group, queryClient])
 
   const update = useCallback((key: string, value: string) => {
-    setData((prev) => ({ ...prev, [key]: value }))
+    setOverrides((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  return { data, loading, saving, save, update, reload: load }
+  // 原 reload 会重新加载服务端数据并丢弃本地未保存的编辑
+  const reload = useCallback(async () => {
+    setOverrides({})
+    await queryClient.invalidateQueries({
+      queryKey: getAdminSettingsByGroupQueryKey({ path: { group } }),
+    })
+  }, [group, queryClient])
+
+  return { data, loading: query.isPending, saving, save, update, reload }
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -44,10 +45,12 @@ import {
 import { ImageSelector } from "@/components/image-selector"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useTasks } from "@/hooks/use-tasks"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import { formatBytes, getErrorMessage} from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusImage } from "@/types/incus"
+import { queryKeys } from "@/lib/query-keys"
 
 export function ImageTableSkeleton() {
   return (
@@ -107,7 +110,8 @@ const pullSchema = z.object({
   type: z.enum(["container", "virtual-machine"]).default("container"),
 })
 
-type PullFormValues = z.infer<typeof pullSchema>
+type PullFormInput = z.input<typeof pullSchema>
+type PullFormValues = z.output<typeof pullSchema>
 
 function PullImageDialog({
   open,
@@ -120,9 +124,8 @@ function PullImageDialog({
   nodeId: number
   onSuccess: () => void
 }) {
-  const form = useForm<PullFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(pullSchema) as any,
+  const form = useForm<PullFormInput, unknown, PullFormValues>({
+    resolver: zodResolver(pullSchema),
     defaultValues: {
       server: "",
       protocol: "simplestreams",
@@ -227,27 +230,26 @@ function PullImageDialog({
 
 export default function NodeImageTable({ nodeId }: Props) {
   const formatDate = useFormatDate()
-  const [images, setImages] = useState<IncusImage[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [pullOpen, setPullOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const fetchImages = useCallback(async () => {
-    setLoading(true)
-    try {
+  // 节点镜像列表走通用 proxy（lib/incus.ts，无生成 SDK），使用集中登记的手工 key
+  const query = useQuery({
+    queryKey: queryKeys.nodeImages(nodeId),
+    queryFn: async () => {
       const data = await incus<IncusImage[]>(nodeId, "1.0/images", { params: { recursion: "1" } })
-      setImages(data ?? [])
-    } catch (err) {
-      toast.error(incusErrorMessage(err, "获取镜像列表失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [nodeId])
+      return data ?? []
+    },
+  })
+  const images = query.data ?? []
+  const loading = query.isPending
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchImages()
-  }, [fetchImages])
+  useQueryErrorToast(query.error, "获取镜像列表失败", incusErrorMessage)
+
+  const fetchImages = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.nodeImages(nodeId) })
+  }, [queryClient, nodeId])
 
   const handleDownload = useCallback(async (img: IncusImage) => {
     const { getWSTicket } = await import("@/lib/ws-ticket")

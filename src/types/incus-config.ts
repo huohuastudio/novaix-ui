@@ -1,9 +1,15 @@
 import { z } from "zod"
+import type { UseFormReturn } from "react-hook-form"
+
+// 注意：本文件的 schema 已做「输入/输出类型归一化」处理（z.input == z.output）：
+// - 不使用 .default()，字段默认值统一由 incusConfigDefaults 等常量提供
+// - z.coerce.number<number>() 声明输入类型为 number（运行时仍执行 coerce，纯类型声明）
+// 这样 useForm<FormValues>({ resolver: zodResolver(schema) }) 单泛型即可编译通过。
 
 export const proxyDeviceSchema = z.object({
   name: z.string().min(1),
-  nat: z.boolean().default(true),
-  bind: z.enum(["host", "instance"]).default("host"),
+  nat: z.boolean(),
+  bind: z.enum(["host", "instance"]),
   listen: z.string().min(1, "请输入监听地址"),
   connect: z.string().min(1, "请输入连接地址"),
 })
@@ -11,13 +17,13 @@ export type ProxyDevice = z.infer<typeof proxyDeviceSchema>
 
 export const gpuDeviceSchema = z.object({
   name: z.string().min(1),
-  gputype: z.enum(["physical", "mdev", "mig", "sriov"]).default("physical"),
-  vendorid: z.string().optional().default(""),
-  productid: z.string().optional().default(""),
-  pci_address: z.string().optional().default(""),
-  mdev: z.string().optional().default(""),
-  mig_uuid: z.string().optional().default(""),
-  id: z.string().optional().default(""),
+  gputype: z.enum(["physical", "mdev", "mig", "sriov"]),
+  vendorid: z.string().optional(),
+  productid: z.string().optional(),
+  pci_address: z.string().optional(),
+  mdev: z.string().optional(),
+  mig_uuid: z.string().optional(),
+  id: z.string().optional(),
 })
 export type GpuDevice = z.infer<typeof gpuDeviceSchema>
 
@@ -25,19 +31,19 @@ export const volumeDeviceSchema = z.object({
   name: z.string().min(1, "请输入设备名称"),
   pool: z.string().min(1, "请选择存储池"),
   source: z.string().min(1, "请选择存储卷"),
-  path: z.string().default(""),
-  content_type: z.enum(["filesystem", "block"]).default("filesystem"),
+  path: z.string(),
+  content_type: z.enum(["filesystem", "block"]),
 })
 export type VolumeDevice = z.infer<typeof volumeDeviceSchema>
 
 export const otherDeviceSchema = z.object({
   name: z.string().min(1),
   device_type: z.enum(["usb", "tpm", "pci", "unix-char", "unix-block", "unix-hotplug", "infiniband"]),
-  vendorid: z.string().optional().default(""),
-  productid: z.string().optional().default(""),
-  pci_address: z.string().optional().default(""),
-  path: z.string().optional().default(""),
-  source: z.string().optional().default(""),
+  vendorid: z.string().optional(),
+  productid: z.string().optional(),
+  pci_address: z.string().optional(),
+  path: z.string().optional(),
+  source: z.string().optional(),
 })
 export type OtherDevice = z.infer<typeof otherDeviceSchema>
 
@@ -45,70 +51,92 @@ export const incusConfigSchema = z.object({
   type: z.enum(["virtual-machine", "container"]),
 
   // 资源限制
-  limits_memory_swap: z.string().optional().default(""),
-  limits_disk_priority: z.coerce.number().int().min(0).max(10).optional(),
-  limits_processes: z.coerce.number().int().min(0).optional(),
+  limits_memory_swap: z.string().optional(),
+  limits_disk_priority: z.coerce.number<number>().int().min(0).max(10).optional(),
+  limits_processes: z.coerce.number<number>().int().min(0).optional(),
 
   // 安全策略
-  security_privileged: z.boolean().default(false),
-  security_nesting: z.boolean().default(false),
-  security_protection_delete: z.boolean().default(false),
-  security_protection_shift: z.boolean().default(false),
-  security_secureboot: z.boolean().default(true),
-  security_csm: z.boolean().default(false),
-  security_idmap_base: z.string().optional().default(""),
-  security_idmap_size: z.coerce.number().int().min(0).optional(),
-  security_idmap_isolated: z.boolean().default(false),
-  security_devlxd: z.boolean().default(true),
-  security_devlxd_images: z.boolean().default(false),
+  security_privileged: z.boolean(),
+  security_nesting: z.boolean(),
+  security_protection_delete: z.boolean(),
+  security_protection_shift: z.boolean(),
+  security_secureboot: z.boolean(),
+  security_csm: z.boolean(),
+  security_idmap_base: z.string().optional(),
+  security_idmap_size: z.coerce.number<number>().int().min(0).optional(),
+  security_idmap_isolated: z.boolean(),
+  security_devlxd: z.boolean(),
+  security_devlxd_images: z.boolean(),
 
   // 快照
-  snapshots_schedule: z.string().optional().default(""),
-  snapshots_schedule_stopped: z.boolean().default(false),
-  snapshots_pattern: z.string().optional().default(""),
-  snapshots_expiry: z.string().optional().default(""),
+  snapshots_schedule: z.string().optional(),
+  snapshots_schedule_stopped: z.boolean(),
+  snapshots_pattern: z.string().optional(),
+  snapshots_expiry: z.string().optional(),
 
   // 迁移
-  migration_stateful: z.boolean().default(false),
-  cluster_evacuate: z.string().optional().default(""),
+  migration_stateful: z.boolean(),
+  cluster_evacuate: z.string().optional(),
 
   // 引导
-  boot_autostart: z.boolean().default(false),
-  boot_autostart_priority: z.coerce.number().int().optional().default(0),
-  boot_autostart_delay: z.coerce.number().int().min(0).optional().default(0),
-  boot_stop_priority: z.coerce.number().int().optional().default(0),
-  boot_host_shutdown_timeout: z.coerce.number().int().min(0).optional().default(30),
+  boot_autostart: z.boolean(),
+  boot_autostart_priority: z.coerce.number<number>().int().optional(),
+  boot_autostart_delay: z.coerce.number<number>().int().min(0).optional(),
+  boot_stop_priority: z.coerce.number<number>().int().optional(),
+  boot_host_shutdown_timeout: z.coerce.number<number>().int().min(0).optional(),
 
   // 高级
-  raw_incus_config: z.string().optional().default(""),
+  raw_incus_config: z.string().optional(),
 
   // Cloud Init
-  cloud_init_user_data: z.string().optional().default(""),
-  cloud_init_vendor_data: z.string().optional().default(""),
-  cloud_init_network_config: z.string().optional().default(""),
+  cloud_init_user_data: z.string().optional(),
+  cloud_init_vendor_data: z.string().optional(),
+  cloud_init_network_config: z.string().optional(),
 
   // 设备 - 网络
-  network_device_name: z.string().optional().default("eth0"),
-  network_name: z.string().optional().default(""),
+  network_device_name: z.string().optional(),
+  network_name: z.string().optional(),
 
   // 设备 - 磁盘
-  disk_pool: z.string().optional().default(""),
-  disk_size: z.string().optional().default(""),
+  disk_pool: z.string().optional(),
+  disk_size: z.string().optional(),
 
   // 设备 - 代理
-  proxy_devices: z.array(proxyDeviceSchema).default([]),
+  proxy_devices: z.array(proxyDeviceSchema),
 
   // 设备 - GPU
-  gpu_devices: z.array(gpuDeviceSchema).default([]),
+  gpu_devices: z.array(gpuDeviceSchema),
 
   // 设备 - 附加卷
-  volume_devices: z.array(volumeDeviceSchema).default([]),
+  volume_devices: z.array(volumeDeviceSchema),
 
   // 设备 - 其他
-  other_devices: z.array(otherDeviceSchema).default([]),
+  other_devices: z.array(otherDeviceSchema),
 })
 
 export type IncusConfigFormValues = z.infer<typeof incusConfigSchema>
+
+// 基础配置表单视图值：在基础字段之上附加少量实例独有的可选字段。
+// 资源限制、磁盘/网络/存储卷设备等区块在「实例表单」和「配置文件表单」间共用，
+// 会读取 node_id、cpu 等实例独有字段；配置文件表单中这些字段不存在，
+// 运行时读取结果为 undefined，与此处的可选类型语义一致。
+export type IncusConfigViewValues = IncusConfigFormValues & {
+  node_id?: number
+  cpu?: number
+  memory?: number
+  disk?: number
+  bandwidth?: number
+  traffic_limit?: number
+}
+
+export type IncusConfigForm = UseFormReturn<IncusConfigViewValues>
+
+// 将具体表单（字段是 IncusConfigFormValues 超集）收窄为基础配置表单视图。
+// 受控的类型收窄（同款模式另见 image-form-sheet 的 asImageBaseForm）：
+// sections 组件只允许读写基础 schema 中的字段（以及上述实例独有可选字段）。
+export function asIncusConfigForm<T extends IncusConfigFormValues>(form: UseFormReturn<T>): IncusConfigForm {
+  return form as unknown as IncusConfigForm
+}
 
 export const incusConfigDefaults: IncusConfigFormValues = {
   type: "virtual-machine",

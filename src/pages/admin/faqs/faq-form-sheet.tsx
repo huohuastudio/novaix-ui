@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminFaqs, putAdminFaqsById } from "@/api"
@@ -29,11 +29,12 @@ const formSchema = z.object({
   question: z.string().min(1, "问题不能为空").max(255, "问题不能超过 255 个字符"),
   answer: z.string().min(1, "答案不能为空"),
   group_name: z.string().max(100, "分组名不能超过 100 个字符").optional().or(z.literal("")),
-  status: z.coerce.number().int(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  status: z.coerce.number<number | string>().int(),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   question: "",
@@ -45,7 +46,7 @@ const defaultValues: FormValues = {
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
-function FaqFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function FaqFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -138,9 +139,8 @@ export function FaqCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -214,9 +214,8 @@ export function FaqEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

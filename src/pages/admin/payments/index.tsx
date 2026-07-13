@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { ExportButton } from "@/components/export-button"
 import { getAdminPayments } from "@/api"
 import type { PaymentAdminPaymentItem } from "@/api"
+import { getAdminPaymentsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
@@ -47,6 +48,7 @@ export default function Payments() {
 
   const table = useDataTable({
     fetchFn: fetchPayments,
+    queryKey: getAdminPaymentsQueryKey(),
     filterKeys: ["keyword", "status", "provider"],
   })
 
@@ -145,6 +147,7 @@ export default function Payments() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

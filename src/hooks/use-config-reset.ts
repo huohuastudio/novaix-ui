@@ -1,7 +1,7 @@
-import type { UseFormReturn } from "react-hook-form"
-import { incusConfigDefaults, type IncusConfigFormValues } from "@/types/incus-config"
+import { incusConfigDefaults, type IncusConfigForm, type IncusConfigFormValues } from "@/types/incus-config"
 
-export function useConfigReset(form: UseFormReturn<IncusConfigFormValues>) {
+// 将基础配置字段重置为默认值（仅允许重置基础 schema 中的字段）
+export function useConfigReset(form: IncusConfigForm) {
   return (key: keyof IncusConfigFormValues) =>
     () => form.setValue(key, incusConfigDefaults[key])
 }

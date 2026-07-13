@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useSettings } from "@/hooks/use-settings"
-import { getAdminIsos } from "@/api"
 import type { IsoIsoItem } from "@/api"
+import { getAdminIsosOptions } from "@/api/@tanstack/react-query.gen"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -15,16 +15,14 @@ import { SettingSkeleton } from "./setting-skeleton"
 
 export function RescueSection() {
   const { data, loading, saving, save, update } = useSettings("rescue")
-  const [isos, setIsos] = useState<IsoIsoItem[]>([])
 
-  useEffect(() => {
-    getAdminIsos().then(({ data: res }) => {
-      if (res?.code === 0) {
-        const items = (res.data as { items?: IsoIsoItem[] })?.items ?? []
-        setIsos(items.filter((iso) => iso.status === "ready"))
-      }
-    })
-  }, [])
+  const isosQuery = useQuery(getAdminIsosOptions())
+  const isos =
+    isosQuery.data?.code === 0
+      ? ((isosQuery.data.data as { items?: IsoIsoItem[] })?.items ?? []).filter(
+          (iso) => iso.status === "ready",
+        )
+      : []
 
   if (loading) return <SettingSkeleton rows={1} />
 

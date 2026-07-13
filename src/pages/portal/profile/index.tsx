@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Key, Plus, Trash2, Loader2, ShieldCheck, ShieldOff, KeyRound, Mail, Phone, Star, Crown } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/ui/button'
@@ -41,18 +42,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import {
-  getPortalProfile,
   putPortalProfilePassword,
-  getPortalSshKeys,
   postPortalSshKeys,
   deletePortalSshKeysById,
   postPortalTotpSetup,
   postPortalTotpEnable,
   postPortalTotpDisable,
-  getPortalApiKeys,
   postPortalApiKeys,
   deletePortalApiKeysById,
-  getAdminIntegrations,
   postPortalEmailsSendCode,
   postPortalEmails,
   putPortalEmailsByIdPrimary,
@@ -60,7 +57,15 @@ import {
   postPortalPhoneSendCode,
   putPortalPhone,
 } from '@/api'
-import type { PortalProfileResponse, PortalSshKeyItem, PortalApiKeyItem, IntegrationIntegrationResponse } from '@/api'
+import {
+  getPortalProfileOptions,
+  getPortalProfileQueryKey,
+  getPortalSshKeysOptions,
+  getPortalSshKeysQueryKey,
+  getPortalApiKeysOptions,
+  getPortalApiKeysQueryKey,
+  getAdminIntegrationsOptions,
+} from '@/api/@tanstack/react-query.gen'
 import { useSiteName, useFormatDate, useSiteSettings, useAdminPath } from '@/hooks/use-site-settings'
 import { KYCSection } from './kyc-section'
 import { getErrorMessage } from '@/lib/utils'
@@ -100,8 +105,41 @@ export default function PortalProfile() {
   const { kyc_enabled } = useSiteSettings()
   useDocumentTitle(`个人资料 - ${siteName}`)
 
-  const [profile, setProfile] = useState<PortalProfileResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  // 个人资料
+  const profileQuery = useQuery(getPortalProfileOptions())
+  const profile = profileQuery.data?.data ?? null
+  const loading = profileQuery.isPending
+
+  // SSH 密钥列表
+  const sshKeysQuery = useQuery(getPortalSshKeysOptions())
+  const sshKeys = sshKeysQuery.data?.data ?? []
+  const sshLoading = sshKeysQuery.isPending
+
+  // API 密钥列表
+  const apiKeysQuery = useQuery(getPortalApiKeysOptions())
+  const apiKeys = apiKeysQuery.data?.data ?? []
+  const apiKeysLoading = apiKeysQuery.isPending
+
+  // 加载失败提示（保持原有 toast 行为）
+  useEffect(() => {
+    if (profileQuery.isError) toast.error(getErrorMessage(profileQuery.error, '加载个人资料失败'))
+  }, [profileQuery.isError, profileQuery.error])
+  useEffect(() => {
+    if (sshKeysQuery.isError) toast.error(getErrorMessage(sshKeysQuery.error, '加载 SSH 密钥失败'))
+  }, [sshKeysQuery.isError, sshKeysQuery.error])
+  useEffect(() => {
+    if (apiKeysQuery.isError) toast.error(getErrorMessage(apiKeysQuery.error, '加载 API 密钥失败'))
+  }, [apiKeysQuery.isError, apiKeysQuery.error])
+
+  // 写操作成功后失效缓存触发刷新
+  const invalidateProfile = () =>
+    queryClient.invalidateQueries({ queryKey: getPortalProfileQueryKey() })
+  const invalidateSSHKeys = () =>
+    queryClient.invalidateQueries({ queryKey: getPortalSshKeysQueryKey() })
+  const invalidateAPIKeys = () =>
+    queryClient.invalidateQueries({ queryKey: getPortalApiKeysQueryKey() })
 
   // 邮箱管理
   const [addEmailOpen, setAddEmailOpen] = useState(false)
@@ -134,8 +172,6 @@ export default function PortalProfile() {
   const [pwdTotpCode, setPwdTotpCode] = useState('')
   const [changingPwd, setChangingPwd] = useState(false)
 
-  const [sshKeys, setSshKeys] = useState<PortalSshKeyItem[]>([])
-  const [sshLoading, setSshLoading] = useState(true)
   const [addKeyOpen, setAddKeyOpen] = useState(false)
   const [keyName, setKeyName] = useState('')
   const [keyContent, setKeyContent] = useState('')
@@ -152,14 +188,11 @@ export default function PortalProfile() {
   const [totpDisableCode, setTotpDisableCode] = useState('')
   const [totpDisabling, setTotpDisabling] = useState(false)
 
-  const [apiKeys, setApiKeys] = useState<PortalApiKeyItem[]>([])
-  const [apiKeysLoading, setApiKeysLoading] = useState(true)
   const [createKeyOpen, setCreateKeyOpen] = useState(false)
   const [apiKeyName, setApiKeyName] = useState('')
   const [apiKeyExpiry, setApiKeyExpiry] = useState('')
   const [apiKeyPermissions, setApiKeyPermissions] = useState<Record<string, string[]> | null>(null)
   const [apiKeyIntegrationId, setApiKeyIntegrationId] = useState<number | undefined>(undefined)
-  const [integrations, setIntegrations] = useState<IntegrationIntegrationResponse[]>([])
   const [creatingKey, setCreatingKey] = useState(false)
   const isAdmin = useIsAdmin()
   const [newPlainKey, setNewPlainKey] = useState('')
@@ -167,38 +200,12 @@ export default function PortalProfile() {
   const [deleteApiKeyId, setDeleteApiKeyId] = useState<number | null>(null)
   const [deletingApiKey, setDeletingApiKey] = useState(false)
 
-  const fetchProfile = useCallback(async () => {
-    try {
-      const { data: res } = await getPortalProfile()
-      setProfile(res?.data ?? null)
-    } catch (err) {
-      toast.error(getErrorMessage(err, '加载个人资料失败'))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const fetchSSHKeys = useCallback(async () => {
-    try {
-      const { data: res } = await getPortalSshKeys()
-      setSshKeys(res?.data ?? [])
-    } catch (err) {
-      toast.error(getErrorMessage(err, '加载 SSH 密钥失败'))
-    } finally {
-      setSshLoading(false)
-    }
-  }, [])
-
-  const fetchAPIKeys = useCallback(async () => {
-    try {
-      const { data: res } = await getPortalApiKeys()
-      setApiKeys(res?.data ?? [])
-    } catch (err) {
-      toast.error(getErrorMessage(err, '加载 API 密钥失败'))
-    } finally {
-      setApiKeysLoading(false)
-    }
-  }, [])
+  // 集成方列表（仅管理员打开创建密钥对话框时按需加载）
+  const integrationsQuery = useQuery({
+    ...getAdminIntegrationsOptions(),
+    enabled: createKeyOpen && isAdmin,
+  })
+  const integrations = integrationsQuery.data?.data ?? []
 
   const togglePermission = (mod: string, action: string) => {
     setApiKeyPermissions((prev) => {
@@ -223,13 +230,6 @@ export default function PortalProfile() {
   }
 
   const totpEnabled = profile?.totp_enabled ?? false
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    fetchProfile()
-    fetchSSHKeys()
-    fetchAPIKeys()
-  }, [fetchProfile, fetchSSHKeys, fetchAPIKeys])
 
   // 邮箱验证码倒计时
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function PortalProfile() {
       setEmailCode('')
       setEmailTotpCode('')
       setEmailCodeSent(false)
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '添加失败'))
     } finally {
@@ -302,7 +302,7 @@ export default function PortalProfile() {
       })
       toast.success('主邮箱已切换')
       setSettingPrimary(null)
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '设置失败'))
     } finally {
@@ -328,7 +328,7 @@ export default function PortalProfile() {
       })
       toast.success('邮箱已删除')
       setRemoveEmailId(null)
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '删除失败'))
     } finally {
@@ -367,7 +367,7 @@ export default function PortalProfile() {
       setPhoneCode('')
       setPhoneTotpCode('')
       setPhoneCodeSent(false)
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '绑定失败'))
     } finally {
@@ -416,7 +416,7 @@ export default function PortalProfile() {
       setAddKeyOpen(false)
       setKeyName('')
       setKeyContent('')
-      fetchSSHKeys()
+      invalidateSSHKeys()
     } catch (err) {
       toast.error(getErrorMessage(err, '添加失败'))
     } finally {
@@ -449,7 +449,7 @@ export default function PortalProfile() {
       setRequire2FASetup(false)
       toast.success('二次验证已启用')
       setTotpSetupOpen(false)
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '启用失败'))
     } finally {
@@ -465,7 +465,7 @@ export default function PortalProfile() {
       toast.success('二次验证已禁用')
       setTotpDisableOpen(false)
       setTotpDisableCode('')
-      fetchProfile()
+      invalidateProfile()
     } catch (err) {
       toast.error(getErrorMessage(err, '禁用失败'))
     } finally {
@@ -480,7 +480,7 @@ export default function PortalProfile() {
       await deletePortalSshKeysById({ path: { id: deleteKeyId } })
       toast.success('SSH 密钥已删除')
       setDeleteKeyId(null)
-      fetchSSHKeys()
+      invalidateSSHKeys()
     } catch (err) {
       toast.error(getErrorMessage(err, '删除失败'))
     } finally {
@@ -524,27 +524,13 @@ export default function PortalProfile() {
       setApiKeyPermissions(null)
       setApiKeyIntegrationId(undefined)
       setShowKeyOpen(true)
-      fetchAPIKeys()
+      invalidateAPIKeys()
     } catch (err) {
       toast.error(getErrorMessage(err, '创建失败'))
     } finally {
       setCreatingKey(false)
     }
   }
-
-  // 用 ref 而不是 length === 0 判定，避免空列表导致每次打开对话框都重复拉取
-  const integrationsLoadedRef = useRef(false)
-  useEffect(() => {
-    if (createKeyOpen && isAdmin && !integrationsLoadedRef.current) {
-      integrationsLoadedRef.current = true
-      getAdminIntegrations()
-        .then(({ data: res }) => setIntegrations(res?.data ?? []))
-        .catch(() => {
-          integrationsLoadedRef.current = false
-        })
-    }
-  }, [createKeyOpen, isAdmin])
-
 
   const handleDeleteAPIKey = async () => {
     if (!deleteApiKeyId) return
@@ -553,7 +539,7 @@ export default function PortalProfile() {
       await deletePortalApiKeysById({ path: { id: deleteApiKeyId } })
       toast.success('API 密钥已删除')
       setDeleteApiKeyId(null)
-      fetchAPIKeys()
+      invalidateAPIKeys()
     } catch (err) {
       toast.error(getErrorMessage(err, '删除失败'))
     } finally {

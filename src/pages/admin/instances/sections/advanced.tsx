@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import type { UseFormReturn } from "react-hook-form"
+import type { IncusConfigForm } from "@/types/incus-config"
 import { ConfigSection } from "@/components/config-table"
 import {
   FormDescription,
@@ -14,8 +14,7 @@ import { json } from "@codemirror/lang-json"
 const extensions = [json()]
 
 interface AdvancedSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function AdvancedSection({ form }: AdvancedSectionProps) {

@@ -39,15 +39,17 @@ const createSchema = z.object({
   phone: z.string().max(20, "手机号不能超过 20 位").regex(/^\d*$/, "手机号只能是数字"),
   password: z.string().min(6, "密码至少 6 个字符").max(72, "密码不能超过 72 个字符"),
   role: z.enum(["admin", "agent", "user"]),
-  status: z.coerce.number().int(),
+  status: z.coerce.number<number | string>().int(),
 })
 
 const updateSchema = createSchema.extend({
   password: z.string().max(72, "密码不能超过 72 个字符").optional().default(""),
 })
 
-type CreateFormValues = z.infer<typeof createSchema>
-type UpdateFormValues = z.infer<typeof updateSchema>
+// 两个 schema 输出类型一致（password 均为 string），输入侧仅 password 的可选性不同
+type FormInput = z.input<typeof createSchema>
+type UpdateFormInput = z.input<typeof updateSchema>
+type FormValues = z.output<typeof createSchema>
 
 const defaultValues = {
   username: "",
@@ -60,16 +62,20 @@ const defaultValues = {
 
 // ── Shared form fields ──
 
+// 同时接受创建/编辑两种表单实例：二者输入类型仅 password 可选性不同（UseFormReturn 对此不具备兼容性），
+// 组件内部统一按输入更宽的编辑侧类型处理（password 视为可选，组件只读不写该字段）
 function UserFormFields({
-  form,
+  form: formProp,
   passwordLabel,
   passwordPlaceholder,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form:
+    | UseFormReturn<FormInput, unknown, FormValues>
+    | UseFormReturn<UpdateFormInput, unknown, FormValues>
   passwordLabel: string
   passwordPlaceholder: string
 }) {
+  const form = formProp as UseFormReturn<UpdateFormInput, unknown, FormValues>
   return (
     <>
       <FormField
@@ -184,9 +190,8 @@ export function UserCreateDialog({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<CreateFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(createSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(createSchema),
     defaultValues,
   })
 
@@ -198,7 +203,7 @@ export function UserCreateDialog({
     }
   }, [open, form])
 
-  const onSubmit = async (values: CreateFormValues) => {
+  const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
       const { data: res } = await postAdminUsers({ body: values })
@@ -255,9 +260,8 @@ export function UserEditDialog({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<UpdateFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(updateSchema) as any,
+  const form = useForm<UpdateFormInput, unknown, FormValues>({
+    resolver: zodResolver(updateSchema),
     defaultValues,
   })
 
@@ -276,7 +280,7 @@ export function UserEditDialog({
     }
   }, [open, user, form])
 
-  const onSubmit = async (values: UpdateFormValues) => {
+  const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
       const { data: res } = await putAdminUsersById({

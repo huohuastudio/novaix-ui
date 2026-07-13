@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient, type QueryFunction, type QueryKey } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,48 +35,58 @@ const emptyEdit: EditState = { name: "", sort_order: 0, status: 1 }
 
 type ApiResponse = { data?: { code?: number; message?: string } }
 
-export interface GroupDialogConfig<T extends GroupItem> {
+export interface GroupDialogConfig<T extends GroupItem, TRes> {
   title: string
   description: string
   deleteWarning: string
   placeholder: string
-  fetchFn: () => Promise<T[]>
+  /**
+   * 生成 SDK 的 xxxOptions() 返回值：与列表页字典共享同一缓存条目
+   * （缓存内容为完整响应壳，参数需与列表页调用完全一致才能同 key）
+   */
+  queryOptions: {
+    queryKey: QueryKey
+    // 生成的 queryFn 各自绑定具体 key 类型（逆变位置），用 any 抹平以接受任意接口的 options；
+    // 可选（?）与生成的 queryOptions 声明保持一致
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    queryFn?: QueryFunction<TRes, any>
+  }
+  /** 从完整响应壳解包分组数组（作为 useQuery 的 select，不影响缓存内容） */
+  selectGroups: (res: TRes) => T[]
   createFn: (body: { name: string; sort_order: number; status: number }) => Promise<ApiResponse>
   updateFn: (id: number, body: { name: string; sort_order: number; status: number }) => Promise<ApiResponse>
   deleteFn: (id: number) => Promise<ApiResponse>
   renderDetail?: (item: T) => React.ReactNode
 }
 
-interface Props<T extends GroupItem> {
+interface Props<T extends GroupItem, TRes> {
   open: boolean
   onOpenChange: (open: boolean) => void
   onChanged: () => void
-  config: GroupDialogConfig<T>
+  config: GroupDialogConfig<T, TRes>
 }
 
-export default function GroupDialog<T extends GroupItem>({ open, onOpenChange, onChanged, config }: Props<T>) {
-  const [groups, setGroups] = useState<T[]>([])
-  const [loading, setLoading] = useState(false)
+export default function GroupDialog<T extends GroupItem, TRes>({ open, onOpenChange, onChanged, config }: Props<T, TRes>) {
+  const queryClient = useQueryClient()
   const [edit, setEdit] = useState<EditState | null>(null)
   const [saving, setSaving] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const fetchGroups = useCallback(async () => {
-    setLoading(true)
-    try {
-      setGroups(await config.fetchFn())
-    } finally {
-      setLoading(false)
-    }
-  }, [config])
+  // 分组列表查询：复用调用方注入的生成 queryOptions（与列表页同 key 同形状共享缓存），弹窗打开时才发起请求
+  const query = useQuery({
+    ...config.queryOptions,
+    select: config.selectGroups,
+    enabled: open,
+  })
+  const groups = query.data ?? []
+  const loading = query.isPending
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEdit(null)
-      fetchGroups()
     }
-  }, [open, fetchGroups])
+  }, [open])
 
   const handleSave = async () => {
     if (!edit) return
@@ -95,7 +106,7 @@ export default function GroupDialog<T extends GroupItem>({ open, onOpenChange, o
       }
       toast.success(edit.id ? "分组已更新" : "分组已创建")
       setEdit(null)
-      await fetchGroups()
+      await queryClient.invalidateQueries({ queryKey: config.queryOptions.queryKey })
       onChanged()
     } catch (err) {
       toast.error(getErrorMessage(err, "请求失败，请重试"))
@@ -118,7 +129,7 @@ export default function GroupDialog<T extends GroupItem>({ open, onOpenChange, o
       return
     }
     toast.success("分组已删除")
-    await fetchGroups()
+    await queryClient.invalidateQueries({ queryKey: config.queryOptions.queryKey })
     onChanged()
   }
 

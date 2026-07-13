@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, Send, Loader2, Download, AlertCircle, FolderTree, EyeOff, ImageIcon } from "lucide-react"
 import { DataTable } from "@/components/data-table"
@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatBytes } from "@/lib/utils"
-import { getAdminImages, deleteAdminImagesById, getAdminImageGroups } from "@/api"
+import { getAdminImages, deleteAdminImagesById } from "@/api"
 import type { ImageImageItem, ImageGroupItem } from "@/api"
+import { getAdminImagesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -17,6 +18,8 @@ import { EmptyState } from "@/components/empty-state"
 import ImageFormSheet from "./image-form-sheet"
 import DistributeDialog from "./distribute-dialog"
 import ImageGroupDialog from "./image-group-dialog"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminImageGroupsOptions } from "@/api/@tanstack/react-query.gen"
 
 const sourceTypeMap: Record<string, string> = {
   remote: "镜像库",
@@ -43,14 +46,11 @@ export default function Images() {
   const [editingImage, setEditingImage] = useState<ImageImageItem | undefined>()
   const [distributeImage, setDistributeImage] = useState<ImageImageItem | null>(null)
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
-  const [groups, setGroups] = useState<ImageGroupItem[]>([])
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const loadGroups = useCallback(() => {
-    getAdminImageGroups().then(({ data: res }) => setGroups(res?.data ?? []))
-  }, [])
-
-  useEffect(() => { loadGroups() }, [loadGroups])
+  // 镜像分组字典（与分组管理弹窗共享同一缓存条目，弹窗内增删改后由弹窗负责失效）
+  const groupsQuery = useQuery(getAdminImageGroupsOptions())
+  const groups = useMemo<ImageGroupItem[]>(() => groupsQuery.data?.data ?? [], [groupsQuery.data])
 
   const groupNameMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -84,6 +84,7 @@ export default function Images() {
 
   const table = useDataTable({
     fetchFn: fetchImages,
+    queryKey: getAdminImagesQueryKey(),
     filterKeys: ["name", "status", "group_id"],
   })
 
@@ -272,6 +273,7 @@ export default function Images() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
@@ -315,7 +317,7 @@ export default function Images() {
       <ImageGroupDialog
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
-        onChanged={() => { loadGroups(); table.refresh() }}
+        onChanged={() => table.refresh()}
       />
       {ConfirmDialog}
     </div>

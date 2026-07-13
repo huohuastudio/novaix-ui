@@ -26,6 +26,7 @@
     "@icons-pack/react-simple-icons": "^13.13.0",
     "@novnc/novnc": "^1.7.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/extension-color": "^3.23.4",
     "@tiptap/extension-highlight": "^3.23.4",
@@ -74,6 +75,7 @@
     "@hey-api/openapi-ts": "^0.97.1",
     "@playwright/test": "^1.61.0",
     "@tailwindcss/vite": "^4.2.4",
+    "@tanstack/react-query-devtools": "^5.101.2",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -90,6 +92,8 @@
     "vite": "^8.0.10"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

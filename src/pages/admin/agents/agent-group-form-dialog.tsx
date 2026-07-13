@@ -22,13 +22,14 @@ import { FormSheet } from "@/components/form-sheet"
 
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
-  commission_rate_first: z.coerce.number().int().min(0).max(100).default(10),
-  commission_rate_recurring: z.coerce.number().int().min(0).max(100).default(0),
-  discount_rate: z.coerce.number().int().min(0).max(100).default(0),
+  commission_rate_first: z.coerce.number<number | string>().int().min(0).max(100).default(10),
+  commission_rate_recurring: z.coerce.number<number | string>().int().min(0).max(100).default(0),
+  discount_rate: z.coerce.number<number | string>().int().min(0).max(100).default(0),
   description: z.string().max(512).default(""),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -51,9 +52,8 @@ export default function AgentGroupFormDialog({ open, onOpenChange, group, onSucc
   const isEdit = !!group
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues,
   })
 
@@ -88,7 +88,7 @@ export default function AgentGroupFormDialog({ open, onOpenChange, group, onSucc
         ? await putAdminAgentGroupsById({ path: { id: group!.id! }, body })
         : await postAdminAgentGroups({ body })
       if (res?.code !== 0) {
-        handleServerErrors<FormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()

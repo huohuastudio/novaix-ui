@@ -9,6 +9,7 @@ import {
   deleteAdminTrafficPackagesById,
 } from "@/api"
 import type { TrafficPackageTrafficPackageItem } from "@/api"
+import { getAdminTrafficPackagesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -38,7 +39,7 @@ export default function TrafficPackages() {
     }
   }, [])
 
-  const table = useDataTable({ fetchFn: fetchPackages })
+  const table = useDataTable({ fetchFn: fetchPackages, queryKey: getAdminTrafficPackagesQueryKey() })
 
   const handleCreate = () => {
     setEditing(undefined)
@@ -158,6 +159,7 @@ export default function TrafficPackages() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

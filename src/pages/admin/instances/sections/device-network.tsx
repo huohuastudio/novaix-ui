@@ -1,5 +1,5 @@
-import type { UseFormReturn } from "react-hook-form"
 import type { NodeResources } from "@/hooks/use-node-resources"
+import type { IncusConfigForm } from "@/types/incus-config"
 import { ConfigSection } from "@/components/config-table"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,8 +20,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 
 interface NetworkDeviceSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
   nodeResources: NodeResources
   nodeId?: number
 }

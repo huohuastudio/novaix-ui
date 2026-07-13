@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   Cpu,
@@ -31,10 +32,14 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  getPortalOrdersById,
   postPortalOrdersByIdCancel,
   postPortalOrdersByIdRefund,
 } from '@/api'
+import {
+  getPortalOrdersByIdOptions,
+  getPortalOrdersByIdQueryKey,
+  getPortalOrdersQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import { PayDialog } from './pay-dialog'
 import type { PortalPortalOrderDetail } from '@/api'
 import { useSiteName, useFormatAmount } from '@/hooks/use-site-settings'
@@ -93,9 +98,8 @@ export default function PortalOrderDetail() {
   const formatAmount = useFormatAmount()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [order, setOrder] = useState<PortalPortalOrderDetail | null>(null)
-  const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<'cancel' | null>(null)
@@ -105,26 +109,25 @@ export default function PortalOrderDetail() {
 
   useDocumentTitle(`订单详情 - ${siteName}`)
 
-  const fetchOrder = useCallback(async () => {
-    if (!id) return
-    try {
-      const { data: res } = await getPortalOrdersById({ path: { id: Number(id) } })
-      if (res?.code === 0 && res.data) {
-        setOrder(res.data as PortalPortalOrderDetail)
-      } else {
-        navigate('/portal/orders', { replace: true })
-      }
-    } catch {
-      navigate('/portal/orders', { replace: true })
-    } finally {
-      setLoading(false)
-    }
-  }, [id, navigate])
+  const orderQuery = useQuery({
+    ...getPortalOrdersByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const orderRes = orderQuery.data
+  const order = orderRes?.code === 0 && orderRes.data ? (orderRes.data as PortalPortalOrderDetail) : null
 
+  // 加载失败（且无缓存数据）或订单不存在时返回列表页
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    fetchOrder()
-  }, [fetchOrder])
+    if ((orderQuery.isError && !order) || (orderRes && !(orderRes.code === 0 && orderRes.data))) {
+      navigate('/portal/orders', { replace: true })
+    }
+  }, [orderQuery.isError, order, orderRes, navigate])
+
+  // 操作成功后刷新订单详情，同时失效订单列表缓存
+  const refreshOrder = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getPortalOrdersByIdQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getPortalOrdersQueryKey() })
+  }, [queryClient, id])
 
   const handleCancel = async () => {
     if (!order?.id) return
@@ -133,7 +136,7 @@ export default function PortalOrderDetail() {
       const { data: res } = await postPortalOrdersByIdCancel({ path: { id: order.id } })
       if (res?.code === 0) {
         toast.success('订单已取消')
-        fetchOrder()
+        refreshOrder()
       } else {
         toast.error(res?.message || '取消失败')
       }
@@ -157,7 +160,7 @@ export default function PortalOrderDetail() {
         toast.success('退款申请已提交，请等待审核')
         setRefundOpen(false)
         setRefundReason('')
-        fetchOrder()
+        refreshOrder()
       } else {
         toast.error(res?.message || '提交失败')
       }
@@ -168,7 +171,7 @@ export default function PortalOrderDetail() {
     }
   }
 
-  if (loading) return <DetailSkeleton />
+  if (orderQuery.isPending) return <DetailSkeleton />
   if (!order) return null
 
   const status = order.status ?? ''
@@ -360,7 +363,7 @@ export default function PortalOrderDetail() {
           onOpenChange={setPayOpen}
           orderId={order.id}
           amount={order.amount ?? 0}
-          onSuccess={fetchOrder}
+          onSuccess={refreshOrder}
         />
       )}
 

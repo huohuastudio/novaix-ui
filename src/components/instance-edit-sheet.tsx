@@ -1,12 +1,16 @@
 "use no memo";
-import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
-import { getAdminInstancesById, putAdminInstancesById } from "@/api"
+import { putAdminInstancesById } from "@/api"
+import {
+  getAdminInstancesByIdOptions,
+  getAdminInstancesByIdQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import type { InstanceInstanceItem } from "@/api"
-import { handleServerErrors } from "@/lib/form-utils"
+import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { instanceFormSchema, fieldNames, buildUpdateBody, instanceToFormValues } from "@/pages/admin/instances/schema"
 import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { Button } from "@/components/ui/button"
@@ -71,21 +75,9 @@ function InstanceEditLoader({
   onSuccess: () => void
   onCancel: () => void
 }) {
-  const [instance, setInstance] = useState<InstanceInstanceItem | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    // loading 已在初始状态中设为 true，此处无需重复设置
-    getAdminInstancesById({ path: { id: instanceId } })
-      .then(({ data: res }) => {
-        if (!cancelled && res?.code === 0 && res.data) {
-          setInstance(res.data)
-        }
-      })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [instanceId])
+  const query = useQuery(getAdminInstancesByIdOptions({ path: { id: instanceId } }))
+  const instance = query.data?.data ?? null
+  const loading = query.isPending
 
   if (loading) {
     return (
@@ -153,9 +145,9 @@ function InstanceEditForm({
   onSuccess: () => void
   onCancel: () => void
 }) {
+  const queryClient = useQueryClient()
   const form = useForm<InstanceFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(instanceFormSchema) as any,
+    resolver: zodResolver(instanceFormSchema),
     defaultValues: instanceToFormValues(instance),
   })
 
@@ -166,16 +158,19 @@ function InstanceEditForm({
   const onSubmit = async (values: InstanceFormValues) => {
     const body = buildUpdateBody(values)
     const result = await putAdminInstancesById({ path: { id: instanceId }, body })
-    const res = result.data ?? (result as unknown as { error: unknown }).error
-    const serverRes = res as { code?: number; message?: string; data?: unknown } | undefined
-    if (serverRes?.code !== 0) {
-      handleServerErrors<InstanceFormValues>(serverRes, {
+    const res = unwrapResponse(result)
+    if (res?.code !== 0) {
+      handleServerErrors(res, {
         setError: form.setError,
         fieldNames,
       })
       return
     }
     toast.success("实例配置已保存")
+    // 失效实例详情缓存，避免再次打开编辑抽屉时表单回填保存前的旧值
+    void queryClient.invalidateQueries({
+      queryKey: getAdminInstancesByIdQueryKey({ path: { id: instanceId } }),
+    })
     onSuccess()
   }
 

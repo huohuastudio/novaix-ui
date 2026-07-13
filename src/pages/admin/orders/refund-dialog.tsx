@@ -43,8 +43,7 @@ export function RefundDialog({ open, onOpenChange, order, onSuccess }: Props) {
   const formatAmount = useFormatAmount()
   const [serverError, setServerError] = useState("")
   const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema),
     defaultValues: { remark: "" },
   })
 

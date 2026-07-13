@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import type { Upload } from "tus-js-client"
 import { postAdminImages, putAdminImagesById } from "@/api"
-import type { ImageImageItem, ImageGroupItem } from "@/api"
-import { handleServerErrors } from "@/lib/form-utils"
+import type { ImageImageItem, ImageGroupItem, ImageCreateRequest, ImageUpdateRequest } from "@/api"
+import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,25 +60,39 @@ const TYPE_OPTIONS = [
   { value: "virtual-machine", label: "虚拟机" },
 ]
 
-const createFields = {
+// 基础镜像表单 schema（各来源表单共有字段）。
+// 已做输入/输出类型归一化：不使用 .default()（默认值由各 defaults 常量提供），
+// z.coerce.number<number>() 仅声明输入类型，运行时仍执行 coerce。
+const imageBaseSchema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   os: z.string().min(1, "请选择操作系统"),
   version: z.string().min(1, "请输入版本号").max(64),
-  arch: z.string().default("amd64"),
-  type: z.string().default("virtual-machine"),
-  min_disk: z.coerce.number().int().min(0).default(0),
-  min_memory: z.coerce.number().int().min(0).default(0),
-  default_user: z.string().max(32).default("root"),
-  cloud_init: z.boolean().default(true),
-  description: z.string().max(255).default(""),
-  status: z.coerce.number().int().min(0).max(1).default(1),
+  arch: z.string(),
+  type: z.string(),
+  min_disk: z.coerce.number<number>().int().min(0),
+  min_memory: z.coerce.number<number>().int().min(0),
+  default_user: z.string().max(32),
+  cloud_init: z.boolean(),
+  description: z.string().max(255),
+  status: z.coerce.number<number>().int().min(0).max(1),
   // 分组与高级配置（group_id/模式以字符串存储，提交前归一化）
-  group_id: z.string().default("0"),
-  boot_script: z.string().max(8192).default(""),
-  disk_mode: z.string().default("default"),
-  cpu_mode: z.string().default("default"),
-  boot_mode: z.string().default("default"),
-  hidden: z.boolean().default(false),
+  group_id: z.string(),
+  boot_script: z.string().max(8192),
+  disk_mode: z.string(),
+  cpu_mode: z.string(),
+  boot_mode: z.string(),
+  hidden: z.boolean(),
+})
+
+type ImageBaseValues = z.infer<typeof imageBaseSchema>
+
+type ImageBaseForm = UseFormReturn<ImageBaseValues>
+
+// 将具体镜像表单（字段是 ImageBaseValues 超集）收窄为基础表单视图。
+// 受控的类型收窄：共用字段组件（CoreFields/ExtraFields/AdvancedFields）
+// 只允许读写基础 schema 中的字段。
+function asImageBaseForm<T extends ImageBaseValues>(form: UseFormReturn<T>): ImageBaseForm {
+  return form as unknown as ImageBaseForm
 }
 
 const BOOT_MODE_OPTIONS = [
@@ -98,11 +113,9 @@ const CPU_MODE_OPTIONS = [
 ]
 
 // normalizeImageValues 将表单值中的分组/模式哨兵值（"0"/"default"）归一化为后端请求字段
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeImageValues(values: any, isEdit: boolean): any {
+function normalizeImageValues(values: ImageBaseValues, isEdit: boolean): Record<string, unknown> {
   const { group_id, boot_script, disk_mode, cpu_mode, boot_mode, hidden, ...rest } = values
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const out: Record<string, any> = {
+  const out: Record<string, unknown> = {
     ...rest,
     boot_script: boot_script || "",
     disk_mode: disk_mode === "default" ? "" : disk_mode,
@@ -120,22 +133,19 @@ function normalizeImageValues(values: any, isEdit: boolean): any {
 }
 
 // 镜像库 - 从镜像服务器浏览选择
-const librarySchema = z.object({
-  ...createFields,
+const librarySchema = imageBaseSchema.extend({
   alias: z.string().min(1, "请选择镜像").max(128),
   source_server: z.string().max(255),
 })
 
 // 远程下载 - 填写 HTTP 下载链接
-const urlSchema = z.object({
-  ...createFields,
+const urlSchema = imageBaseSchema.extend({
   source_url: z.string().url("请输入有效的下载链接").max(512),
 })
 
-const uploadSchema = z.object(createFields)
+const uploadSchema = imageBaseSchema
 
-const localSchema = z.object({
-  ...createFields,
+const localSchema = imageBaseSchema.extend({
   local_path: z.string().min(1, "请输入文件路径").max(512),
 })
 
@@ -177,8 +187,7 @@ const urlFieldNames = Object.keys(urlDefaults) as string[]
 const uploadFieldNames = Object.keys(uploadDefaults) as string[]
 const localFieldNames = Object.keys(localDefaults) as string[]
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CoreFields({ form }: { form: any }) {
+function CoreFields({ form }: { form: ImageBaseForm }) {
   return (
     <>
       <FormField control={form.control} name="name" render={({ field }) => (
@@ -239,8 +248,7 @@ function CoreFields({ form }: { form: any }) {
   )
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ExtraFields({ form }: { form: any }) {
+function ExtraFields({ form }: { form: ImageBaseForm }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -299,8 +307,7 @@ function ExtraFields({ form }: { form: any }) {
   )
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function AdvancedFields({ form, groups }: { form: any; groups: ImageGroupItem[] }) {
+function AdvancedFields({ form, groups }: { form: ImageBaseForm; groups: ImageGroupItem[] }) {
   const isVM = form.watch("type") === "virtual-machine"
   return (
     <>
@@ -395,26 +402,22 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
   const { addTask } = useTasks()
 
   const libraryForm = useForm<LibraryFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(librarySchema) as any,
+    resolver: zodResolver(librarySchema),
     defaultValues: libraryDefaults,
   })
 
   const urlForm = useForm<URLFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(urlSchema) as any,
+    resolver: zodResolver(urlSchema),
     defaultValues: urlDefaults,
   })
 
   const uploadForm = useForm<UploadFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(uploadSchema) as any,
+    resolver: zodResolver(uploadSchema),
     defaultValues: uploadDefaults,
   })
 
   const localForm = useForm<LocalFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(localSchema) as any,
+    resolver: zodResolver(localSchema),
     defaultValues: localDefaults,
   })
 
@@ -433,26 +436,24 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
     }
   }, [open, libraryForm, urlForm, uploadForm, localForm])
 
-  function makeSubmitHandler(
+  function makeSubmitHandler<T extends ImageBaseValues>(
     sourceType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    form: { setError: any; handleSubmit: any },
+    form: UseFormReturn<T>,
     fieldNames: string[],
     extra?: Record<string, unknown>,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return async (values: any) => {
+    return async (values: T) => {
       try {
-        const { data: res, error } = await postAdminImages({
-          body: { ...normalizeImageValues(values, false), source_type: sourceType, ...extra },
+        const result = await postAdminImages({
+          // normalizeImageValues 做了字段归一化（group_id 转数字等），此处收敛回生成的请求类型
+          body: { ...normalizeImageValues(values, false), source_type: sourceType, ...extra } as ImageCreateRequest,
         })
-        const result = res ?? error
-        if (result?.code !== 0) {
-          handleServerErrors(result, { setError: form.setError, fieldNames })
+        const res = unwrapResponse(result)
+        if (res?.code !== 0) {
+          handleServerErrors(res, { setError: form.setError, fieldNames })
           return
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = (result as any)?.data as ImageImageItem | undefined
+        const data = res?.data
         if (data?.download_task_id) {
           addTask(data.download_task_id, "download_image")
           toast.success("镜像已创建，正在后台下载", { description: `任务 #${data.download_task_id} 正在执行` })
@@ -480,8 +481,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleUploadSuccess = (upload: any) => {
+  const handleUploadSuccess = (upload: Upload) => {
     const url: string = upload.url || ""
     const id = url.split("/").pop() || ""
     setUploadId(id)
@@ -531,9 +531,9 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <CoreFields form={libraryForm} />
-                <ExtraFields form={libraryForm} />
-                <AdvancedFields form={libraryForm} groups={groups} />
+                <CoreFields form={asImageBaseForm(libraryForm)} />
+                <ExtraFields form={asImageBaseForm(libraryForm)} />
+                <AdvancedFields form={asImageBaseForm(libraryForm)} groups={groups} />
               </form>
             </Form>
           </TabsContent>
@@ -549,9 +549,9 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <CoreFields form={urlForm} />
-                <ExtraFields form={urlForm} />
-                <AdvancedFields form={urlForm} groups={groups} />
+                <CoreFields form={asImageBaseForm(urlForm)} />
+                <ExtraFields form={asImageBaseForm(urlForm)} />
+                <AdvancedFields form={asImageBaseForm(urlForm)} groups={groups} />
               </form>
             </Form>
           </TabsContent>
@@ -593,9 +593,9 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
               )}
               <Form {...uploadForm}>
                 <form className="flex flex-col gap-4">
-                  <CoreFields form={uploadForm} />
-                  <ExtraFields form={uploadForm} />
-                  <AdvancedFields form={uploadForm} groups={groups} />
+                  <CoreFields form={asImageBaseForm(uploadForm)} />
+                  <ExtraFields form={asImageBaseForm(uploadForm)} />
+                  <AdvancedFields form={asImageBaseForm(uploadForm)} groups={groups} />
                 </form>
               </Form>
             </div>
@@ -612,35 +612,31 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <CoreFields form={localForm} />
-                <ExtraFields form={localForm} />
-                <AdvancedFields form={localForm} groups={groups} />
+                <CoreFields form={asImageBaseForm(localForm)} />
+                <ExtraFields form={asImageBaseForm(localForm)} />
+                <AdvancedFields form={asImageBaseForm(localForm)} groups={groups} />
               </form>
             </Form>
           </TabsContent>
         </Tabs>
         <DialogFooter className="shrink-0">
           {tab === "library" && (
-            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-            <Button onClick={libraryForm.handleSubmit(onSubmitLibrary as any)} disabled={libraryForm.formState.isSubmitting}>
+            <Button onClick={libraryForm.handleSubmit(onSubmitLibrary)} disabled={libraryForm.formState.isSubmitting}>
               {libraryForm.formState.isSubmitting ? "提交中..." : "创建"}
             </Button>
           )}
           {tab === "url" && (
-            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-            <Button onClick={urlForm.handleSubmit(onSubmitURL as any)} disabled={urlForm.formState.isSubmitting}>
+            <Button onClick={urlForm.handleSubmit(onSubmitURL)} disabled={urlForm.formState.isSubmitting}>
               {urlForm.formState.isSubmitting ? "提交中..." : "创建"}
             </Button>
           )}
           {tab === "upload" && uploadDone && (
-            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-            <Button onClick={uploadForm.handleSubmit(onSubmitUpload as any)} disabled={uploadForm.formState.isSubmitting}>
+            <Button onClick={uploadForm.handleSubmit(onSubmitUpload)} disabled={uploadForm.formState.isSubmitting}>
               {uploadForm.formState.isSubmitting ? "保存中..." : "保存"}
             </Button>
           )}
           {tab === "local" && (
-            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-            <Button onClick={localForm.handleSubmit(onSubmitLocal as any)} disabled={localForm.formState.isSubmitting}>
+            <Button onClick={localForm.handleSubmit(onSubmitLocal)} disabled={localForm.formState.isSubmitting}>
               {localForm.formState.isSubmitting ? "提交中..." : "创建"}
             </Button>
           )}
@@ -652,7 +648,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
 
 // ── 编辑表单 ──
 
-const editSchema = z.object(createFields)
+const editSchema = imageBaseSchema
 
 type EditFormValues = z.infer<typeof editSchema>
 
@@ -671,8 +667,7 @@ function EditImageForm({ open, onOpenChange, image, onSuccess, groups }: {
   groups: ImageGroupItem[]
 }) {
   const form = useForm<EditFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(editSchema) as any,
+    resolver: zodResolver(editSchema),
     defaultValues: editDefaults,
   })
 
@@ -702,13 +697,14 @@ function EditImageForm({ open, onOpenChange, image, onSuccess, groups }: {
 
   const onSubmit = async (values: EditFormValues) => {
     try {
-      const { data: res, error } = await putAdminImagesById({
+      const result = await putAdminImagesById({
         path: { id: image.id! },
-        body: normalizeImageValues(values, true),
+        // normalizeImageValues 做了字段归一化（group_id 转数字、clear_group 等），此处收敛回生成的请求类型
+        body: normalizeImageValues(values, true) as ImageUpdateRequest,
       })
-      const result = res ?? error
-      if (result?.code !== 0) {
-        handleServerErrors<EditFormValues>(result, { setError: form.setError, fieldNames: editFieldNames })
+      const res = unwrapResponse(result)
+      if (res?.code !== 0) {
+        handleServerErrors(res, { setError: form.setError, fieldNames: editFieldNames })
         return
       }
       onSuccess()
@@ -727,9 +723,9 @@ function EditImageForm({ open, onOpenChange, image, onSuccess, groups }: {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <Form {...form}>
             <form className="flex flex-col gap-4">
-              <CoreFields form={form} />
-              <ExtraFields form={form} />
-              <AdvancedFields form={form} groups={groups} />
+              <CoreFields form={asImageBaseForm(form)} />
+              <ExtraFields form={asImageBaseForm(form)} />
+              <AdvancedFields form={asImageBaseForm(form)} groups={groups} />
             </form>
           </Form>
         </div>

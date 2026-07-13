@@ -1,7 +1,10 @@
-import { useEffect, useState, useCallback } from "react"
+import { useState, useCallback } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ServiceFirewallRuleItem, ServiceFirewallRuleInput } from "@/api"
 import { getErrorMessage } from "@/lib/utils"
 import { toast } from "sonner"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 
 export const PROTOCOL_ALL = "_all"
 
@@ -37,6 +40,8 @@ const defaultFormData: ServiceFirewallRuleInput = {
 }
 
 interface FirewallAPI {
+  /** 端标识，区分 admin/portal 两端的查询缓存（不能用函数名判别：生产压缩会 mangle 函数名） */
+  scope: "admin" | "portal"
   list: (opts: { path: { id: number } }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
   create: (opts: { path: { id: number }; body: ServiceFirewallRuleInput }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
   update: (opts: { path: { id: number; ruleId: number }; body: ServiceFirewallRuleInput }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
@@ -44,8 +49,7 @@ interface FirewallAPI {
 }
 
 export function useFirewallRules(instanceId: number, api: FirewallAPI) {
-  const [rules, setRules] = useState<ServiceFirewallRuleItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRule, setEditingRule] = useState<ServiceFirewallRuleItem | null>(null)
   const [formData, setFormData] = useState<ServiceFirewallRuleInput>(defaultFormData)
@@ -53,23 +57,25 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
   const [deleteConfirm, setDeleteConfirm] = useState<ServiceFirewallRuleItem | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchRules = useCallback(async () => {
-    try {
+  // api 经参数注入（admin/portal 两端接口不同），用 scope 字段作为 key 判别符区分缓存
+  const queryKey = queryKeys.firewallRules(api.scope, instanceId)
+
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
       const { data: res } = await api.list({ path: { id: instanceId } })
       if (res?.code === 0 && res.data) {
-        setRules(res.data as ServiceFirewallRuleItem[])
+        return res.data as ServiceFirewallRuleItem[]
       }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "获取防火墙规则失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [instanceId, api])
+      return []
+    },
+  })
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    fetchRules()
-  }, [fetchRules])
+  useQueryErrorToast(query.error, "获取防火墙规则失败")
+
+  const invalidateRules = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey })
+  }, [queryClient, queryKey])
 
   const openCreate = () => {
     setEditingRule(null)
@@ -105,7 +111,7 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
         if (res?.code === 0) {
           toast.success("规则已更新")
           setDialogOpen(false)
-          fetchRules()
+          invalidateRules()
         } else {
           toast.error(res?.message || "更新规则失败")
         }
@@ -117,7 +123,7 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
         if (res?.code === 0) {
           toast.success("规则已创建")
           setDialogOpen(false)
-          fetchRules()
+          invalidateRules()
         } else {
           toast.error(res?.message || "创建规则失败")
         }
@@ -139,7 +145,7 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
       if (res?.code === 0) {
         toast.success("规则已删除")
         setDeleteConfirm(null)
-        fetchRules()
+        invalidateRules()
       } else {
         toast.error(res?.message || "删除规则失败")
       }
@@ -151,8 +157,8 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
   }
 
   return {
-    rules,
-    loading,
+    rules: query.data ?? [],
+    loading: query.isPending,
     dialogOpen,
     setDialogOpen,
     editingRule,

@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 
 export interface FeatureInfo {
@@ -18,17 +19,20 @@ export function useIsPaid(): boolean {
 
 export function useFeatures(): FeatureInfo[] {
   const { features } = useSiteSettings()
-  try {
-    return JSON.parse(features || "[]")
-  } catch {
-    return []
-  }
+  // 配置字符串引用稳定时只解析一次，避免每次渲染重复 JSON.parse
+  return useMemo(() => {
+    try {
+      return JSON.parse(features || "[]")
+    } catch {
+      return []
+    }
+  }, [features])
 }
 
 export function useFeatureAllowed(key: string): boolean {
   const edition = useEdition()
-  if (edition === "paid") return true
   const features = useFeatures()
+  if (edition === "paid") return true
   const f = features.find(item => item.key === key)
   return f ? f.free : true
 }

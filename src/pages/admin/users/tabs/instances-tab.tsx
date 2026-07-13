@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
-import type { ColumnDef, SortingState, PaginationState } from "@tanstack/react-table"
-import { getAdminInstances } from "@/api"
+import type { ColumnDef } from "@tanstack/react-table"
 import type { InstanceInstanceItem } from "@/api"
-import { DataTable, type PaginatedData } from "@/components/data-table"
+import { getAdminInstances } from "@/api"
+import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
+import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
+import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { statusMap } from "@/lib/instance-constants"
 import { formatMemory, formatDisk } from "@/lib/utils"
@@ -12,48 +14,28 @@ import { formatMemory, formatDisk } from "@/lib/utils"
 export function InstancesTab({ userId }: { userId: number }) {
   const formatDate = useFormatDate()
   const adminPath = useAdminPath()
-  const [data, setData] = useState<PaginatedData<InstanceInstanceItem>>()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error>()
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
-  const [sorting, setSorting] = useState<SortingState>([])
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(undefined)
-    try {
-      const sort = sorting[0]?.id as "id" | "created_at" | undefined
-      const order: "asc" | "desc" | undefined = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined
-      const { data: res } = await getAdminInstances({
-        query: {
-          user_id: userId,
-          page: pagination.pageIndex + 1,
-          page_size: pagination.pageSize,
-          sort,
-          order,
-        },
-      })
-      if (res?.code !== 0) {
-        setError(new Error(res?.message || "请求失败"))
-        return
-      }
-      setData({
-        items: res?.data?.items ?? [],
-        total: res?.data?.total ?? 0,
-        page: res?.data?.page ?? 1,
-        page_size: res?.data?.page_size ?? pagination.pageSize,
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("请求失败"))
-    } finally {
-      setLoading(false)
+  const fetchInstances = useCallback(async ({ page, pageSize, sorting }: FetchParams) => {
+    const sort = sorting[0]?.id as "id" | "created_at" | undefined
+    const order: "asc" | "desc" | undefined = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined
+    const { data: res } = await getAdminInstances({
+      query: { user_id: userId, page, page_size: pageSize, sort, order },
+    })
+    if (!res || res.code !== 0) throw new Error(res?.message || "请求失败")
+    return {
+      items: res.data?.items ?? [],
+      total: res.data?.total ?? 0,
+      page: res.data?.page ?? 1,
+      page_size: res.data?.page_size ?? pageSize,
     }
-  }, [userId, pagination, sorting])
+  }, [userId])
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-    fetchData()
-  }, [fetchData])
+  // user_id 是真实接口参数，随 queryKey 区分不同用户的缓存；嵌入 tab 场景不同步 URL
+  const table = useDataTable<InstanceInstanceItem>({
+    fetchFn: fetchInstances,
+    queryKey: getAdminInstancesQueryKey({ query: { user_id: userId } }),
+    syncUrl: false,
+  })
 
   const columns: ColumnDef<InstanceInstanceItem>[] = useMemo(() => [
     {
@@ -118,14 +100,15 @@ export function InstancesTab({ userId }: { userId: number }) {
   return (
     <DataTable
       columns={columns}
-      data={data}
-      loading={loading}
-      error={error}
+      data={table.data}
+      loading={table.loading}
+      fetching={table.fetching}
+      error={table.error}
       enableSorting={false}
-      pagination={pagination}
-      onPaginationChange={setPagination}
-      sorting={sorting}
-      onSortingChange={setSorting}
+      pagination={table.pagination}
+      onPaginationChange={table.setPagination}
+      sorting={table.sorting}
+      onSortingChange={table.setSorting}
     />
   )
 }

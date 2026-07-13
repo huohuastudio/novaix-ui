@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Check, Cpu, Globe, Shield, Zap, ExternalLink,
@@ -7,13 +7,14 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { motion, useInView, AnimatePresence } from 'motion/react'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FaqItem } from '@/components/faq-item'
-import { getPlansPublic, getSettingsHomepage } from '@/api'
+import { getPlansPublicOptions, getSettingsHomepageOptions } from '@/api/@tanstack/react-query.gen'
 import type {
-  PublicPublicPlanGroup, PublicPublicPlanItem,
+  PublicPublicPlanItem,
   PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicDataCenterItem,
 } from '@/api'
 import { useSiteName, useFormatAmount } from '@/hooks/use-site-settings'
@@ -717,9 +718,6 @@ const featureVisuals: Record<number, React.ReactNode> = {
 export default function Home() {
   const siteName = useSiteName()
   const formatAmount = useFormatAmount()
-  const [groups, setGroups] = useState<PublicPublicPlanGroup[]>([])
-  const [loadingPlans, setLoadingPlans] = useState(true)
-  const [cfg, setCfg] = useState<HomepageConfig | null>(null)
   const [cycle, setCycle] = useState<string>('monthly')
 
   const { banners, testimonials, dataCenters, faqs, homeReady } = useBootstrapData()
@@ -730,17 +728,17 @@ export default function Home() {
     document.title = siteName
   }, [siteName])
 
-  useEffect(() => {
-    getSettingsHomepage()
-      .then(({ data: res }) => {
-        if (res?.data) setCfg(parseHomepageConfig(res.data as unknown as Record<string, string>))
-      })
-      .catch(() => {})
-    getPlansPublic()
-      .then(({ data: res }) => setGroups(res?.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingPlans(false))
-  }, [])
+  // 首页设置（区块配置）
+  const homepageQuery = useQuery(getSettingsHomepageOptions())
+  const cfg: HomepageConfig | null = useMemo(() => {
+    const raw = homepageQuery.data?.data
+    return raw ? parseHomepageConfig(raw as unknown as Record<string, string>) : null
+  }, [homepageQuery.data])
+
+  // 公开套餐列表
+  const plansQuery = useQuery(getPlansPublicOptions())
+  const groups = plansQuery.data?.data ?? []
+  const loadingPlans = plansQuery.isPending
 
   const hasBanners = banners.length > 0
 

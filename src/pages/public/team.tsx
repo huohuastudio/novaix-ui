@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Users } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getPublicCmsTeamMembers } from "@/api"
-import type { PublicPublicTeamMemberItem } from "@/api"
+import { getPublicCmsTeamMembersOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -10,15 +9,8 @@ export default function Team() {
   const siteName = useSiteName()
   useDocumentTitle(`团队成员 - ${siteName}`)
 
-  const [members, setMembers] = useState<PublicPublicTeamMemberItem[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPublicCmsTeamMembers()
-      .then(({ data: res }) => setMembers(res?.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: res, isPending: loading } = useQuery(getPublicCmsTeamMembersOptions())
+  const members = res?.data ?? []
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 sm:py-16">

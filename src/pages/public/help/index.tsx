@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { Search, FolderOpen, FileText } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SimplePagination } from "@/components/simple-pagination"
-import { getPublicCmsHelpCategories, getPublicCmsHelpArticles } from "@/api"
-import type { PublicPublicHelpCategoryItem, PublicPublicHelpArticleItem } from "@/api"
+import {
+  getPublicCmsHelpCategoriesOptions,
+  getPublicCmsHelpArticlesOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -17,12 +20,8 @@ export default function HelpCenter() {
   const categoryFilter = searchParams.get("category") || ""
   const keyword = searchParams.get("q") || ""
 
-  const [categories, setCategories] = useState<PublicPublicHelpCategoryItem[]>([])
-  const [articles, setArticles] = useState<PublicPublicHelpArticleItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState(keyword)
 
   useEffect(() => {
@@ -30,33 +29,23 @@ export default function HelpCenter() {
     setSearchInput(keyword)
   }, [keyword])
 
-  useEffect(() => {
-    getPublicCmsHelpCategories()
-      .then(({ data: res }) => setCategories(res?.data ?? []))
-      .catch(() => {})
-  }, [])
+  const categoriesQuery = useQuery(getPublicCmsHelpCategoriesOptions())
+  const categories = categoriesQuery.data?.data ?? []
 
-  const fetchArticles = useCallback(() => {
-    setLoading(true)
-    getPublicCmsHelpArticles({
+  const articlesQuery = useQuery({
+    ...getPublicCmsHelpArticlesOptions({
       query: {
         page,
         page_size: pageSize,
         category_id: categoryFilter ? Number(categoryFilter) : undefined,
         keyword: keyword || undefined,
       },
-    })
-      .then(({ data: res }) => {
-        setArticles(res?.data?.items ?? [])
-        setTotal(res?.data?.total ?? 0)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [page, categoryFilter, keyword])
-
-  useEffect(() => {
-    fetchArticles() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [fetchArticles])
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const articles = articlesQuery.data?.data?.items ?? []
+  const total = articlesQuery.data?.data?.total ?? 0
+  const loading = articlesQuery.isPending
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
   Area,
   AreaChart,
@@ -10,8 +11,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { getAdminNodesByIdMetrics, putAdminNodesByIdMonitor } from "@/api"
-import type { NodeMetricPoint } from "@/api"
+import { putAdminNodesByIdMonitor } from "@/api"
+import { getAdminNodesByIdMetricsOptions } from "@/api/@tanstack/react-query.gen"
 import { formatBytes, getErrorMessage} from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +24,6 @@ import { toast } from "sonner"
 import {
   CHART_RANGES,
   type TimeRange,
-  type TooltipFormatter,
   formatTime,
   formatBytesPerSec,
   formatPercent,
@@ -171,44 +171,23 @@ interface NodeStatsProps {
 
 export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: NodeStatsProps) {
   const [range, setRange] = useState<TimeRange>("1h")
-  const [data, setData] = useState<NodeMetricPoint[]>([])
-  const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(false)
 
-  const fetchMetrics = useCallback(async (silent = false) => {
-    if (!monitorEnabled) {
-      setLoading(false)
-      return
-    }
-    if (!silent) setLoading(true)
-    try {
-      const { data: res } = await getAdminNodesByIdMetrics({
-        path: { id: nodeId },
-        query: { range },
-      })
-      if (res?.code === 0 && res.data) {
-        const points = res.data as NodeMetricPoint[]
-        setData((prev) => {
-          const lastNew = points[points.length - 1]?.timestamp
-          const lastOld = prev[prev.length - 1]?.timestamp
-          if (points.length === prev.length && lastNew === lastOld) return prev
-          return points
-        })
-      }
-    } catch {
-      // ignore
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [nodeId, range, monitorEnabled])
+  // nodeId/range 均通过 options 参数进入 queryKey，切换时自动重新请求；
+  // 监控关闭时禁用查询（对应原实现不发请求、不轮询）
+  const query = useQuery({
+    ...getAdminNodesByIdMetricsOptions({
+      path: { id: nodeId },
+      query: { range },
+    }),
+    enabled: monitorEnabled,
+    // 每 60 秒后台轮询一次（对应原 setInterval 静默刷新）
+    refetchInterval: 60_000,
+  })
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchMetrics()
-    if (!monitorEnabled) return
-    const interval = setInterval(() => fetchMetrics(true), 60_000)
-    return () => clearInterval(interval)
-  }, [fetchMetrics, monitorEnabled])
+  const data = useMemo(() => query.data?.data ?? [], [query.data])
+  // 初始加载或切换范围时显示骨架屏/spinner；后台轮询保持静默
+  const loading = monitorEnabled && query.isPending
 
   const chartData = useMemo(() => {
     if (data.length === 0) return []
@@ -337,7 +316,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                   <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
-                  <Tooltip {...tooltipStyle} formatter={((v: number) => [formatPercent(v as number | undefined), "CPU"]) as TooltipFormatter} />
+                  <Tooltip {...tooltipStyle} formatter={(v) => [formatPercent(v as number | undefined), "CPU"]} />
                   <Area type="monotone" dataKey="cpu_usage" stroke="var(--color-chart-1)" fill="url(#cpuGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               )}
@@ -357,10 +336,10 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
                   <Tooltip
                     {...tooltipStyle}
-                    formatter={((_v: number, _name: string, props: Record<string, unknown>) => {
-                      const p = (props as unknown as { payload: (typeof chartData)[number] }).payload
+                    formatter={(_v, _name, item) => {
+                      const p = item.payload as (typeof chartData)[number]
                       return [`${formatPercent(p.mem_percent)} (${formatBytes(p.mem_used ?? 0)} / ${formatBytes(p.mem_total ?? 0)})`, "内存"]
-                    }) as TooltipFormatter}
+                    }}
                   />
                   <Area type="monotone" dataKey="mem_percent" stroke="var(--color-chart-2)" fill="url(#memGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
@@ -389,10 +368,10 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => formatBytes(v)} axisLine={false} tickLine={false} />
                   <Tooltip
                     {...tooltipStyle}
-                    formatter={((v: number, name: string) => [
+                    formatter={(v, name) => [
                       formatBytesPerSec(v as number),
                       name === "net_rx" ? "接收" : "发送",
-                    ]) as TooltipFormatter}
+                    ]}
                   />
                   <Area type="monotone" dataKey="net_rx" stroke="var(--color-chart-4)" fill="url(#rxGrad)" strokeWidth={1.5} dot={false} name="net_rx" />
                   <Area type="monotone" dataKey="net_tx" stroke="var(--color-chart-5)" fill="url(#txGrad)" strokeWidth={1.5} dot={false} name="net_tx" />
@@ -412,7 +391,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   <YAxis tick={TICK_STYLE} {...AXIS_PROPS} />
                   <Tooltip
                     {...tooltipStyle}
-                    formatter={((v: number, name: string) => [v != null && !isNaN(v as number) ? (v as number).toFixed(2) : "-", LOAD_LABELS[name as string] ?? name]) as TooltipFormatter}
+                    formatter={(v, name) => [v != null && !isNaN(v as number) ? (v as number).toFixed(2) : "-", LOAD_LABELS[name as string] ?? name]}
                   />
                   <Area type="monotone" dataKey="load1" stroke="var(--color-chart-1)" fill="none" strokeWidth={1.5} dot={false} />
                   <Area type="monotone" dataKey="load5" stroke="var(--color-chart-2)" fill="none" strokeWidth={1.5} dot={false} />

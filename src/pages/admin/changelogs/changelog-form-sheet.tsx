@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminChangelogs, putAdminChangelogsById } from "@/api"
@@ -28,11 +28,12 @@ import { RichTextEditor } from "@/components/rich-text-editor"
 const formSchema = z.object({
   version: z.string().min(1, "版本号不能为空").max(50, "版本号不能超过 50 个字符"),
   content: z.string().min(1, "内容不能为空"),
-  status: z.coerce.number().int(),
+  status: z.coerce.number<number | string>().int(),
   published_at: z.string().optional().default(""),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   version: "",
@@ -48,7 +49,7 @@ function toDatetimeLocal(value?: string): string {
   return value.replace(" ", "T").slice(0, 16)
 }
 
-function ChangelogFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function ChangelogFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -128,9 +129,8 @@ export function ChangelogCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -203,9 +203,8 @@ export function ChangelogEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

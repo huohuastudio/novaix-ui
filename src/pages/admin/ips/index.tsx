@@ -45,6 +45,7 @@ import {
   postAdminIpPoolsByIdGenerate,
 } from "@/api"
 import type { IppoolIpPoolItem } from "@/api"
+import { getAdminIpPoolsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -61,11 +62,12 @@ const poolSchema = z.object({
   cidr: z.string().min(1, "请输入 CIDR"),
   dns1: z.string().default("8.8.8.8"),
   dns2: z.string().default("8.8.4.4"),
-  vlan: z.coerce.number().int().min(0).default(0),
+  vlan: z.coerce.number<number | string>().int().min(0).default(0),
   network_name: z.string().default(""),
 })
 
-type PoolFormValues = z.infer<typeof poolSchema>
+type PoolFormInput = z.input<typeof poolSchema>
+type PoolFormValues = z.output<typeof poolSchema>
 
 const poolDefaults: PoolFormValues = {
   name: "",
@@ -88,7 +90,7 @@ type GenerateFormValues = z.infer<typeof generateSchema>
 
 // ── Shared form fields ──
 
-function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormValues>; typeDisabled?: boolean }) {
+function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormInput, unknown, PoolFormValues>; typeDisabled?: boolean }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -228,9 +230,8 @@ function PoolCreateDialog({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
-  const form = useForm<PoolFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(poolSchema) as any,
+  const form = useForm<PoolFormInput, unknown, PoolFormValues>({
+    resolver: zodResolver(poolSchema),
     defaultValues: poolDefaults,
   })
 
@@ -287,9 +288,8 @@ function PoolEditDialog({
   pool: IppoolIpPoolItem
   onSuccess: () => void
 }) {
-  const form = useForm<PoolFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(poolSchema) as any,
+  const form = useForm<PoolFormInput, unknown, PoolFormValues>({
+    resolver: zodResolver(poolSchema),
     defaultValues: poolDefaults,
   })
 
@@ -362,8 +362,7 @@ function GenerateIPsDialog({
   onSuccess: () => void
 }) {
   const form = useForm<GenerateFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(generateSchema) as any,
+    resolver: zodResolver(generateSchema),
     defaultValues: { start_ip: "", end_ip: "" },
   })
 
@@ -467,6 +466,7 @@ export default function IPs() {
 
   const table = useDataTable<IppoolIpPoolItem>({
     fetchFn: fetchPools,
+    queryKey: getAdminIpPoolsQueryKey(),
     filterKeys: ["name"],
   })
 
@@ -632,6 +632,7 @@ export default function IPs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

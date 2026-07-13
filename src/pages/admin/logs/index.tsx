@@ -7,6 +7,7 @@ import { ExportButton } from "@/components/export-button"
 import { Input } from "@/components/ui/input"
 import { getAdminLogs } from "@/api"
 import type { LogLogItem } from "@/api"
+import { getAdminLogsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -50,6 +51,7 @@ export default function Logs() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminLogsQueryKey(),
     filterKeys: ["action", "user_id", "keyword", "start_date", "end_date"],
   })
 
@@ -143,6 +145,7 @@ export default function Logs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

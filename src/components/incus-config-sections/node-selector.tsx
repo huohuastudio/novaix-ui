@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { UseFormReturn } from "react-hook-form"
-import { getAdminNodes, getAdminNodesById } from "@/api"
+import type { InstanceFormValues } from "@/pages/admin/instances/schema"
+import { getAdminNodes } from "@/api"
+import { getAdminNodesByIdOptions } from "@/api/@tanstack/react-query.gen"
 import type { NodeNodeItem } from "@/api"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,8 +34,7 @@ import { cn } from "@/lib/utils"
 const PAGE_SIZE = 20
 
 interface NodeSelectorProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<InstanceFormValues>
   onNodeSwitch?: (node: NodeNodeItem) => void
 }
 
@@ -210,16 +212,12 @@ interface NodeReadonlyProps {
 }
 
 export function NodeReadonly({ nodeId, description }: NodeReadonlyProps) {
-  const [node, setNode] = useState<NodeNodeItem | null>(null)
-
-  useEffect(() => {
-    if (!nodeId) return
-    let cancelled = false
-    getAdminNodesById({ path: { id: nodeId } }).then(({ data: res }) => {
-      if (!cancelled && res?.data) setNode(res.data as NodeNodeItem)
-    })
-    return () => { cancelled = true }
-  }, [nodeId])
+  // 只读展示节点信息，无 nodeId 时不请求（对应原 effect 的提前返回）
+  const query = useQuery({
+    ...getAdminNodesByIdOptions({ path: { id: nodeId } }),
+    enabled: !!nodeId,
+  })
+  const node = (query.data?.data as NodeNodeItem | undefined) ?? null
 
   return (
     <FormItem>

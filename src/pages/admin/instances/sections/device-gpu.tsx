@@ -1,5 +1,5 @@
-import { useFieldArray, type UseFormReturn } from "react-hook-form"
-import type { GpuDevice } from "@/types/incus-config"
+import { useFieldArray } from "react-hook-form"
+import type { GpuDevice, IncusConfigForm } from "@/types/incus-config"
 import { ConfigSection } from "@/components/config-table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,7 @@ const containerOnlyGpuTypes = new Set(["mig"])
 const vmOnlyGpuTypes = new Set(["mdev", "sriov"])
 
 interface GpuDeviceSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function GpuDeviceSection({ form }: GpuDeviceSectionProps) {

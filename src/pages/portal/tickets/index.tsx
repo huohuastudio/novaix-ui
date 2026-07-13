@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { MessageSquare, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,11 +21,11 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/rich-text-editor'
+import { postPortalTickets } from '@/api'
 import {
-  getPortalTickets,
-  postPortalTickets,
-} from '@/api'
-import type { PortalPortalTicketItem } from '@/api'
+  getPortalTicketsOptions,
+  getPortalTicketsQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import { SimplePagination } from '@/components/simple-pagination'
 import { useSiteName, useFormatDate, useSiteSettings } from '@/hooks/use-site-settings'
 import { getErrorMessage, isHtmlEmpty } from '@/lib/utils'
@@ -64,42 +65,31 @@ export default function PortalTickets() {
   } catch { /* 忽略 */ }
   const hasDepartments = departments.length > 0
 
-  const [tickets, setTickets] = useState<PortalPortalTicketItem[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
+
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newTicket, setNewTicket] = useState({ subject: '', content: '', priority: 1, department: '' })
 
-  const fetchTickets = useCallback(async (status: string, p: number) => {
-    try {
-      const { data: res } = await getPortalTickets({
-        query: {
-          page: p,
-          page_size: pageSize,
-          status: status === 'all' ? undefined : status as 'open' | 'replied' | 'user_reply' | 'closed',
-          sort: 'last_reply_at',
-          order: 'desc',
-        },
-      })
-      setTickets(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 筛选条件变化时重置页码
-    setPage(1)
-  }, [statusFilter])
-
-  useEffect(() => {
-    fetchTickets(statusFilter, page)
-  }, [fetchTickets, statusFilter, page])
+  // 工单列表（分页/状态筛选进 key）
+  const ticketsQuery = useQuery({
+    ...getPortalTicketsOptions({
+      query: {
+        page,
+        page_size: pageSize,
+        status: statusFilter === 'all' ? undefined : statusFilter as 'open' | 'replied' | 'user_reply' | 'closed',
+        sort: 'last_reply_at',
+        order: 'desc',
+      },
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const loading = ticketsQuery.isPending
+  const tickets = ticketsQuery.data?.data?.items ?? []
+  const total = ticketsQuery.data?.data?.total ?? 0
 
   const handleCreate = async () => {
     if (!newTicket.subject.trim() || isHtmlEmpty(newTicket.content)) {
@@ -119,7 +109,7 @@ export default function PortalTickets() {
       toast.success('工单已提交')
       setCreateOpen(false)
       setNewTicket({ subject: '', content: '', priority: 1, department: '' })
-      fetchTickets(statusFilter, page)
+      queryClient.invalidateQueries({ queryKey: getPortalTicketsQueryKey() })
     } catch (err) {
       toast.error(getErrorMessage(err, '提交失败'))
     } finally {
@@ -135,7 +125,7 @@ export default function PortalTickets() {
           <p className="mt-1 text-sm text-muted-foreground">提交工单获取技术支持</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-36">
               <SelectValue />
             </SelectTrigger>

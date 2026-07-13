@@ -65,6 +65,8 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: PaginatedData<TData> | undefined
   loading?: boolean
+  /** 后台刷新中（已有数据可见），表格降低透明度作细微提示 */
+  fetching?: boolean
   error?: Error
   pagination: PaginationState
   onPaginationChange: OnChangeFn<PaginationState>
@@ -130,6 +132,7 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   loading,
+  fetching,
   error,
   pagination,
   onPaginationChange,
@@ -235,7 +238,7 @@ export function DataTable<TData, TValue>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-md">
+      <div className={cn("overflow-x-auto rounded-md transition-opacity duration-300", fetching && "opacity-60")}>
         <table className="w-full caption-bottom text-sm min-w-[800px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

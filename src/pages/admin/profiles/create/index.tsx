@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { useNodeResources } from "@/hooks/use-node-resources"
 import { profileFormSchema, defaultValues, buildProfileBody } from "../schema"
+import { asIncusConfigForm } from "@/types/incus-config"
 import type { ProfileFormValues } from "../schema"
 import { Form } from "@/components/ui/form"
 import { Button } from "@/components/ui/button"
@@ -36,8 +37,7 @@ export default function CreateProfile() {
   const nodeResources = useNodeResources(nodeId || undefined)
 
   const form = useForm<ProfileFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(profileFormSchema) as any,
+    resolver: zodResolver(profileFormSchema),
     defaultValues,
   })
 
@@ -97,7 +97,7 @@ export default function CreateProfile() {
                     )}
                   />
 
-                  <TypeSelector form={form} />
+                  <TypeSelector form={asIncusConfigForm(form)} />
 
                   <FormField
                     control={form.control}

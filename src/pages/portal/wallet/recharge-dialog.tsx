@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -12,8 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PaymentPending } from "@/components/payment-pending"
-import { getPortalPaymentMethods, postPortalPayments } from "@/api"
-import type { PortalPaymentMethodItem } from "@/api"
+import { postPortalPayments } from "@/api"
+import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
@@ -30,8 +31,6 @@ export function RechargeDialog({
   onSuccess?: () => void
 }) {
   const formatAmount = useFormatAmount()
-  const [methods, setMethods] = useState<PortalPaymentMethodItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedProvider, setSelectedProvider] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("")
   const [amount, setAmount] = useState<number>(0)
@@ -42,24 +41,28 @@ export function RechargeDialog({
     payURL: string
     qrCode: boolean
   } | null>(null)
+
+  // 对话框打开时才加载支付方式
+  const methodsQuery = useQuery({
+    ...getPortalPaymentMethodsOptions(),
+    enabled: open,
+  })
+  const methods = methodsQuery.data?.data ?? []
+  const loading = methodsQuery.isPending
+
   useEffect(() => {
     if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置状态
-    setLoading(true)
     setPaymentResult(null)
     setAmount(0)
     setCustomAmount("")
-    getPortalPaymentMethods()
-      .then(({ data: res }) => {
-        const items = res?.data ?? []
-        setMethods(items)
-        if (items.length > 0) {
-          setSelectedProvider(items[0].provider ?? "")
-          setSelectedMethod(items[0].method ?? "")
-        }
-      })
-      .finally(() => setLoading(false))
+    setSelectedProvider("")
+    setSelectedMethod("")
   }, [open])
+
+  // 未手动选择时默认选中第一个支付方式（原逻辑在加载完成后 setState，这里改为派生）
+  const effectiveProvider = selectedProvider || (methods[0]?.provider ?? "")
+  const effectiveMethod = selectedProvider ? selectedMethod : (methods[0]?.method ?? "")
 
   const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amount
 
@@ -68,7 +71,7 @@ export function RechargeDialog({
       toast.error("请选择或输入充值金额")
       return
     }
-    if (!selectedProvider) {
+    if (!effectiveProvider) {
       toast.error("请选择支付方式")
       return
     }
@@ -78,8 +81,8 @@ export function RechargeDialog({
       const { data: res } = await postPortalPayments({
         body: {
           amount: effectiveAmount,
-          provider: selectedProvider,
-          method: selectedMethod || undefined,
+          provider: effectiveProvider,
+          method: effectiveMethod || undefined,
         },
       })
       if (res?.code !== 0) {
@@ -191,8 +194,8 @@ export function RechargeDialog({
               <Label>支付方式</Label>
               <PaymentMethodGrid
                 methods={methods}
-                selectedProvider={selectedProvider}
-                selectedMethod={selectedMethod}
+                selectedProvider={effectiveProvider}
+                selectedMethod={effectiveMethod}
                 onSelect={(p, m) => { setSelectedProvider(p); setSelectedMethod(m) }}
               />
             </div>

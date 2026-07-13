@@ -34,6 +34,7 @@ interface SiteSettings {
   captcha_provider: string
   captcha_public_config: string
   ticket_departments: string
+  invoice_enabled: string
   edition: string
   features: string
 }
@@ -70,6 +71,7 @@ const defaultSettings: SiteSettings = {
   captcha_provider: "",
   captcha_public_config: "",
   ticket_departments: "",
+  invoice_enabled: "false",
   edition: "free",
   features: "[]",
 }

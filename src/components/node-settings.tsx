@@ -39,15 +39,16 @@ const editSchema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   region: z.string().max(64).optional().default(""),
   host: z.string().min(1, "请输入主机地址").max(255),
-  port: z.coerce.number().int().min(1).max(65535).default(8443),
-  ssh_port: z.coerce.number().int().min(1).max(65535).default(22),
+  port: z.coerce.number<number | string>().int().min(1).max(65535).default(8443),
+  ssh_port: z.coerce.number<number | string>().int().min(1).max(65535).default(22),
   ssh_user: z.string().max(64).optional().default("root"),
   ssh_auth_method: z.enum(["password", "key"]).default("password"),
   ssh_password: z.string().max(256).optional().default(""),
   ssh_key: z.string().optional().default(""),
 })
 
-type FormValues = z.infer<typeof editSchema>
+type FormInput = z.input<typeof editSchema>
+type FormValues = z.output<typeof editSchema>
 
 const fieldNames = [
   "name", "region", "host", "port", "ssh_port",
@@ -79,9 +80,8 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
   const { confirm, ConfirmDialog } = useConfirm()
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(editSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(editSchema),
     defaultValues: toFormValues(node),
   })
 
@@ -107,7 +107,7 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
       }
       const { data: res } = await putAdminNodesById({ path: { id: node.id! }, body })
       if (res?.code !== 0) {
-        handleServerErrors<FormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       toast.success("节点信息已更新")

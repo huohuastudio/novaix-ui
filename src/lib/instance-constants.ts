@@ -58,6 +58,16 @@ export function isTransitionalStatus(status: string): boolean {
   return transitionalStatuses.has(status)
 }
 
+export function getStatusInfo(status?: string) {
+  return statusMap[status ?? ""] ?? { label: status ?? "未知", variant: "outline" as const }
+}
+
+export function getTypeLabel(type?: string) {
+  if (type === "virtual-machine") return "虚拟机"
+  if (type === "container") return "容器"
+  return type ?? "-"
+}
+
 export const statusFilterOptions = Object.entries(statusMap).map(([value, { label }]) => ({ label, value }))
 
 export const typeFilterOptions = [

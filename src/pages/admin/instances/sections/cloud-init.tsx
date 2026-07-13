@@ -1,5 +1,5 @@
-import type { UseFormReturn } from "react-hook-form"
 import { ConfigSection } from "@/components/config-table"
+import type { IncusConfigForm } from "@/types/incus-config"
 import { Textarea } from "@/components/ui/textarea"
 import {
   FormControl,
@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/form"
 
 interface CloudInitSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function CloudInitSection({ form }: CloudInitSectionProps) {

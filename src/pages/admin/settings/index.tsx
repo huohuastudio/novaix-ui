@@ -26,6 +26,7 @@ import {
   SlidersHorizontal,
   LogIn,
   ShieldCheck,
+  Receipt,
 } from "lucide-react"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useAdminPath } from "@/hooks/use-site-settings"
@@ -56,6 +57,7 @@ import { AdvancedSection } from "./sections/advanced"
 import { InstanceSection } from "./sections/instance"
 import { OAuthSection } from "./sections/oauth"
 import { TicketSection } from "./sections/ticket"
+import { InvoiceSection } from "./sections/invoice"
 
 interface SettingItem {
   id: string
@@ -104,6 +106,7 @@ const settingGroups: SettingGroup[] = [
     items: [
       { id: "payment", label: "支付渠道", description: "在线支付方式与网关配置", icon: CreditCard, component: PaymentSection, docPath: "/novaix/payment" },
       { id: "agent", label: "代理系统", description: "分销代理佣金与规则", icon: Users, component: AgentSection, docPath: "/novaix/agent" },
+      { id: "invoice", label: "发票", description: "电子发票申请与管理", icon: Receipt, component: InvoiceSection },
     ],
   },
   {

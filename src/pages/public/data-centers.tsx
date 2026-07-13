@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { MapPin } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { CopyButton } from "@/components/copy-button"
-import { getPublicCmsDataCenters } from "@/api"
-import type { PublicPublicDataCenterItem } from "@/api"
+import { getPublicCmsDataCentersOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -12,15 +11,8 @@ export default function DataCenters() {
   const siteName = useSiteName()
   useDocumentTitle(`数据中心 - ${siteName}`)
 
-  const [dataCenters, setDataCenters] = useState<PublicPublicDataCenterItem[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPublicCmsDataCenters()
-      .then(({ data: res }) => setDataCenters(res?.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: res, isPending: loading } = useQuery(getPublicCmsDataCentersOptions())
+  const dataCenters = res?.data ?? []
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 sm:py-16">

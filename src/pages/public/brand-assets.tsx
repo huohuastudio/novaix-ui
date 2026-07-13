@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Download, Gem, FileText } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { getPublicCmsBrandAssets } from "@/api"
-import type { PublicPublicBrandAssetItem } from "@/api"
+import { getPublicCmsBrandAssetsOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 import { formatBytes } from "@/lib/utils"
@@ -17,15 +16,8 @@ export default function BrandAssets() {
   const siteName = useSiteName()
   useDocumentTitle(`品牌素材 - ${siteName}`)
 
-  const [assets, setAssets] = useState<PublicPublicBrandAssetItem[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPublicCmsBrandAssets()
-      .then(({ data: res }) => setAssets(res?.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: res, isPending: loading } = useQuery(getPublicCmsBrandAssetsOptions())
+  const assets = res?.data ?? []
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 sm:py-16">

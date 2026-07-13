@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import {
   Area,
   AreaChart,
@@ -23,8 +24,11 @@ import {
   Activity,
   Check,
 } from "lucide-react"
-import { getAdminDashboardStats, getAdminDashboardRecent } from "@/api"
 import type { DashboardStatsResponse, DashboardRecentResponse } from "@/api"
+import {
+  getAdminDashboardRecentOptions,
+  getAdminDashboardStatsOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useSiteName, useAdminPath } from "@/hooks/use-site-settings"
 import { formatAmount, orderStatusMap, orderTypeMap } from "@/lib/order-constants"
@@ -222,25 +226,18 @@ export default function Dashboard() {
   useBreadcrumb([{ label: "仪表盘" }])
   const siteName = useSiteName()
   const adminPath = useAdminPath()
-  const [stats, setStats] = useState<DashboardStatsResponse | null>(null)
-  const [recent, setRecent] = useState<DashboardRecentResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const [s, r] = await Promise.all([getAdminDashboardStats(), getAdminDashboardRecent()])
-        if (cancelled) return
-        if (s.data?.code === 0 && s.data.data) setStats(s.data.data as DashboardStatsResponse)
-        if (r.data?.code === 0 && r.data.data) setRecent(r.data.data as DashboardRecentResponse)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [])
+  // 统计与最近动态各自一个 query，并发请求
+  const statsQuery = useQuery(getAdminDashboardStatsOptions())
+  const recentQuery = useQuery(getAdminDashboardRecentOptions())
+  const stats: DashboardStatsResponse | null =
+    statsQuery.data?.code === 0 && statsQuery.data.data
+      ? (statsQuery.data.data as DashboardStatsResponse)
+      : null
+  const recent: DashboardRecentResponse | null =
+    recentQuery.data?.code === 0 && recentQuery.data.data
+      ? (recentQuery.data.data as DashboardRecentResponse)
+      : null
+  const loading = statsQuery.isPending || recentQuery.isPending
 
   const instancePieData = useMemo(() => {
     if (!stats?.instances) return []

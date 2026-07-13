@@ -1,10 +1,11 @@
 import type { UseFormReturn } from "react-hook-form"
 import type { NodeResources } from "@/hooks/use-node-resources"
+import { asIncusConfigForm } from "@/types/incus-config"
 import { IncusConfigFormLayout } from "@/components/incus-config-form-layout"
+import type { InstanceFormValues } from "./schema"
 
 interface InstanceFormLayoutProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<InstanceFormValues>
   nodeResources: NodeResources
   mainSection: React.ReactNode
   actions?: React.ReactNode
@@ -18,7 +19,7 @@ export function InstanceFormLayout({
 }: InstanceFormLayoutProps) {
   return (
     <IncusConfigFormLayout
-      form={form}
+      form={asIncusConfigForm(form)}
       nodeResources={nodeResources}
       mainSection={mainSection}
       actions={actions}

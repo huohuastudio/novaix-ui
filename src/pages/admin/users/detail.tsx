@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BarChart3,
   User,
@@ -17,11 +18,15 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  getAdminUsersByIdSummary,
   deleteAdminUsersById,
   postAdminUsersByIdLoginAs,
 } from "@/api"
 import type { UserUserSummaryResponse } from "@/api"
+import {
+  getAdminUsersByIdSummaryOptions,
+  getAdminUsersByIdSummaryQueryKey,
+  getAdminUsersQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -130,8 +135,7 @@ export default function UserDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const adminPath = useAdminPath()
-  const [summary, setSummary] = useState<UserUserSummaryResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [editOpen, setEditOpen] = useState(false)
   const [rechargeOpen, setRechargeOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
@@ -140,32 +144,28 @@ export default function UserDetail() {
   const activeTab = id ? resolveTab(location.pathname, id, adminPath) : "overview"
   const visitedRef = useRef(new Set<TabValue>(["overview", activeTab]))
 
-  const fetchSummary = useCallback(
-    async (silent = false) => {
-      if (!id) return
-      if (!silent) setLoading(true)
-      try {
-        const { data: res } = await getAdminUsersByIdSummary({ path: { id: Number(id) } })
-        if (res?.code === 0 && res.data) {
-          setSummary(res.data as UserUserSummaryResponse)
-        } else if (!silent) {
-          navigate(`${adminPath}/users`, { replace: true })
-        }
-      } catch {
-        if (!silent) navigate(`${adminPath}/users`, { replace: true })
-      } finally {
-        if (!silent) setLoading(false)
-      }
-    },
-    [id, navigate, adminPath],
-  )
+  const summaryQuery = useQuery({
+    ...getAdminUsersByIdSummaryOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const summary: UserUserSummaryResponse | null =
+    summaryQuery.data?.code === 0 && summaryQuery.data.data
+      ? (summaryQuery.data.data as UserUserSummaryResponse)
+      : null
+  const loading = summaryQuery.isPending
 
-  const refreshSummary = useCallback(() => fetchSummary(true), [fetchSummary])
+  // 操作成功后刷新概要缓存，并失效用户列表的全部分页缓存
+  const refreshSummary = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getAdminUsersByIdSummaryQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getAdminUsersQueryKey() })
+  }, [queryClient, id])
 
+  // 加载结束仍无数据（不存在或请求失败）时返回列表页
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-    fetchSummary(false)
-  }, [fetchSummary])
+    if (!loading && !summary) {
+      navigate(`${adminPath}/users`, { replace: true })
+    }
+  }, [loading, summary, navigate, adminPath])
 
   const user = summary?.user
 

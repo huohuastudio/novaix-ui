@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowLeft,
   CreditCard,
@@ -13,12 +14,16 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  getAdminOrdersById,
   postAdminOrdersByIdPay,
   postAdminOrdersByIdCancel,
   postAdminOrdersByIdRefundReject,
 } from "@/api"
-import type { OrderOrderDetail, OrderOrderDetailTransaction } from "@/api"
+import type { OrderOrderDetailTransaction } from "@/api"
+import {
+  getAdminOrdersByIdOptions,
+  getAdminOrdersByIdQueryKey,
+  getAdminOrdersQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -95,32 +100,30 @@ export default function OrderDetail() {
   const adminPath = useAdminPath()
   const formatAmount = useFormatAmount()
   const formatDate = useFormatDate()
-  const [order, setOrder] = useState<OrderOrderDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [refundOpen, setRefundOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectLoading, setRejectLoading] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
+  const orderQuery = useQuery({
+    ...getAdminOrdersByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const order = orderQuery.data?.data ?? null
+  const loading = orderQuery.isPending
+
   useBreadcrumb([
     { label: "订单管理", href: `${adminPath}/orders` },
     { label: order ? `#${order.order_no}` : "详情" },
   ])
 
-  const fetchOrder = useCallback(async () => {
-    if (!id) return
-    try {
-      const { data: res } = await getAdminOrdersById({ path: { id: Number(id) } })
-      if (res?.data) setOrder(res.data)
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    fetchOrder()
-  }, [fetchOrder])
+  // 操作成功后刷新详情缓存，并失效订单列表的全部分页缓存
+  const fetchOrder = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getAdminOrdersByIdQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getAdminOrdersQueryKey() })
+  }, [queryClient, id])
 
   const handlePay = useCallback(async () => {
     if (!order) return

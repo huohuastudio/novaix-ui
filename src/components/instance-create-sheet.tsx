@@ -2,9 +2,10 @@ import { useForm } from "react-hook-form"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import { postAdminInstances } from "@/api"
-import { handleServerErrors } from "@/lib/form-utils"
+import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
 import { instanceFormSchema, defaultValues, buildCreateBody, fieldNames } from "@/pages/admin/instances/schema"
+import { asIncusConfigForm } from "@/types/incus-config"
 import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -72,8 +73,7 @@ function InstanceCreateForm({
   const { addTask } = useTasks()
 
   const form = useForm<InstanceFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(instanceFormSchema) as any,
+    resolver: zodResolver(instanceFormSchema),
     defaultValues: { ...defaultValues, node_id: nodeId },
   })
 
@@ -82,16 +82,15 @@ function InstanceCreateForm({
   const onSubmit = async (values: InstanceFormValues) => {
     const body = buildCreateBody(values)
     const result = await postAdminInstances({ body })
-    const res = result.data ?? (result as unknown as { error: unknown }).error
-    const serverRes = res as { code?: number; message?: string; data?: unknown } | undefined
-    if (serverRes?.code !== 0) {
-      handleServerErrors<InstanceFormValues>(serverRes, {
+    const res = unwrapResponse(result)
+    if (res?.code !== 0) {
+      handleServerErrors(res, {
         setError: form.setError,
         fieldNames,
       })
       return
     }
-    const taskId = (serverRes?.data as Record<string, unknown> | undefined)?.create_task_id as number | undefined
+    const taskId = (res?.data as Record<string, unknown> | undefined)?.create_task_id as number | undefined
     if (taskId) {
       addTask(taskId, "create_instance")
       toast.success("实例创建任务已提交", { description: `任务 #${taskId} 正在后台执行` })
@@ -126,7 +125,7 @@ function InstanceCreateForm({
                   )}
                 />
 
-                <TypeSelector form={form} />
+                <TypeSelector form={asIncusConfigForm(form)} />
                 <ImageSource form={form} />
                 <ProfileSelector form={form} nodeResources={nodeResources} nodeId={nodeId} />
 

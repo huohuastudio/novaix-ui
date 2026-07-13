@@ -2,10 +2,18 @@ import type { UseFormSetError, FieldValues, Path } from "react-hook-form"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 
-interface ServerResponse {
+export interface ServerResponse {
   code?: number
   message?: string
   data?: unknown
+}
+
+// 从 SDK 调用结果中解包服务端响应体。
+// SDK 请求失败时（HTTP 非 2xx），error 字段同为响应体结构（code/message/data），
+// 因此成功与失败的返回可以统一按响应体处理。泛型 R 从 SDK 返回值推导，
+// 保留 data 字段的精确类型，下游无需再断言。
+export function unwrapResponse<R extends ServerResponse>(result: { data?: R; error?: unknown }): R | undefined {
+  return result.data ?? (result.error as R | undefined)
 }
 
 function getResponseData(err: unknown): ServerResponse | undefined {

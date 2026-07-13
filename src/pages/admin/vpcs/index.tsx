@@ -43,9 +43,10 @@ import {
   getAdminVpcs,
   postAdminVpcs,
   deleteAdminVpcsById,
-  getAdminVpcNodeGroups,
 } from "@/api"
 import type { VpcVpcItem } from "@/api"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminVpcNodeGroupsOptions, getAdminVpcsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
@@ -55,14 +56,15 @@ import { getErrorMessage } from "@/lib/utils"
 // ── Schema ──
 
 const vpcSchema = z.object({
-  user_id: z.coerce.number().int().min(1, "请输入用户 ID"),
+  user_id: z.coerce.number<number | string>().int().min(1, "请输入用户 ID"),
   name: z.string().min(1, "请输入名称").max(64),
-  node_group_id: z.coerce.number().int().min(1, "请选择节点组"),
+  node_group_id: z.coerce.number<number | string>().int().min(1, "请选择节点组"),
   cidr: z.string().min(1, "请输入网段").max(64),
   description: z.string().max(512).default(""),
 })
 
-type VpcFormValues = z.infer<typeof vpcSchema>
+type VpcFormInput = z.input<typeof vpcSchema>
+type VpcFormValues = z.output<typeof vpcSchema>
 
 const formDefaults: VpcFormValues = {
   user_id: 0,
@@ -102,19 +104,21 @@ function VpcCreateDialog({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
-  const form = useForm<VpcFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(vpcSchema) as any,
+  const form = useForm<VpcFormInput, unknown, VpcFormValues>({
+    resolver: zodResolver(vpcSchema),
     defaultValues: formDefaults,
   })
 
-  const [nodeGroups, setNodeGroups] = useState<{ id: number; name: string }[]>([])
+  // 可用节点组字典（弹窗打开时取数）
+  const nodeGroupsQuery = useQuery({ ...getAdminVpcNodeGroupsOptions(), enabled: open })
+  const nodeGroups = useMemo(
+    () => (nodeGroupsQuery.data?.data as { id: number; name: string }[] | undefined) ?? [],
+    [nodeGroupsQuery.data],
+  )
+
   useEffect(() => {
     if (open) {
       form.reset(formDefaults)
-      getAdminVpcNodeGroups().then(({ data: res }) => {
-        setNodeGroups((res?.data as { id: number; name: string }[] | undefined) ?? [])
-      })
     }
   }, [open, form])
 
@@ -254,6 +258,7 @@ export default function VPCs() {
 
   const table = useDataTable<VpcVpcItem>({
     fetchFn: fetchVpcs,
+    queryKey: getAdminVpcsQueryKey(),
     filterKeys: [],
   })
 
@@ -367,6 +372,7 @@ export default function VPCs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

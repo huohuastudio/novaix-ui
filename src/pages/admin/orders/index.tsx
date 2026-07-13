@@ -16,6 +16,7 @@ import {
   postAdminOrdersByIdCancel,
 } from "@/api"
 import type { OrderOrderItem, OrderTransactionItem } from "@/api"
+import { getAdminOrdersQueryKey, getAdminTransactionsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -68,6 +69,7 @@ function OrderList() {
 
   const table = useDataTable({
     fetchFn: fetchOrders,
+    queryKey: getAdminOrdersQueryKey(),
     filterKeys: ["order_no", "status", "type", "billing_cycle", "refund_status"],
   })
 
@@ -275,6 +277,7 @@ function OrderList() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
@@ -344,6 +347,7 @@ function TransactionList() {
 
   const table = useDataTable({
     fetchFn: fetchTransactions,
+    queryKey: getAdminTransactionsQueryKey(),
     filterKeys: ["username", "type"],
   })
 
@@ -426,7 +430,8 @@ function TransactionList() {
       columns={columns}
       data={table.data}
       loading={table.loading}
-        error={table.error}
+      fetching={table.fetching}
+      error={table.error}
       pagination={table.pagination}
       onPaginationChange={table.setPagination}
       sorting={table.sorting}

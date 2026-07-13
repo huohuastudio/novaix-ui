@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  getAdminProvidersByKind,
   postAdminSettingsNotifyByNameTest,
   type ProviderDescriptor,
 } from "@/api"
+import { getAdminProvidersByKindOptions } from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SettingSkeleton } from "@/pages/admin/settings/sections/setting-skeleton"
@@ -16,27 +18,12 @@ import { getErrorMessage } from "@/lib/utils"
 
 /** 通知渠道多选配置:列出所有渠道,每个可独立启用、配置与测试 */
 export function NotifyChannelsForm() {
-  const [descriptors, setDescriptors] = useState<ProviderDescriptor[]>([])
-  const [loading, setLoading] = useState(true)
+  const query = useQuery(getAdminProvidersByKindOptions({ path: { kind: "notify" } }))
+  const descriptors: ProviderDescriptor[] = query.data?.data ?? []
 
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      try {
-        const { data: res } = await getAdminProvidersByKind({ path: { kind: "notify" } })
-        if (alive && res?.code === 0 && res.data) setDescriptors(res.data)
-      } catch (err) {
-        toast.error(getErrorMessage(err, "加载通知渠道失败"))
-      } finally {
-        if (alive) setLoading(false)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [])
+  useQueryErrorToast(query.error, "加载通知渠道失败")
 
-  if (loading) return <SettingSkeleton />
+  if (query.isPending) return <SettingSkeleton />
 
   return (
     <div className="space-y-0">

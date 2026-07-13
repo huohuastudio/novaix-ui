@@ -49,6 +49,7 @@ import {
   getAdminNodes,
 } from "@/api"
 import type { ServiceSharedIpItem } from "@/api"
+import { getAdminSharedIpsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -58,17 +59,18 @@ import { getErrorMessage } from "@/lib/utils"
 // ── Schema ──
 
 const sharedIpSchema = z.object({
-  node_id: z.coerce.number().int().min(1, "请选择节点"),
+  node_id: z.coerce.number<number | string>().int().min(1, "请选择节点"),
   network_name: z.string().min(1, "请输入网络名称").max(64),
   address: z.string().min(1, "请输入 IP 地址"),
-  port_start: z.coerce.number().int().min(1, "请输入起始端口"),
-  port_end: z.coerce.number().int().min(1, "请输入结束端口"),
+  port_start: z.coerce.number<number | string>().int().min(1, "请输入起始端口"),
+  port_end: z.coerce.number<number | string>().int().min(1, "请输入结束端口"),
   description: z.string().max(512).default(""),
-  status: z.coerce.number().int().default(1),
+  status: z.coerce.number<number | string>().int().default(1),
   mode: z.enum(["shared", "dedicated"]).default("shared"),
 })
 
-type SharedIpFormValues = z.infer<typeof sharedIpSchema>
+type SharedIpFormInput = z.input<typeof sharedIpSchema>
+type SharedIpFormValues = z.output<typeof sharedIpSchema>
 
 const formDefaults: SharedIpFormValues = {
   node_id: 0,
@@ -104,7 +106,7 @@ function SharedIpFormFields({
   form,
   initialNodeItem,
 }: {
-  form: UseFormReturn<SharedIpFormValues>
+  form: UseFormReturn<SharedIpFormInput, unknown, SharedIpFormValues>
   initialNodeItem?: PaginatedSelectItem
 }) {
   const mode = form.watch("mode")
@@ -243,9 +245,8 @@ function SharedIpCreateDialog({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
-  const form = useForm<SharedIpFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(sharedIpSchema) as any,
+  const form = useForm<SharedIpFormInput, unknown, SharedIpFormValues>({
+    resolver: zodResolver(sharedIpSchema),
     defaultValues: formDefaults,
   })
 
@@ -302,9 +303,8 @@ function SharedIpEditDialog({
   item: ServiceSharedIpItem
   onSuccess: () => void
 }) {
-  const form = useForm<SharedIpFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(sharedIpSchema) as any,
+  const form = useForm<SharedIpFormInput, unknown, SharedIpFormValues>({
+    resolver: zodResolver(sharedIpSchema),
     defaultValues: formDefaults,
   })
 
@@ -397,6 +397,7 @@ export default function SharedIPs() {
 
   const table = useDataTable<ServiceSharedIpItem>({
     fetchFn: fetchSharedIps,
+    queryKey: getAdminSharedIpsQueryKey(),
     filterKeys: [],
   })
 
@@ -541,6 +542,7 @@ export default function SharedIPs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

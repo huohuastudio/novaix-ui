@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminAgentGroups, deleteAdminAgentGroupsById } from "@/api"
 import type { AgentGroupItem } from "@/api"
+import { getAdminAgentGroupsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { getErrorMessage } from "@/lib/utils"
@@ -27,7 +28,7 @@ export default function AgentGroups() {
     return { items, total: items.length, page: 1, page_size: items.length || 1 }
   }, [])
 
-  const table = useDataTable({ fetchFn: fetchData })
+  const table = useDataTable({ fetchFn: fetchData, queryKey: getAdminAgentGroupsQueryKey() })
   const load = table.refresh
 
   const openCreate = () => {
@@ -140,6 +141,7 @@ export default function AgentGroups() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

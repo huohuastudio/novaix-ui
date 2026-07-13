@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { getPortalPaymentsByPaymentNo } from "@/api"
+import { getPortalPaymentsByPaymentNoOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 
 interface PaymentPendingProps {
@@ -13,35 +14,53 @@ interface PaymentPendingProps {
   onPaid: () => void
 }
 
+// 轮询间隔 3 秒，超时 5 分钟（对应原实现 100 次 × 3 秒）
+const POLL_INTERVAL = 3_000
+const POLL_TIMEOUT = 300_000
+
+// 支付终态：到达后停止轮询（与后端 payment 状态集一致）
+const TERMINAL_STATUSES = ["paid", "failed", "expired", "cancelled"]
+
 export function PaymentPending({ paymentNo, payURL, qrCode, amount, onPaid }: PaymentPendingProps) {
   const formatAmount = useFormatAmount()
-  const [polling, setPolling] = useState(true)
+  const [timedOut, setTimedOut] = useState(false)
 
+  // paymentNo 通过 options 参数进入 queryKey
+  const query = useQuery({
+    ...getPortalPaymentsByPaymentNoOptions({ path: { paymentNo } }),
+    // 条件轮询：到达终态或超时后停止，其余情况每 3 秒查询一次
+    refetchInterval: (q) => {
+      const status = q.state.data?.data?.status
+      if (status && TERMINAL_STATUSES.includes(status)) return false
+      if (timedOut) return false
+      return POLL_INTERVAL
+    },
+  })
+
+  const status = query.data?.data?.status
+  const isTerminal = status != null && TERMINAL_STATUSES.includes(status)
+
+  // 支付成功后触发回调（只触发一次），保持原行为
+  const paidHandledRef = useRef(false)
   useEffect(() => {
-    if (!polling) return
-    let retries = 0
-    const maxRetries = 100
-    const timer = setInterval(async () => {
-      if (++retries > maxRetries) {
-        setPolling(false)
-        toast.error("等待支付超时，请刷新页面查看状态")
-        return
-      }
-      try {
-        const { data: res } = await getPortalPaymentsByPaymentNo({
-          path: { paymentNo },
-        })
-        if (res?.data?.status === "paid") {
-          setPolling(false)
-          toast.success("支付成功")
-          onPaid()
-        }
-      } catch {
-        // 忽略轮询错误
-      }
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [polling, paymentNo, onPaid])
+    if (status === "paid" && !paidHandledRef.current) {
+      paidHandledRef.current = true
+      toast.success("支付成功")
+      onPaid()
+    }
+  }, [status, onPaid])
+
+  // 超时提示：到达终态前若超过 5 分钟仍未有结果，停止等待并提示
+  useEffect(() => {
+    if (isTerminal) return
+    const timer = setTimeout(() => {
+      setTimedOut(true)
+      toast.error("等待支付超时，请刷新页面查看状态")
+    }, POLL_TIMEOUT)
+    return () => clearTimeout(timer)
+  }, [isTerminal])
+
+  const polling = !isTerminal && !timedOut
 
   return (
     <div className="flex flex-col items-center gap-4 py-4">

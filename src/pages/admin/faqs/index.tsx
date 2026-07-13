@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminFaqs, deleteAdminFaqsById } from "@/api"
 import type { FaqFaqItem } from "@/api"
+import { getAdminFaqsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -44,6 +45,7 @@ export default function Faqs() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminFaqsQueryKey(),
     filterKeys: ["question", "group_name", "status"],
   })
 
@@ -170,6 +172,7 @@ export default function Faqs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

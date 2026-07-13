@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form"
+import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import type { NodeResources } from "@/hooks/use-node-resources"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -12,8 +13,7 @@ import {
 } from "@/components/ui/form"
 
 interface ProfileSelectorProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<InstanceFormValues>
   nodeResources: NodeResources
   nodeId?: number
 }

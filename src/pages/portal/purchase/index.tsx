@@ -1,13 +1,15 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Check, Cpu, HardDrive, MemoryStick, Globe, Loader2, Tag, RefreshCw, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getPortalPlans, postPortalOrders, getPortalSshKeys, postPortalCouponsValidate } from '@/api'
-import type { PortalPurchasePlanItem, PortalPurchaseNodeItem, PortalPurchaseImageItem, PortalSshKeyItem } from '@/api'
+import { postPortalOrders, postPortalCouponsValidate } from '@/api'
+import { getPortalPlansOptions, getPortalSshKeysOptions } from '@/api/@tanstack/react-query.gen'
+import type { PortalPurchasePlanItem, PortalPurchaseNodeItem, PortalPurchaseImageItem } from '@/api'
 import { useSiteName, useFormatAmount, useSiteSettings } from '@/hooks/use-site-settings'
 import { formatMemory, getErrorMessage, generateHostname, generatePassword } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -18,6 +20,12 @@ type BillingCycle = 'hourly' | 'monthly' | 'quarterly' | 'yearly'
 
 function isPlanSoldOut(plan: PortalPurchasePlanItem): boolean {
   return plan.stock !== undefined && plan.stock === 0
+}
+
+function isCycleEnabled(plan: PortalPurchasePlanItem, cycle: BillingCycle): boolean {
+  const raw = plan.enabled_cycles ?? ''
+  if (!raw) return getPlanPrice(plan, cycle) > 0
+  return raw.split(',').includes(cycle)
 }
 
 function getPlanPrice(plan: PortalPurchasePlanItem, cycle: BillingCycle): number {
@@ -43,56 +51,63 @@ export default function PortalPurchase() {
   )
   const newPassword = () => generatePassword(Number(settings.instance_auto_password_length) || 16)
 
-  const [plans, setPlans] = useState<PortalPurchasePlanItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
-  const [selectedCycle, setSelectedCycle] = useState<BillingCycle>('monthly')
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
-  const [selectedImageId, setSelectedImageId] = useState<number | null>(null)
+  // 用户显式选择（null 表示未选，使用派生默认值）
+  const [userPlanId, setUserPlanId] = useState<number | null>(null)
+  const [userCycle, setUserCycle] = useState<BillingCycle | null>(null)
+  const [userNodeId, setUserNodeId] = useState<number | null>(null)
+  const [userImageId, setUserImageId] = useState<number | null>(null)
   const [hostname, setHostname] = useState(newHostname)
   const [password, setPassword] = useState(() =>
     settings.instance_auto_password !== 'false' ? newPassword() : ''
   )
   const [showPassword, setShowPassword] = useState(false)
-  const [sshKeys, setSshKeys] = useState<PortalSshKeyItem[]>([])
   const [selectedKeyId, setSelectedKeyId] = useState<number | null>(null)
   const [couponCode, setCouponCode] = useState('')
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponValidating, setCouponValidating] = useState(false)
 
-  const applyPlanDefaults = (plan: PortalPurchasePlanItem) => {
-    setSelectedPlanId(plan.id ?? null)
-    const planNodes = plan.nodes ?? []
-    const planImages = plan.images ?? []
-    setSelectedNodeId(planNodes.find(n => n.available !== false)?.id ?? null)
-    setSelectedImageId(planImages[0]?.id ?? null)
-    const cycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
-    const firstCycle = cycles.find(c => getPlanPrice(plan, c) > 0)
-    if (firstCycle) setSelectedCycle(firstCycle)
-    setCouponDiscount(0)
-  }
+  // SSH 密钥列表
+  const sshKeysQuery = useQuery(getPortalSshKeysOptions())
+  const sshKeys = sshKeysQuery.data?.data ?? []
 
-  useEffect(() => {
-    getPortalSshKeys().then(({ data: res }) => setSshKeys(res?.data ?? []))
-    getPortalPlans().then(({ data: res }) => {
-      const items = res?.data?.plans ?? []
-      setPlans(items)
-      if (items.length > 0) {
-        const first = items.find(p => !isPlanSoldOut(p)) ?? items[0]
-        applyPlanDefaults(first)
-      }
-    }).finally(() => setLoading(false))
-  }, [])
+  // 套餐列表（节点/镜像可用性随套餐一次性返回，无需链式请求）
+  const plansQuery = useQuery(getPortalPlansOptions())
+  const plans = useMemo(() => plansQuery.data?.data?.plans ?? [], [plansQuery.data])
+  const loading = plansQuery.isPending
 
-  const selectedPlan = useMemo(() =>
-    plans.find(p => p.id === selectedPlanId) ?? null,
-    [plans, selectedPlanId]
-  )
+  // 派生选中套餐：用户选择 ?? 首个有货套餐 ?? 首个套餐
+  const selectedPlan = useMemo(() => {
+    const chosen = plans.find(p => p.id === userPlanId)
+    if (chosen) return chosen
+    return plans.find(p => !isPlanSoldOut(p)) ?? plans[0] ?? null
+  }, [plans, userPlanId])
+  const selectedPlanId = selectedPlan?.id ?? null
 
   const nodes: PortalPurchaseNodeItem[] = selectedPlan?.nodes ?? []
   const images: PortalPurchaseImageItem[] = selectedPlan?.images ?? []
+
+  // 派生选中项：用户选择有效时优先，否则回落到套餐默认值
+  const allCycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
+  const selectedCycle: BillingCycle = userCycle
+    ?? (selectedPlan ? allCycles.find(c => isCycleEnabled(selectedPlan, c)) : undefined)
+    ?? 'monthly'
+  const selectedNodeId = nodes.some(n => n.id === userNodeId)
+    ? userNodeId
+    : nodes.find(n => n.available !== false)?.id ?? null
+  const selectedImageId = images.some(img => img.id === userImageId)
+    ? userImageId
+    : images[0]?.id ?? null
+
+  // 切换套餐：清除节点/镜像/周期的用户选择，回到新套餐的默认值
+  const selectPlan = (plan: PortalPurchasePlanItem) => {
+    setUserPlanId(plan.id ?? null)
+    setUserNodeId(null)
+    setUserImageId(null)
+    setUserCycle(null)
+    setCouponDiscount(0)
+  }
 
   const price = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
   const finalPrice = Math.max(0, price - couponDiscount)
@@ -217,7 +232,7 @@ export default function PortalPurchase() {
               <button
                 key={plan.id}
                 disabled={soldOut}
-                onClick={() => applyPlanDefaults(plan)}
+                onClick={() => selectPlan(plan)}
                 className={`relative rounded-2xl p-5 text-left transition-colors ${
                   soldOut
                     ? 'bg-background opacity-50 cursor-not-allowed'
@@ -274,11 +289,11 @@ export default function PortalPurchase() {
           {(['hourly', 'monthly', 'quarterly', 'yearly'] as BillingCycle[]).map((cycle) => {
             const active = cycle === selectedCycle
             const cyclePrice = selectedPlan ? getPlanPrice(selectedPlan, cycle) : 0
-            if (cyclePrice <= 0) return null
+            if (!selectedPlan || !isCycleEnabled(selectedPlan, cycle)) return null
             return (
               <button
                 key={cycle}
-                onClick={() => { setSelectedCycle(cycle); setCouponDiscount(0) }}
+                onClick={() => { setUserCycle(cycle); setCouponDiscount(0) }}
                 className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
                   active
                     ? 'bg-foreground text-background'
@@ -307,7 +322,7 @@ export default function PortalPurchase() {
                 <button
                   key={node.id}
                   disabled={unavailable}
-                  onClick={() => setSelectedNodeId(node.id ?? null)}
+                  onClick={() => setUserNodeId(node.id ?? null)}
                   className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
                     unavailable
                       ? 'bg-background opacity-50 cursor-not-allowed'
@@ -338,7 +353,7 @@ export default function PortalPurchase() {
           <div className="max-w-xs">
             <Select
               value={selectedImageId?.toString() ?? ''}
-              onValueChange={(v) => setSelectedImageId(Number(v))}
+              onValueChange={(v) => setUserImageId(Number(v))}
             >
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="选择系统镜像" />

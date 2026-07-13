@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
@@ -18,11 +19,14 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  getAdminEmailTemplates,
   putAdminEmailTemplatesByType,
   deleteAdminEmailTemplatesByType,
   postAdminEmailTemplatesByTypePreview,
 } from "@/api"
+import {
+  getAdminEmailTemplatesOptions,
+  getAdminEmailTemplatesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -224,8 +228,7 @@ function SourceToolbar({
 }
 
 export function EmailTemplateSection() {
-  const [templates, setTemplates] = useState<TemplateItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [saving, setSaving] = useState(false)
   const [selectedType, setSelectedType] = useState("")
   const [subject, setSubject] = useState("")
@@ -248,31 +251,26 @@ export function EmailTemplateSection() {
     },
   })
 
-  const loadTemplates = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminEmailTemplates()
-      if (res?.code === 0 && res.data) {
-        const items = res.data as unknown as TemplateItem[]
-        setTemplates(items)
-        setSelectedType((prev) => prev || (items.length > 0 ? items[0].type : ""))
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载邮件模板失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const templatesQuery = useQuery(getAdminEmailTemplatesOptions())
+  const templates = useMemo<TemplateItem[]>(
+    () =>
+      templatesQuery.data?.code === 0 && templatesQuery.data.data
+        ? (templatesQuery.data.data as unknown as TemplateItem[])
+        : [],
+    [templatesQuery.data],
+  )
+  const loading = templatesQuery.isPending
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    void loadTemplates()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (templatesQuery.isError) toast.error(getErrorMessage(templatesQuery.error, "加载邮件模板失败"))
+  }, [templatesQuery.isError, templatesQuery.error])
+
+  // 未手动选择时默认选中第一个模板
+  const effectiveType = selectedType || (templates.length > 0 ? templates[0].type : "")
 
   const current = useMemo(
-    () => templates.find((t) => t.type === selectedType),
-    [templates, selectedType],
+    () => templates.find((t) => t.type === effectiveType),
+    [templates, effectiveType],
   )
 
   useEffect(() => {
@@ -311,13 +309,8 @@ export function EmailTemplateSection() {
       })
       if (res?.code === 0) {
         toast.success("模板已保存")
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.type === current.type
-              ? { ...t, subject, body: bodyHtml, is_custom: true }
-              : t,
-          ),
-        )
+        // 保存成功后使模板缓存失效，重新拉取最新内容
+        void queryClient.invalidateQueries({ queryKey: getAdminEmailTemplatesQueryKey() })
       } else {
         toast.error(res?.message ?? "保存失败")
       }
@@ -326,7 +319,7 @@ export function EmailTemplateSection() {
     } finally {
       setSaving(false)
     }
-  }, [current, getBodyHtml, subject])
+  }, [current, getBodyHtml, subject, queryClient])
 
   const handleReset = useCallback(async () => {
     if (!current) return
@@ -336,14 +329,14 @@ export function EmailTemplateSection() {
       })
       if (res?.code === 0) {
         toast.success("已恢复默认模板")
-        await loadTemplates()
+        await queryClient.invalidateQueries({ queryKey: getAdminEmailTemplatesQueryKey() })
       } else {
         toast.error(res?.message ?? "重置失败")
       }
     } catch (err) {
       toast.error(getErrorMessage(err, "重置失败"))
     }
-  }, [current, loadTemplates])
+  }, [current, queryClient])
 
   const handlePreview = useCallback(async () => {
     if (!current) return
@@ -370,7 +363,7 @@ export function EmailTemplateSection() {
   if (loading) return <SettingSkeleton rows={6} />
 
   return (
-    <Tabs value={selectedType} onValueChange={setSelectedType} className="space-y-6">
+    <Tabs value={effectiveType} onValueChange={setSelectedType} className="space-y-6">
       <TabsList variant="line" className="w-full shrink-0 overflow-x-auto overflow-y-hidden no-scrollbar justify-start">
         {templates.map((t) => (
           <TabsTrigger key={t.type} value={t.type}>

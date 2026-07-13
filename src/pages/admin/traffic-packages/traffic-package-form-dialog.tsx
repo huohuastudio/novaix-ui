@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -8,6 +9,7 @@ import {
   getAdminPlans,
 } from "@/api"
 import type { TrafficPackageTrafficPackageItem } from "@/api"
+import { getAdminPlansOptions } from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,17 +37,18 @@ import { trafficPackageTypeMap } from "@/lib/traffic-package-constants"
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   type: z.enum(["topup", "reset"]).default("topup"),
-  traffic: z.coerce.number().int().min(0).default(0),
-  price: z.coerce.number().int().min(1, "价格必须大于 0"),
+  traffic: z.coerce.number<number | string>().int().min(0).default(0),
+  price: z.coerce.number<number | string>().int().min(1, "价格必须大于 0"),
   plan_ids: z.array(z.string()).default([]),
   status: z.string().default("1"),
-  sort_order: z.coerce.number().int().min(0).default(0),
+  sort_order: z.coerce.number<number | string>().int().min(0).default(0),
 }).refine((v) => v.type !== "topup" || v.traffic > 0, {
   message: "叠加包流量必须大于 0",
   path: ["traffic"],
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -80,7 +83,19 @@ const PAGE_SIZE = 20
 export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSuccess }: Props) {
   const isEdit = !!pkg
   const [serverError, setServerError] = useState("")
-  const [initialPlanItems, setInitialPlanItems] = useState<PaginatedMultiSelectItem[]>([])
+
+  // 编辑已有限定套餐时，拉取套餐列表用于回显名称；弹窗打开且存在关联套餐时才请求
+  const editPlanIds = useMemo(() => parseIds(pkg?.plan_ids), [pkg?.plan_ids])
+  const plansQuery = useQuery({
+    ...getAdminPlansOptions({ query: { page: 1, page_size: 100 } }),
+    enabled: open && editPlanIds.length > 0,
+  })
+  const initialPlanItems = useMemo<PaginatedMultiSelectItem[]>(() => {
+    if (editPlanIds.length === 0) return []
+    const plans = plansQuery.data?.data?.items ?? []
+    const map = new Map(plans.map((p) => [String(p.id), p.name ?? `套餐 ${p.id}`]))
+    return editPlanIds.map((id) => ({ id, label: map.get(id) ?? `套餐 ${id}` }))
+  }, [editPlanIds, plansQuery.data])
 
   const fetchPlanOptions = useCallback(async (page: number, keyword: string) => {
     const { data: res } = await getAdminPlans({
@@ -95,9 +110,8 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
     return { items, hasMore: items.length >= PAGE_SIZE }
   }, [])
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues,
   })
   const type = useWatch({ control: form.control, name: "type" })
@@ -109,31 +123,17 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
     setServerError("")
 
     if (pkg) {
-      const planIds = parseIds(pkg.plan_ids)
       form.reset({
         name: pkg.name ?? "",
         type: (pkg.type as "topup" | "reset") ?? "topup",
         traffic: pkg.traffic ?? 0,
         price: pkg.price ?? 0,
-        plan_ids: planIds,
+        plan_ids: parseIds(pkg.plan_ids),
         status: String(pkg.status ?? 1),
         sort_order: pkg.sort_order ?? 0,
       })
-
-      if (planIds.length > 0) {
-        getAdminPlans({ query: { page: 1, page_size: 100 } }).then(({ data: res }) => {
-          const plans = res?.data?.items ?? []
-          const map = new Map(plans.map((p) => [String(p.id), p.name ?? `套餐 ${p.id}`]))
-          setInitialPlanItems(planIds.map((id) => ({ id, label: map.get(id) ?? `套餐 ${id}` })))
-        }).catch(() => {
-          setInitialPlanItems(planIds.map((id) => ({ id, label: `套餐 ${id}` })))
-        })
-      } else {
-        setInitialPlanItems([])
-      }
     } else {
       form.reset(defaultValues)
-      setInitialPlanItems([])
     }
   }, [open, pkg, form])
 
@@ -156,7 +156,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
         : await postAdminTrafficPackages({ body })
 
       if (res?.code !== 0) {
-        handleServerErrors<FormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()
@@ -297,7 +297,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
                     <FormLabel>限定套餐</FormLabel>
                     <FormControl>
                       <PaginatedMultiSelect
-                        value={field.value}
+                        value={field.value ?? []}
                         onChange={field.onChange}
                         fetchFn={fetchPlanOptions}
                         initialItems={initialPlanItems}

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircle,
   Info,
@@ -13,16 +14,19 @@ import {
   PackageOpen,
 } from "lucide-react"
 import {
-  getAdminPlugins,
-  getAdminPluginsMarketplace,
-  getAdminProvidersByKind,
   putAdminPluginsByIdToggle,
   postAdminPluginsByIdReload,
   deleteAdminPluginsById,
   postAdminPluginsUpload,
   postAdminPluginsMarketplaceByIdInstall,
-  type ProviderDescriptor,
 } from "@/api"
+import {
+  getAdminPluginsMarketplaceOptions,
+  getAdminPluginsMarketplaceQueryKey,
+  getAdminPluginsOptions,
+  getAdminPluginsQueryKey,
+  getAdminProvidersByKindOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
@@ -123,27 +127,16 @@ function PluginConfigSheet({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const [descriptor, setDescriptor] = useState<ProviderDescriptor | null>(null)
-  const [loadingDesc, setLoadingDesc] = useState(false)
-
-  const loadDescriptor = useCallback(async () => {
-    if (!plugin.type || !plugin.id) return
-    setLoadingDesc(true)
-    try {
-      const { data: res } = await getAdminProvidersByKind({ path: { kind: plugin.type } })
-      if (res?.code === 0 && res.data) {
-        setDescriptor(res.data.find((d) => d.name === plugin.id) ?? null)
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      setLoadingDesc(false)
-    }
-  }, [plugin.type, plugin.id])
-
-  useEffect(() => {
-    if (open) loadDescriptor() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [open, loadDescriptor])
+  // 弹窗打开时才请求描述符；kind 通过 options 参数进入 queryKey
+  const descQuery = useQuery({
+    ...getAdminProvidersByKindOptions({ path: { kind: plugin.type ?? "" } }),
+    enabled: open && !!plugin.type && !!plugin.id,
+  })
+  const descriptor =
+    descQuery.data?.code === 0 && descQuery.data.data
+      ? (descQuery.data.data.find((d) => d.name === plugin.id) ?? null)
+      : null
+  const loadingDesc = descQuery.isLoading
 
   const group = `${plugin.type}_${plugin.id}`
   const settings = useSettings(group)
@@ -232,12 +225,10 @@ function InstalledPlugins({
   plugins,
   loading,
   onRefresh,
-  onPluginsChange,
 }: {
   plugins: PluginInfo[]
   loading: boolean
   onRefresh: () => void
-  onPluginsChange: (plugins: PluginInfo[]) => void
 }) {
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
   const [reloading, setReloading] = useState<Record<string, boolean>>({})
@@ -263,10 +254,8 @@ function InstalledPlugins({
         body: { enabled: !currentEnabled },
       })
       if (res?.code === 0) {
-        onPluginsChange(
-          plugins.map((p) => (p.id === id ? { ...p, enabled: !currentEnabled } : p)),
-        )
         toast.success(!currentEnabled ? "已启用插件" : "已禁用插件")
+        onRefresh()
       } else {
         toast.error(res?.message ?? "操作失败")
       }
@@ -570,29 +559,23 @@ function InstalledPlugins({
 }
 
 function Marketplace({ onInstalled }: { onInstalled: () => void }) {
-  const [items, setItems] = useState<MarketplaceItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<Record<string, boolean>>({})
   const [activeType, setActiveType] = useState("all")
+  const queryClient = useQueryClient()
 
-
-  const loadMarketplace = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminPluginsMarketplace()
-      if (res?.code === 0 && res.data) {
-        setItems(res.data as MarketplaceItem[])
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载插件市场失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const marketQuery = useQuery(getAdminPluginsMarketplaceOptions())
+  const items = useMemo<MarketplaceItem[]>(
+    () =>
+      marketQuery.data?.code === 0 && marketQuery.data.data
+        ? (marketQuery.data.data as MarketplaceItem[])
+        : [],
+    [marketQuery.data],
+  )
+  const loading = marketQuery.isPending
 
   useEffect(() => {
-    loadMarketplace() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [loadMarketplace])
+    if (marketQuery.isError) toast.error(getErrorMessage(marketQuery.error, "加载插件市场失败"))
+  }, [marketQuery.isError, marketQuery.error])
 
   const filtered = useMemo(() => {
     if (activeType === "all") return items
@@ -609,7 +592,8 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
       if (res?.code === 0) {
         toast.success(`${item.name} 安装成功`)
         onInstalled()
-        loadMarketplace()
+        // 安装成功后刷新市场列表（已安装标记）
+        queryClient.invalidateQueries({ queryKey: getAdminPluginsMarketplaceQueryKey() })
       } else {
         toast.error(res?.message ?? "安装失败")
       }
@@ -715,27 +699,24 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
 export default function Plugins() {
   useBreadcrumb([{ label: "插件管理" }])
 
-  const [plugins, setPlugins] = useState<PluginInfo[]>([])
-  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("installed")
+  const queryClient = useQueryClient()
 
-  const loadPlugins = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminPlugins()
-      if (res?.code === 0 && res.data) {
-        setPlugins(res.data as PluginInfo[])
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载插件列表失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const pluginsQuery = useQuery(getAdminPluginsOptions())
+  const plugins =
+    pluginsQuery.data?.code === 0 && pluginsQuery.data.data
+      ? (pluginsQuery.data.data as PluginInfo[])
+      : []
+  const loading = pluginsQuery.isPending
 
   useEffect(() => {
-    loadPlugins() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [loadPlugins])
+    if (pluginsQuery.isError) toast.error(getErrorMessage(pluginsQuery.error, "加载插件列表失败"))
+  }, [pluginsQuery.isError, pluginsQuery.error])
+
+  // 写操作成功后刷新插件列表
+  const refreshPlugins = () => {
+    void queryClient.invalidateQueries({ queryKey: getAdminPluginsQueryKey() })
+  }
 
   return (
     <div className="px-6 pt-6 space-y-6">
@@ -749,8 +730,8 @@ export default function Plugins() {
             管理已安装的扩展插件，或从插件市场浏览安装
           </p>
         </div>
-        <Button variant="outline" onClick={loadPlugins} disabled={loading}>
-          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+        <Button variant="outline" onClick={refreshPlugins} disabled={pluginsQuery.isFetching}>
+          <RefreshCw className={`size-4 ${pluginsQuery.isFetching ? "animate-spin" : ""}`} />
           刷新
         </Button>
       </div>
@@ -769,11 +750,10 @@ export default function Plugins() {
         <InstalledPlugins
           plugins={plugins}
           loading={loading}
-          onRefresh={loadPlugins}
-          onPluginsChange={setPlugins}
+          onRefresh={refreshPlugins}
         />
       ) : (
-        <Marketplace onInstalled={loadPlugins} />
+        <Marketplace onInstalled={refreshPlugins} />
       )}
     </div>
   )

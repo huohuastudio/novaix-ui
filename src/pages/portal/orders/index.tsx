@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { ShoppingCart, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,7 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { getPortalOrders, postPortalOrdersByIdCancel } from '@/api'
+import { postPortalOrdersByIdCancel } from '@/api'
+import {
+  getPortalOrdersOptions,
+  getPortalOrdersQueryKey,
+  getPortalOrdersByIdQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import { PayDialog } from './pay-dialog'
 import type { PortalPortalOrderItem } from '@/api'
 import { SimplePagination } from '@/components/simple-pagination'
@@ -65,11 +71,10 @@ export default function PortalOrders() {
   const formatDate = useFormatDate()
   useDocumentTitle(`费用订单 - ${siteName}`)
 
-  const [orders, setOrders] = useState<PortalPortalOrderItem[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
+
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [payOrder, setPayOrder] = useState<PortalPortalOrderItem | null>(null)
@@ -78,32 +83,30 @@ export default function PortalOrders() {
     order: PortalPortalOrderItem | null
   }>({ open: false, order: null })
 
-  const fetchOrders = useCallback(async (status: string, p: number) => {
-    try {
-      const { data: res } = await getPortalOrders({
-        query: {
-          page: p,
-          page_size: pageSize,
-          status: status === 'all' ? undefined : status as 'pending' | 'paid' | 'cancelled' | 'refunded',
-          sort: 'created_at',
-          order: 'desc',
-        },
-      })
-      setOrders(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      setLoading(false)
+  // 订单列表（分页/筛选进 key）
+  const ordersQuery = useQuery({
+    ...getPortalOrdersOptions({
+      query: {
+        page,
+        page_size: pageSize,
+        status: statusFilter === 'all' ? undefined : statusFilter as 'pending' | 'paid' | 'cancelled' | 'refunded',
+        sort: 'created_at',
+        order: 'desc',
+      },
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const loading = ordersQuery.isPending
+  const orders = ordersQuery.data?.data?.items ?? []
+  const total = ordersQuery.data?.data?.total ?? 0
+
+  // 写操作成功后失效订单列表和详情缓存
+  const invalidateOrders = (orderId?: number) => {
+    queryClient.invalidateQueries({ queryKey: getPortalOrdersQueryKey() })
+    if (orderId) {
+      queryClient.invalidateQueries({ queryKey: getPortalOrdersByIdQueryKey({ path: { id: orderId } }) })
     }
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 筛选条件变化时重置页码
-    setPage(1)
-  }, [statusFilter])
-
-  useEffect(() => {
-    fetchOrders(statusFilter, page)
-  }, [fetchOrders, statusFilter, page])
+  }
 
   const handleCancel = async () => {
     const { order } = confirmDialog
@@ -112,7 +115,7 @@ export default function PortalOrders() {
     try {
       await postPortalOrdersByIdCancel({ path: { id: order.id } })
       toast.success('订单已取消')
-      fetchOrders(statusFilter, page)
+      invalidateOrders(order.id)
     } catch (err) {
       toast.error(getErrorMessage(err, '取消失败'))
     } finally {
@@ -128,7 +131,7 @@ export default function PortalOrders() {
           <h1 className="text-2xl font-semibold tracking-tight">费用订单</h1>
           <p className="mt-1 text-sm text-muted-foreground">查看和管理您的所有订单</p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
           <SelectTrigger className="w-full sm:w-36">
             <SelectValue />
           </SelectTrigger>
@@ -228,8 +231,8 @@ export default function PortalOrders() {
           orderId={payOrder.id}
           amount={payOrder.amount ?? 0}
           onSuccess={() => {
+            invalidateOrders(payOrder.id)
             setPayOrder(null)
-            fetchOrders(statusFilter, page)
           }}
         />
       )}

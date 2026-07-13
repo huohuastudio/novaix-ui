@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -40,10 +41,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useConfirm } from "@/hooks/use-confirm"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import { formatBytes } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusStoragePoolDetail, IncusStorageVolume } from "@/types/incus"
+import { queryKeys } from "@/lib/query-keys"
 
 interface Props {
   nodeId: number
@@ -79,7 +82,8 @@ const volumeSchema = z.object({
   content_type: z.enum(["filesystem", "block"]).default("filesystem"),
 })
 
-type VolumeFormValues = z.infer<typeof volumeSchema>
+type VolumeFormInput = z.input<typeof volumeSchema>
+type VolumeFormValues = z.output<typeof volumeSchema>
 
 function CreateVolumeDialog({
   open,
@@ -94,9 +98,8 @@ function CreateVolumeDialog({
   poolName: string
   onSuccess: () => void
 }) {
-  const form = useForm<VolumeFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(volumeSchema) as any,
+  const form = useForm<VolumeFormInput, unknown, VolumeFormValues>({
+    resolver: zodResolver(volumeSchema),
     defaultValues: { name: "", size: "10GiB", content_type: "filesystem" },
   })
 
@@ -174,30 +177,29 @@ function CreateVolumeDialog({
 // ── Pool section ──
 
 function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: number }) {
-  const [volumes, setVolumes] = useState<IncusStorageVolume[]>([])
-  const [resources, setResources] = useState<PoolResources | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+  // 单个存储池的卷列表 + 容量用量聚合查询（走通用 proxy），与原实现一致：单项失败降级为空数据
+  const detailQuery = useQuery({
+    queryKey: queryKeys.nodeStoragePoolDetail(nodeId, pool.name),
+    queryFn: async () => {
       const [vols, res] = await Promise.all([
-        incus<IncusStorageVolume[]>(nodeId, `1.0/storage-pools/${pool.name}/volumes`, { params: { recursion: "1" } }).catch(() => []),
+        incus<IncusStorageVolume[]>(nodeId, `1.0/storage-pools/${pool.name}/volumes`, { params: { recursion: "1" } }).catch(() => [] as IncusStorageVolume[]),
         incus<PoolResources>(nodeId, `1.0/storage-pools/${pool.name}/resources`).catch(() => null),
       ])
-      setVolumes(vols ?? [])
-      setResources(res)
-    } finally {
-      setLoading(false)
-    }
-  }, [nodeId, pool.name])
+      return { volumes: vols ?? [], resources: res }
+    },
+  })
+  const volumes = detailQuery.data?.volumes ?? []
+  const resources = detailQuery.data?.resources ?? null
+  const loading = detailQuery.isPending
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchData()
-  }, [fetchData])
+  // 写操作成功后失效缓存触发重取（保持原函数名与调用点不变）
+  const fetchData = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.nodeStoragePoolDetail(nodeId, pool.name) })
+  }, [queryClient, nodeId, pool.name])
 
   const handleDeleteVolume = useCallback(async (vol: IncusStorageVolume) => {
     if ((vol.used_by?.length ?? 0) > 0) {
@@ -395,27 +397,19 @@ export function StorageTableSkeleton() {
 // ── Main ──
 
 export default function NodeStorageTable({ nodeId }: Props) {
-  const [pools, setPools] = useState<IncusStoragePoolDetail[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetchPools = useCallback(async () => {
-    setLoading(true)
-    try {
+  // 节点存储池列表走通用 proxy（lib/incus.ts，无生成 SDK），使用集中登记的手工 key
+  const query = useQuery({
+    queryKey: queryKeys.nodeStoragePools(nodeId),
+    queryFn: async () => {
       const data = await incus<IncusStoragePoolDetail[]>(nodeId, "1.0/storage-pools", { params: { recursion: "1" } })
-      setPools(data ?? [])
-    } catch (err) {
-      toast.error(incusErrorMessage(err, "获取存储池列表失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [nodeId])
+      return data ?? []
+    },
+  })
+  const pools = query.data ?? []
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchPools()
-  }, [fetchPools])
+  useQueryErrorToast(query.error, "获取存储池列表失败", incusErrorMessage)
 
-  if (loading) {
+  if (query.isPending) {
     return <StorageTableSkeleton />
   }
 

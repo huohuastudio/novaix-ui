@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { FileText } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { SimplePagination } from "@/components/simple-pagination"
-import { getPublicCmsArticles, getPublicCmsArticleCategories } from "@/api"
-import type { PublicPublicArticleItem, PublicPublicArticleCategoryItem } from "@/api"
+import {
+  getPublicCmsArticlesOptions,
+  getPublicCmsArticleCategoriesOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -20,40 +23,26 @@ export default function ArticleList() {
   const typeFilter = searchParams.get("type") || ""
   const categoryFilter = searchParams.get("category") || ""
 
-  const [articles, setArticles] = useState<PublicPublicArticleItem[]>([])
-  const [categories, setCategories] = useState<PublicPublicArticleCategoryItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const pageSize = 12
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    getPublicCmsArticleCategories()
-      .then(({ data: res }) => setCategories(res?.data ?? []))
-      .catch(() => {})
-  }, [])
+  const categoriesQuery = useQuery(getPublicCmsArticleCategoriesOptions())
+  const categories = categoriesQuery.data?.data ?? []
 
-  const fetchArticles = useCallback(() => {
-    setLoading(true)
-    getPublicCmsArticles({
+  const articlesQuery = useQuery({
+    ...getPublicCmsArticlesOptions({
       query: {
         page,
         page_size: pageSize,
         type: typeFilter || undefined,
         category_id: categoryFilter ? Number(categoryFilter) : undefined,
       },
-    })
-      .then(({ data: res }) => {
-        setArticles(res?.data?.items ?? [])
-        setTotal(res?.data?.total ?? 0)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [page, typeFilter, categoryFilter])
-
-  useEffect(() => {
-    fetchArticles() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [fetchArticles])
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const articles = articlesQuery.data?.data?.items ?? []
+  const total = articlesQuery.data?.data?.total ?? 0
+  const loading = articlesQuery.isPending
 
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]))
 

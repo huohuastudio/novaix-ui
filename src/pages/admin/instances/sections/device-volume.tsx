@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { useFieldArray, type UseFormReturn } from "react-hook-form"
+import type { IncusConfigForm, VolumeDevice } from "@/types/incus-config"
+import { useFieldArray } from "react-hook-form"
 import type { NodeResources } from "@/hooks/use-node-resources"
 import { ConfigSection } from "@/components/config-table"
 import { Input } from "@/components/ui/input"
@@ -25,8 +26,7 @@ import { incus } from "@/lib/incus"
 import type { IncusStorageVolume } from "@/types/incus"
 
 interface VolumeDeviceSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
   nodeResources: NodeResources
   nodeId?: number
 }
@@ -97,7 +97,7 @@ export function VolumeDeviceSection({ form, nodeResources, nodeId: nodeIdProp }:
     form.setValue(`volume_devices.${index}.pool`, pool)
     form.setValue(`volume_devices.${index}.source`, volName)
     if (vol) {
-      const ct = vol.content_type || "filesystem"
+      const ct = (vol.content_type || "filesystem") as VolumeDevice["content_type"]
       form.setValue(`volume_devices.${index}.content_type`, ct)
       if (ct === "block") {
         form.setValue(`volume_devices.${index}.path`, "")
@@ -233,7 +233,7 @@ export function VolumeDeviceSection({ form, nodeResources, nodeId: nodeIdProp }:
               <Plus className="size-4" />
               挂载存储卷
             </Button>
-            {allVolumes.length === 0 && !loading && nodeId > 0 && (
+            {allVolumes.length === 0 && !loading && (nodeId ?? 0) > 0 && (
               <p className="text-xs text-muted-foreground">
                 该节点暂无可用的自定义存储卷
               </p>

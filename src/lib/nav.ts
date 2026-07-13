@@ -24,6 +24,7 @@ import {
   Blocks,
   Palette,
   PenSquare,
+  Receipt,
 } from "lucide-react"
 import type { NavGroup } from "@/components/nav-main"
 
@@ -55,6 +56,7 @@ export function buildNavGroups(basePath: string): NavGroup[] {
         { title: "流量包", url: `${basePath}/traffic-packages`, icon: Gauge },
         { title: "支付记录", url: `${basePath}/payments`, icon: CreditCard },
         { title: "优惠券", url: `${basePath}/coupons`, icon: Ticket },
+        { title: "发票管理", url: `${basePath}/invoices`, icon: Receipt },
         { title: "代理管理", url: `${basePath}/agents`, icon: UserCheck, featureKey: "agents" },
         { title: "工单系统", url: `${basePath}/tickets`, icon: MessageSquareText },
         { title: "内容管理", url: `${basePath}/cms`, icon: PenSquare },

@@ -1,14 +1,16 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RichTextEditor } from '@/components/rich-text-editor'
+import { postPortalTicketsByIdReply } from '@/api'
 import {
-  getPortalTicketsById,
-  postPortalTicketsByIdReply,
-} from '@/api'
-import type { PortalPortalTicketDetailResponse } from '@/api'
+  getPortalTicketsByIdOptions,
+  getPortalTicketsByIdQueryKey,
+  getPortalTicketsQueryKey,
+} from '@/api/@tanstack/react-query.gen'
 import { useSiteName, useFormatDate } from '@/hooks/use-site-settings'
 import { getErrorMessage, isHtmlEmpty } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -53,34 +55,32 @@ export default function PortalTicketDetail() {
   const formatDate = useFormatDate()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [detail, setDetail] = useState<PortalPortalTicketDetailResponse | null>(null)
-  const [loading, setLoading] = useState(true)
   const [replyContent, setReplyContent] = useState('')
   const [replying, setReplying] = useState(false)
 
+  const detailQuery = useQuery({
+    ...getPortalTicketsByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const detailRes = detailQuery.data
+  const detail = detailRes?.code === 0 && detailRes.data ? detailRes.data : null
+
   useDocumentTitle(`${detail?.subject ?? '工单详情'} - ${siteName}`)
 
-  const fetchDetail = useCallback(async () => {
-    if (!id) return
-    try {
-      const { data: res } = await getPortalTicketsById({ path: { id: Number(id) } })
-      if (res?.code === 0 && res.data) {
-        setDetail(res.data)
-      } else {
-        navigate('/portal/tickets', { replace: true })
-      }
-    } catch {
-      navigate('/portal/tickets', { replace: true })
-    } finally {
-      setLoading(false)
-    }
-  }, [id, navigate])
-
+  // 加载失败（且无缓存数据）或工单不存在时返回列表页
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    fetchDetail()
-  }, [fetchDetail])
+    if ((detailQuery.isError && !detail) || (detailRes && !(detailRes.code === 0 && detailRes.data))) {
+      navigate('/portal/tickets', { replace: true })
+    }
+  }, [detailQuery.isError, detail, detailRes, navigate])
+
+  // 回复成功后刷新工单详情，同时失效工单列表缓存
+  const refreshDetail = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getPortalTicketsByIdQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getPortalTicketsQueryKey() })
+  }, [queryClient, id])
 
   const handleReply = async () => {
     if (isHtmlEmpty(replyContent) || !detail?.id) return
@@ -92,7 +92,7 @@ export default function PortalTicketDetail() {
       })
       toast.success('回复成功')
       setReplyContent('')
-      fetchDetail()
+      refreshDetail()
     } catch (err) {
       toast.error(getErrorMessage(err, '回复失败'))
     } finally {
@@ -100,7 +100,7 @@ export default function PortalTicketDetail() {
     }
   }
 
-  if (loading) return <DetailSkeleton />
+  if (detailQuery.isPending) return <DetailSkeleton />
   if (!detail) return null
 
   const status = detail.status ?? 'open'

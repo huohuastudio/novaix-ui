@@ -11,6 +11,7 @@ import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { AnnouncementCreateSheet, AnnouncementEditSheet } from "./announcement-form-sheet"
+import { getAdminArticlesQueryKey } from "@/api/@tanstack/react-query.gen"
 
 export default function Announcements() {
   const formatDate = useFormatDate()
@@ -44,6 +45,8 @@ export default function Announcements() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    // 公告页与文章页共用 getAdminArticles 接口，type 是接口 query 参数，传入生成 key 区分缓存
+    queryKey: getAdminArticlesQueryKey({ query: { type: "announcement" } }),
     filterKeys: ["title", "status"],
   })
 
@@ -162,6 +165,7 @@ export default function Announcements() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

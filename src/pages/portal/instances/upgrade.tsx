@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Loader2, Check } from "lucide-react"
 import { toast } from "sonner"
+import { postPortalInstancesByIdUpgrade } from "@/api"
 import {
-  getPortalInstancesById,
-  getPortalInstancesByIdUpgradeOptions,
-  postPortalInstancesByIdUpgrade,
-} from "@/api"
+  getPortalInstancesByIdOptions,
+  getPortalInstancesByIdUpgradeOptionsOptions,
+} from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem, ServiceUpgradeOption } from "@/api"
 import { formatMemory, formatDisk, getErrorMessage } from "@/lib/utils"
 import { billingCycleMap } from "@/lib/order-constants"
@@ -21,41 +22,39 @@ export default function PortalInstanceUpgrade() {
   const navigate = useNavigate()
   const formatAmount = useFormatAmount()
 
-  const [instance, setInstance] = useState<PortalPortalInstanceItem | null>(null)
-  const [options, setOptions] = useState<ServiceUpgradeOption[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useDocumentTitle(`升级/降级 - ${siteName}`)
 
-  const [error, setError] = useState<string | null>(null)
+  const numId = Number(id)
+  const instanceQuery = useQuery({
+    ...getPortalInstancesByIdOptions({ path: { id: numId } }),
+    enabled: !!id,
+  })
+  const optionsQuery = useQuery({
+    ...getPortalInstancesByIdUpgradeOptionsOptions({ path: { id: numId } }),
+    enabled: !!id,
+  })
 
-  useEffect(() => {
-    if (!id) return
-    const numId = Number(id)
+  const loading = instanceQuery.isPending || optionsQuery.isPending
+  const instRes = instanceQuery.data
+  const optRes = optionsQuery.data
+  const instance = instRes?.code === 0 && instRes.data
+    ? (instRes.data as PortalPortalInstanceItem)
+    : null
+  const options = optRes?.code === 0 && optRes.data
+    ? (optRes.data as ServiceUpgradeOption[])
+    : []
 
-    Promise.all([
-      getPortalInstancesById({ path: { id: numId } }),
-      getPortalInstancesByIdUpgradeOptions({ path: { id: numId } }),
-    ]).then(([instRes, optRes]) => {
-      if (instRes.data?.code === 0 && instRes.data.data) {
-        setInstance(instRes.data.data as PortalPortalInstanceItem)
-      } else {
-        setError(instRes.data?.message || "无法获取实例信息")
-        return
-      }
-      if (optRes.data?.code === 0 && optRes.data.data) {
-        setOptions(optRes.data.data as ServiceUpgradeOption[])
-      } else {
-        setError(optRes.data?.message || "无法获取升级选项")
-      }
-    }).catch((err) => {
-      setError(getErrorMessage(err, "加载失败，请稍后重试"))
-    }).finally(() => {
-      setLoading(false)
-    })
-  }, [id])
+  // 错误优先级与原逻辑一致：请求异常 → 实例获取失败 → 升级选项获取失败
+  const error = instanceQuery.isError || optionsQuery.isError
+    ? getErrorMessage(instanceQuery.error ?? optionsQuery.error, "加载失败，请稍后重试")
+    : instRes && !(instRes.code === 0 && instRes.data)
+      ? (instRes.message || "无法获取实例信息")
+      : optRes && !(optRes.code === 0 && optRes.data)
+        ? (optRes.message || "无法获取升级选项")
+        : null
 
   const selected = options.find(o => o.plan_id === selectedPlanId)
 

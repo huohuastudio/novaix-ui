@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminTickets, deleteAdminTicketsById } from "@/api"
 import type { TicketTicketItem } from "@/api"
+import { getAdminTicketsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -56,6 +57,7 @@ export default function TicketList() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminTicketsQueryKey(),
     filterKeys: ["subject", "status", "priority", "department", "assignee_id"],
   })
 
@@ -230,6 +232,7 @@ export default function TicketList() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

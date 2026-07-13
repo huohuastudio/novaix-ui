@@ -31,11 +31,12 @@ const createSchema = z.object(baseSchema)
 const editSchema = z.object({
   ...baseSchema,
   rotate_callback: z.boolean().optional(),
-  status: z.coerce.number().int(),
+  status: z.coerce.number<number | string>().int(),
 })
 
 type CreateFormValues = z.infer<typeof createSchema>
-type EditFormValues = z.infer<typeof editSchema>
+type EditFormInput = z.input<typeof editSchema>
+type EditFormValues = z.output<typeof editSchema>
 
 const createFieldNames: (keyof CreateFormValues)[] = ["name", "callback_url", "description"]
 const editFieldNames: (keyof EditFormValues)[] = ["name", "callback_url", "description", "status", "rotate_callback"]
@@ -53,8 +54,7 @@ export function IntegrationCreateSheet({
   const [revealed, setRevealed] = useState<{ name: string; secret: string } | null>(null)
 
   const form = useForm<CreateFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(createSchema) as any,
+    resolver: zodResolver(createSchema),
     defaultValues: { name: "", callback_url: "", description: "" },
   })
 
@@ -140,9 +140,8 @@ export function IntegrationEditSheet({
   const [serverError, setServerError] = useState("")
   const [revealed, setRevealed] = useState<{ name: string; secret: string } | null>(null)
 
-  const form = useForm<EditFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(editSchema) as any,
+  const form = useForm<EditFormInput, unknown, EditFormValues>({
+    resolver: zodResolver(editSchema),
     defaultValues: {
       name: integration.name ?? "",
       callback_url: integration.callback_url ?? "",
@@ -266,14 +265,15 @@ export function IntegrationEditSheet({
 function IntegrationBaseFields({
   form,
 }: {
-  // 两个 schema 共享相同的 name/callback_url/description 字段，因此 form 类型能兼容
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<CreateFormValues> | UseFormReturn<EditFormInput, unknown, EditFormValues>
 }) {
+  // 两个 schema 共享相同的 name/callback_url/description 基础字段，
+  // 此处仅渲染这些共有字段，统一收窄为创建表单的 control 类型
+  const control = (form as UseFormReturn<CreateFormValues>).control
   return (
     <>
       <FormField
-        control={form.control}
+        control={control}
         name="name"
         render={({ field }) => (
           <FormItem>
@@ -286,7 +286,7 @@ function IntegrationBaseFields({
         )}
       />
       <FormField
-        control={form.control}
+        control={control}
         name="callback_url"
         render={({ field }) => (
           <FormItem>
@@ -300,7 +300,7 @@ function IntegrationBaseFields({
         )}
       />
       <FormField
-        control={form.control}
+        control={control}
         name="description"
         render={({ field }) => (
           <FormItem>

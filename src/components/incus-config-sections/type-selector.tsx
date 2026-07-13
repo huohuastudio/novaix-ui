@@ -1,5 +1,5 @@
-import type { UseFormReturn } from "react-hook-form"
 import { Monitor, Box } from "lucide-react"
+import type { IncusConfigForm } from "@/types/incus-config"
 import { cn } from "@/lib/utils"
 import {
   FormDescription,
@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/form"
 
 interface TypeSelectorProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function TypeSelector({ form }: TypeSelectorProps) {

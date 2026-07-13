@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminArticles, putAdminArticlesById } from "@/api"
@@ -33,17 +33,18 @@ const formSchema = z.object({
   title: z.string().min(1, "标题不能为空").max(255, "标题不能超过 255 个字符"),
   slug: z.string().min(1, "别名不能为空").max(255, "别名不能超过 255 个字符"),
   type: z.enum(["news", "announcement", "activity"]),
-  category_id: z.coerce.number().int().positive().optional(),
+  category_id: z.coerce.number<number | string>().int().positive().optional(),
   summary: z.string().max(500, "摘要不能超过 500 个字符").optional().or(z.literal("")),
   content: z.string().min(1, "内容不能为空"),
   cover_image: z.string().optional().or(z.literal("")),
-  status: z.coerce.number().int(),
+  status: z.coerce.number<number | string>().int(),
   is_pinned: z.boolean(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
   published_at: z.string().optional().or(z.literal("")),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   title: "",
@@ -72,7 +73,7 @@ function ArticleFormFields({
   categories,
   autoSlugDefault = true,
 }: {
-  form: ReturnType<typeof useForm<FormValues>>
+  form: UseFormReturn<FormInput, unknown, FormValues>
   categories: ArticlecategoryArticleCategoryItem[]
   autoSlugDefault?: boolean
 }) {
@@ -311,9 +312,8 @@ export function ArticleCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -395,9 +395,8 @@ export function ArticleEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

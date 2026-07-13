@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
+import { useCallback, useMemo, useState, type FormEvent } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Trash2, Pencil } from "lucide-react"
 import { toast } from "sonner"
@@ -29,9 +29,9 @@ import {
   postAdminAgents,
   deleteAdminAgentsById,
   putAdminAgentsById,
-  getAdminAgentGroups,
 } from "@/api"
 import type { AgentAgentItem, AgentGroupItem } from "@/api"
+import { getAdminAgentsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -40,6 +40,8 @@ import { useFormatDate, useFormatAmount } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import { UserPopover } from "@/components/user-popover"
 import AgentGroups from "./agent-groups"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminAgentGroupsOptions } from "@/api/@tanstack/react-query.gen"
 
 const NO_GROUP = "none"
 
@@ -52,14 +54,11 @@ function AgentList() {
   const [editingItem, setEditingItem] = useState<AgentAgentItem | null>(null)
   const [editGroup, setEditGroup] = useState(NO_GROUP)
   const [editSaving, setEditSaving] = useState(false)
-  const [groups, setGroups] = useState<AgentGroupItem[]>([])
   const { confirm, ConfirmDialog } = useConfirm()
 
-  useEffect(() => {
-    getAdminAgentGroups().then(({ data: res }) => {
-      if (res?.code === 0) setGroups(res.data ?? [])
-    }).catch(() => { /* 分组加载失败不阻塞代理列表 */ })
-  }, [])
+  // 分组字典（加载失败不阻塞代理列表，回退空数组）
+  const groupsQuery = useQuery(getAdminAgentGroupsOptions())
+  const groups = useMemo<AgentGroupItem[]>(() => groupsQuery.data?.data ?? [], [groupsQuery.data])
 
   const groupName = useCallback((id?: number) => {
     if (!id) return null
@@ -84,6 +83,7 @@ function AgentList() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminAgentsQueryKey(),
     filterKeys: ["username"],
   })
 
@@ -258,6 +258,7 @@ function AgentList() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

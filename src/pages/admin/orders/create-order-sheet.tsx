@@ -46,18 +46,20 @@ import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 const PAGE_SIZE = 20
 
 const schema = z.object({
-  user_id: z.coerce.number().min(1, "请选择用户"),
-  plan_id: z.coerce.number().min(1, "请选择套餐"),
+  // 这些字段仅由数字选择器写入，输入侧始终为 number
+  user_id: z.coerce.number<number>().min(1, "请选择用户"),
+  plan_id: z.coerce.number<number>().min(1, "请选择套餐"),
   billing_cycle: z.enum(["hourly", "monthly", "quarterly", "yearly"], { message: "请选择计费周期" }),
-  node_id: z.coerce.number().min(1, "请选择节点"),
-  image_id: z.coerce.number().min(1, "请选择镜像"),
+  node_id: z.coerce.number<number>().min(1, "请选择节点"),
+  image_id: z.coerce.number<number>().min(1, "请选择镜像"),
   password: z.string().min(6, "密码至少 6 位").max(256),
   hostname: z.string().max(128).optional(),
-  ip_id: z.coerce.number().optional(),
+  ip_id: z.coerce.number<number>().optional(),
   auto_pay: z.boolean().default(true),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 interface Props {
   open: boolean
@@ -70,9 +72,8 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
   const [serverError, setServerError] = useState("")
   const [planMap, setPlanMap] = useState<Map<number, ProductPlanItem>>(new Map())
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: {
       user_id: 0,
       plan_id: 0,

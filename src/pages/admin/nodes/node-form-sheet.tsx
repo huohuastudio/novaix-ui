@@ -10,7 +10,7 @@ import { getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Info } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -34,6 +34,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // ── Schema ──
 
@@ -41,8 +42,8 @@ const baseFields = {
   name: z.string().min(1, "请输入名称").max(128, "名称不能超过 128 个字符"),
   region: z.string().max(64, "区域不能超过 64 个字符").optional().default(""),
   host: z.string().min(1, "请输入主机地址").max(255, "主机地址不能超过 255 个字符"),
-  port: z.coerce.number().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(8443),
-  ssh_port: z.coerce.number().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(22),
+  port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(8443),
+  ssh_port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(22),
   ssh_user: z.string().max(64, "SSH 用户不能超过 64 个字符").optional().default("root"),
   ssh_auth_method: z.enum(["password", "key"]).default("password"),
   ssh_password: z.string().max(256).optional().default(""),
@@ -63,9 +64,13 @@ const editSchema = z.object({
   cluster_member_name: z.string().max(128).optional().default(""),
 })
 
-type NodeFormValues = z.infer<typeof editSchema>
+// 共享字段组件基于 createSchema（基础字段）的类型；编辑表单类型是其超集，可安全传入
+type NodeFormInput = z.input<typeof createSchema>
+type NodeFormValues = z.output<typeof createSchema>
+type EditFormInput = z.input<typeof editSchema>
+type EditFormValues = z.output<typeof editSchema>
 
-const defaultValues: NodeFormValues = {
+const defaultValues: EditFormValues = {
   name: "",
   region: "",
   host: "",
@@ -82,7 +87,7 @@ const fieldNames = Object.keys(defaultValues)
 
 // ── 共享表单字段 ──
 
-function NameField({ form }: { form: UseFormReturn<NodeFormValues> }) {
+function NameField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
   return (
     <FormField
       control={form.control}
@@ -98,7 +103,7 @@ function NameField({ form }: { form: UseFormReturn<NodeFormValues> }) {
   )
 }
 
-function RegionField({ form }: { form: UseFormReturn<NodeFormValues> }) {
+function RegionField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
   return (
     <FormField
       control={form.control}
@@ -114,7 +119,7 @@ function RegionField({ form }: { form: UseFormReturn<NodeFormValues> }) {
   )
 }
 
-function HostField({ form }: { form: UseFormReturn<NodeFormValues> }) {
+function HostField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
   return (
     <FormField
       control={form.control}
@@ -130,7 +135,7 @@ function HostField({ form }: { form: UseFormReturn<NodeFormValues> }) {
   )
 }
 
-function PortFields({ form }: { form: UseFormReturn<NodeFormValues> }) {
+function PortFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
   return (
     <div className="grid grid-cols-2 gap-4">
       <FormField
@@ -159,7 +164,7 @@ function PortFields({ form }: { form: UseFormReturn<NodeFormValues> }) {
   )
 }
 
-function SSHAuthFields({ form, optional }: { form: UseFormReturn<NodeFormValues>; optional?: boolean }) {
+function SSHAuthFields({ form, optional }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues>; optional?: boolean }) {
   const authMethod = form.watch("ssh_auth_method")
 
   return (
@@ -268,7 +273,7 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
 
 // ── 构建请求 body ──
 
-function buildBody(values: NodeFormValues) {
+function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name">>) {
   return {
     name: values.name,
     region: values.region || undefined,
@@ -294,9 +299,8 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
 
-  const form = useForm<NodeFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(createSchema) as any,
+  const form = useForm<NodeFormInput, unknown, NodeFormValues>({
+    resolver: zodResolver(createSchema),
     defaultValues,
   })
 
@@ -340,7 +344,7 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
     try {
       const { data: res } = await postAdminNodes({ body: buildBody(values) })
       if (res?.code !== 0) {
-        handleServerErrors<NodeFormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()
@@ -356,6 +360,12 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
           <DialogTitle>添加节点</DialogTitle>
           <DialogDescription>添加一台宿主机，保存后点击初始化按钮进行环境配置</DialogDescription>
         </DialogHeader>
+        <Alert>
+          <Info className="size-4" />
+          <AlertDescription>
+            节点服务器需运行受支持的操作系统：Ubuntu 20.04+、Debian 11+、CentOS/RHEL/Rocky/Alma 9+、Fedora 38+，推荐 Ubuntu 24.04 LTS
+          </AlertDescription>
+        </Alert>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" data-tour="node-form">
             <div className="grid grid-cols-2 gap-4" data-tour="node-form-basic">
@@ -401,9 +411,8 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
 
-  const form = useForm<NodeFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(editSchema) as any,
+  const form = useForm<EditFormInput, unknown, EditFormValues>({
+    resolver: zodResolver(editSchema),
     defaultValues,
   })
 
@@ -454,12 +463,12 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
     }
   }, [open, node, form])
 
-  const onSubmit = async (values: NodeFormValues) => {
+  const onSubmit = async (values: EditFormValues) => {
     setServerError("")
     try {
       const { data: res } = await putAdminNodesById({ path: { id: node.id! }, body: buildBody(values) })
       if (res?.code !== 0) {
-        handleServerErrors<NodeFormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()

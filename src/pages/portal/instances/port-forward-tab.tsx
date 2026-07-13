@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId: number; instanceBusy: boolean; isNAT?: boolean }) {
   const api = useMemo(() => ({
+    scope: "portal" as const,
     list: getPortalInstancesByIdPortForwardRules,
     create: postPortalInstancesByIdPortForwardRules,
     update: putPortalInstancesByIdPortForwardRulesByRuleId,

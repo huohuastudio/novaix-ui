@@ -8,38 +8,40 @@ import {
 
 export type { ProxyDevice, GpuDevice, VolumeDevice, OtherDevice } from "@/types/incus-config"
 
+// 注意：schema 已做输入/输出类型归一化（不使用 .default()，默认值由 defaultValues 常量提供；
+// z.coerce.number<number>() 仅声明输入类型，运行时仍执行 coerce），详见 @/types/incus-config。
 export const instanceFormSchema = incusConfigSchema.extend({
   // 主要配置
-  node_id: z.coerce.number().min(1, "请选择宿主机节点"),
+  node_id: z.coerce.number<number>().min(1, "请选择宿主机节点"),
   name: z
     .string()
     .min(1, "请输入实例名称")
     .max(63, "名称不能超过 63 个字符")
     .regex(/^[a-zA-Z][a-zA-Z0-9-]*$/, "只能包含字母、数字和连字符，且以字母开头"),
-  source_type: z.string().default("image"),
-  source_server: z.string().optional().default(""),
-  source_protocol: z.string().optional().default(""),
-  source_alias: z.string().optional().default(""),
-  source_fingerprint: z.string().optional().default(""),
-  profiles: z.string().optional().default(""),
-  description: z.string().optional().default(""),
+  source_type: z.string(),
+  source_server: z.string().optional(),
+  source_protocol: z.string().optional(),
+  source_alias: z.string().optional(),
+  source_fingerprint: z.string().optional(),
+  profiles: z.string().optional(),
+  description: z.string().optional(),
 
   // 资源配置
-  cpu: z.coerce.number().int().min(1, "至少 1 核").max(128, "最多 128 核").default(1),
-  memory: z.coerce.number().int().min(64, "至少 64 MB").max(524288, "最多 512 GB").default(512),
-  disk: z.coerce.number().int().min(1, "至少 1 GB").max(10240, "最多 10 TB").default(10),
-  bandwidth: z.coerce.number().int().min(0).optional().default(0),
-  traffic_limit: z.coerce.number().int().min(0).optional().default(0),
+  cpu: z.coerce.number<number>().int().min(1, "至少 1 核").max(128, "最多 128 核"),
+  memory: z.coerce.number<number>().int().min(64, "至少 64 MB").max(524288, "最多 512 GB"),
+  disk: z.coerce.number<number>().int().min(1, "至少 1 GB").max(10240, "最多 10 TB"),
+  bandwidth: z.coerce.number<number>().int().min(0).optional(),
+  traffic_limit: z.coerce.number<number>().int().min(0).optional(),
 
   // IP 分配
-  ip_id: z.coerce.number().optional(),
+  ip_id: z.coerce.number<number>().optional(),
 
   // 其他
-  hostname: z.string().optional().default(""),
-  os_type: z.string().optional().default(""),
-  password: z.string().optional().default(""),
-  arch: z.string().optional().default(""),
-  user_id: z.coerce.number().optional(),
+  hostname: z.string().optional(),
+  os_type: z.string().optional(),
+  password: z.string().optional(),
+  arch: z.string().optional(),
+  user_id: z.coerce.number<number>().optional(),
 })
 
 export type InstanceFormValues = z.infer<typeof instanceFormSchema>

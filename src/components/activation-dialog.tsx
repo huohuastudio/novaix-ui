@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useEdition, useFeatures } from "@/hooks/use-edition"
 import { postAdminSystemActivate } from "@/api"
 import { getUser } from "@/lib/auth"
+import { getErrorMessage } from "@/lib/utils"
 
 export function ActivationDialog({
   open,
@@ -47,9 +48,8 @@ export function ActivationDialog({
         toast.success("激活成功，页面即将刷新")
         setTimeout(() => window.location.reload(), 1500)
       }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "激活失败，请检查激活码是否正确"
-      toast.error(msg)
+    } catch (err) {
+      toast.error(getErrorMessage(err, "激活失败，请检查激活码是否正确"))
     } finally {
       setLoading(false)
     }

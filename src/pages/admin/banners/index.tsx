@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminBanners, deleteAdminBannersById } from "@/api"
 import type { BannerBannerItem } from "@/api"
+import { getAdminBannersQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -43,6 +44,7 @@ export default function Banners() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminBannersQueryKey(),
     filterKeys: ["location", "status"],
   })
 
@@ -183,6 +185,7 @@ export default function Banners() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

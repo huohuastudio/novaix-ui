@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { getAdminAlertLogs } from "@/api"
 import type { AlertAlertLogItem } from "@/api"
+import { getAdminAlertLogsOptions } from "@/api/@tanstack/react-query.gen"
 import { getErrorMessage } from "@/lib/utils"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
@@ -42,38 +43,27 @@ export default function Alerts() {
   useBreadcrumb([{ label: "告警记录" }])
   const formatDate = useFormatDate()
 
-  const [items, setItems] = useState<AlertAlertLogItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
   const [typeFilter, setTypeFilter] = useState("")
   const pageSize = 20
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminAlertLogs({
-        query: {
-          page,
-          page_size: pageSize,
-          ...(typeFilter ? { type: typeFilter as "node_cpu" | "node_memory" | "node_disk" | "node_offline" } : {}),
-        },
-      })
-      if (res?.code === 0 && res.data) {
-        setItems((res.data.items ?? []) as AlertAlertLogItem[])
-        setTotal(res.data.total ?? 0)
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "获取告警记录失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [page, typeFilter])
+  // page/typeFilter 通过 options 参数进入 queryKey
+  const query = useQuery(
+    getAdminAlertLogsOptions({
+      query: {
+        page,
+        page_size: pageSize,
+        ...(typeFilter ? { type: typeFilter as "node_cpu" | "node_memory" | "node_disk" | "node_offline" } : {}),
+      },
+    }),
+  )
+  const items = (query.data?.code === 0 ? (query.data.data?.items ?? []) : []) as AlertAlertLogItem[]
+  const total = (query.data?.code === 0 ? query.data.data?.total : 0) ?? 0
+  const loading = query.isPending
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    fetchData()
-  }, [fetchData])
+    if (query.isError) toast.error(getErrorMessage(query.error, "获取告警记录失败"))
+  }, [query.isError, query.error])
 
   const totalPages = Math.ceil(total / pageSize)
 

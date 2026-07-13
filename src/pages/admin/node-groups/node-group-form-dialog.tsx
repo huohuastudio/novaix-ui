@@ -42,7 +42,8 @@ const schema = z.object({
   ovn_uplink: z.string().max(128).default(""),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -66,9 +67,8 @@ interface Props {
 export default function NodeGroupFormDialog({ open, onOpenChange, group, onSuccess }: Props) {
   const isEdit = !!group
   const [serverError, setServerError] = useState("")
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues,
   })
 
@@ -101,7 +101,7 @@ export default function NodeGroupFormDialog({ open, onOpenChange, group, onSucce
         : await postAdminNodeGroups({ body: values })
 
       if (res?.code !== 0) {
-        handleServerErrors<FormValues>(res, { setError: form.setError, setServerError, fieldNames })
+        handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
       onSuccess()

@@ -1,13 +1,13 @@
 import type React from "react"
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, Eye, EyeOff, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react"
-import { toast } from "sonner"
 import {
-  getAdminProvidersByKind,
   type ProviderDescriptor,
   type ProviderField,
   type ProviderOption,
 } from "@/api"
+import { getAdminProvidersByKindOptions } from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +33,7 @@ import { CopyButton } from "@/components/copy-button"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { isSubmittable, isFieldVisible, validateField } from "@/lib/provider-field-utils"
 import { SettingSkeleton } from "@/pages/admin/settings/sections/setting-skeleton"
-import { getErrorMessage } from "@/lib/utils"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 
 interface TestConfig {
   label: string
@@ -83,23 +83,12 @@ export function ProviderSettingsForm({
   renderExtra,
 }: ProviderSettingsFormProps) {
   const control = useSettings(kind)
-  const [descriptors, setDescriptors] = useState<ProviderDescriptor[]>([])
   const [savingMain, setSavingMain] = useState(false)
 
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      try {
-        const { data: res } = await getAdminProvidersByKind({ path: { kind } })
-        if (alive && res?.code === 0 && res.data) setDescriptors(res.data)
-      } catch (err) {
-        toast.error(getErrorMessage(err, "加载渠道列表失败"))
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [kind])
+  const descriptorsQuery = useQuery(getAdminProvidersByKindOptions({ path: { kind } }))
+  const descriptors: ProviderDescriptor[] = descriptorsQuery.data?.data ?? []
+
+  useQueryErrorToast(descriptorsQuery.error, "加载渠道列表失败")
 
   if (control.loading) return <SettingSkeleton />
 

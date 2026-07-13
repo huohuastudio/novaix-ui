@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { BookOpen, ExternalLink, Globe } from "lucide-react"
 import { SiGithub } from "@icons-pack/react-simple-icons"
 import Markdown from "react-markdown"
@@ -8,8 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { UpdateSection } from "./update-section"
-import { getAdminChangelog, getAdminSystemLicense, getAdminSystemUpdateCheck } from "@/api"
-import type { SystemLicenseInfoResponse } from "@/api"
+import { getAdminSystemUpdateCheck } from "@/api"
+import {
+  getAdminChangelogOptions,
+  getAdminSystemLicenseOptions,
+} from "@/api/@tanstack/react-query.gen"
 import { toast } from "sonner"
 
 const links = [
@@ -48,29 +52,18 @@ export default function About() {
   const isDemo = demo_mode === 'true'
   const [bypassed, setBypassed] = useState(false)
   const [bypassKey, setBypassKey] = useState('')
-  const [licenseInfo, setLicenseInfo] = useState<SystemLicenseInfoResponse | null>()
   const [activeTab, setActiveTab] = useState("overview")
-  const [changelog, setChangelog] = useState<string | null>(null)
-  const [changelogLoading, setChangelogLoading] = useState(false)
-  const [changelogError, setChangelogError] = useState(false)
 
-  useEffect(() => {
-    if (activeTab !== "update" || changelog !== null || changelogError) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-    setChangelogLoading(true)
-    getAdminChangelog()
-      .then((res) => setChangelog((res.data as string) || ""))
-      .catch(() => setChangelogError(true))
-      .finally(() => setChangelogLoading(false))
-  }, [activeTab, changelog, changelogError])
+  // 更新日志：切到「系统更新」标签页时才请求
+  const changelogQuery = useQuery({
+    ...getAdminChangelogOptions(),
+    enabled: activeTab === "update",
+  })
+  const changelog = changelogQuery.data ?? ""
 
-  useEffect(() => {
-    getAdminSystemLicense()
-      .then(({ data: res }) => {
-        setLicenseInfo(res?.code === 0 && res.data ? res.data : null)
-      })
-      .catch(() => setLicenseInfo(null))
-  }, [])
+  const licenseQuery = useQuery(getAdminSystemLicenseOptions())
+  const licenseInfo =
+    licenseQuery.data?.code === 0 && licenseQuery.data.data ? licenseQuery.data.data : null
 
   useEffect(() => {
     if (!isDemo) return
@@ -123,7 +116,7 @@ export default function About() {
             <p className="mt-1 text-sm text-muted-foreground">
               当前系统的授权状态与有效期
             </p>
-            {licenseInfo === undefined ? (
+            {licenseQuery.isPending ? (
               <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-8 gap-y-3">
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-4 w-24" />
@@ -201,7 +194,7 @@ export default function About() {
             <p className="mt-1 text-sm text-muted-foreground">
               查看系统版本更新记录
             </p>
-            {changelogLoading || changelog === null ? (
+            {changelogQuery.isPending ? (
               <div className="mt-4 space-y-3">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-4 w-full" />
@@ -209,7 +202,7 @@ export default function About() {
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-1/2" />
               </div>
-            ) : changelogError ? (
+            ) : changelogQuery.isError ? (
               <p className="mt-4 text-sm text-destructive">加载更新日志失败，请稍后重试</p>
             ) : changelog ? (
               <div className="mt-4 max-h-[32rem] overflow-y-auto rounded-md border p-4 text-sm markdown-body">

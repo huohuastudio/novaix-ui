@@ -1,4 +1,5 @@
-import { useFieldArray, type UseFormReturn } from "react-hook-form"
+import { useFieldArray } from "react-hook-form"
+import type { IncusConfigForm } from "@/types/incus-config"
 import { ConfigSection } from "@/components/config-table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,8 +22,7 @@ import {
 import { Plus, Trash2, ArrowRightLeft } from "lucide-react"
 
 interface ProxyDeviceSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function ProxyDeviceSection({ form }: ProxyDeviceSectionProps) {

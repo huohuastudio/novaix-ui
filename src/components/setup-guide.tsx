@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useLocalStorage } from "@uidotdev/usehooks"
 import {
   Server,
@@ -21,6 +22,7 @@ import {
   getAdminProvidersByKind,
   getAdminSettingsByGroup,
 } from "@/api"
+import { queryKeys } from "@/lib/query-keys"
 
 interface SetupStep {
   key: string
@@ -34,7 +36,7 @@ interface SetupStep {
 async function checkPaymentEnabled(): Promise<boolean> {
   try {
     const { data: res } = await getAdminProvidersByKind({ path: { kind: "payment" } })
-    const providers = (res?.data ?? []).filter((d) => !d.plugin)
+    const providers = res?.data ?? []
     if (providers.length === 0) return false
 
     const results = await Promise.all(
@@ -52,13 +54,12 @@ async function checkPaymentEnabled(): Promise<boolean> {
 }
 
 function useSetupStatus() {
-  const [steps, setSteps] = useState<SetupStep[] | null>(null)
   const adminPath = useAdminPath()
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function check() {
+  // 聚合节点/镜像/套餐/支付四项检查，单次请求失败按未完成处理（与原逻辑一致），故用手写聚合 key
+  const query = useQuery({
+    queryKey: queryKeys.setupGuideStatus(),
+    queryFn: async () => {
       const [hasOnlineNode, hasReadyImage, hasActivePlan, hasPayment] = await Promise.all([
         getAdminNodes({ query: { page: 1, page_size: 1, status: 1 } }).then(
           (r) => (r.data?.data?.total ?? 0) > 0,
@@ -78,51 +79,49 @@ function useSetupStatus() {
         ),
         checkPaymentEnabled(),
       ])
-      if (cancelled) return
+      return { hasOnlineNode, hasReadyImage, hasActivePlan, hasPayment }
+    },
+  })
 
-      setSteps([
-        {
-          key: "node",
-          label: "添加并初始化节点",
-          description: "添加计算节点，完成初始化使其上线",
-          href: `${adminPath}/nodes`,
-          icon: Server,
-          done: hasOnlineNode,
-        },
-        {
-          key: "image",
-          label: "添加可用镜像",
-          description: "添加操作系统镜像并确保文件就绪，然后分发到节点",
-          href: `${adminPath}/images`,
-          icon: ImageIcon,
-          done: hasReadyImage,
-        },
-        {
-          key: "plan",
-          label: "创建并上架套餐",
-          description: "设定资源配置与定价，绑定节点组后上架",
-          href: `${adminPath}/plans`,
-          icon: Package,
-          done: hasActivePlan,
-        },
-        {
-          key: "payment",
-          label: "配置支付渠道",
-          description: "启用至少一个支付方式，用户才能完成付款",
-          href: `${adminPath}/settings/payment`,
-          icon: CreditCard,
-          done: hasPayment,
-        },
-      ])
-    }
+  const status = query.data
 
-    check()
-    return () => {
-      cancelled = true
-    }
-  }, [adminPath])
-
-  return steps
+  return useMemo<SetupStep[] | null>(() => {
+    if (!status) return null
+    return [
+      {
+        key: "node",
+        label: "添加并初始化节点",
+        description: "添加计算节点，完成初始化使其上线",
+        href: `${adminPath}/nodes`,
+        icon: Server,
+        done: status.hasOnlineNode,
+      },
+      {
+        key: "image",
+        label: "添加可用镜像",
+        description: "添加操作系统镜像并确保文件就绪，然后分发到节点",
+        href: `${adminPath}/images`,
+        icon: ImageIcon,
+        done: status.hasReadyImage,
+      },
+      {
+        key: "plan",
+        label: "创建并上架套餐",
+        description: "设定资源配置与定价，绑定节点组后上架",
+        href: `${adminPath}/plans`,
+        icon: Package,
+        done: status.hasActivePlan,
+      },
+      {
+        key: "payment",
+        label: "配置支付渠道",
+        description: "启用至少一个支付方式，用户才能完成付款",
+        href: `${adminPath}/settings/payment`,
+        icon: CreditCard,
+        done: status.hasPayment,
+      },
+    ]
+  }, [status, adminPath])
 }
 
 export function SetupGuide() {

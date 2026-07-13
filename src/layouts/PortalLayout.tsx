@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Menu,
   X,
@@ -25,7 +25,8 @@ import { PortalTaskProvider } from '@/hooks/use-portal-tasks'
 import { useSiteSettings, useAdminPath } from '@/hooks/use-site-settings'
 import { getUser, logout } from '@/lib/auth'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { getPortalNotificationsUnreadCount } from '@/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getPortalNotificationsUnreadCountOptions, getPortalNotificationsUnreadCountQueryKey } from '@/api/@tanstack/react-query.gen'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
@@ -37,7 +38,7 @@ const mobileActive = `${mobileBase} bg-accent text-foreground`
 const mobileInactive = `${mobileBase} text-muted-foreground hover:bg-accent hover:text-foreground`
 
 function useNavItems() {
-  const { edition } = useSiteSettings()
+  const { edition, invoice_enabled } = useSiteSettings()
   const isPaid = edition === 'paid'
   const user = getUser()
 
@@ -46,6 +47,7 @@ function useNavItems() {
     { to: '/portal/servers', label: '云服务器' },
     ...(isPaid ? [{ to: '/portal/vpcs', label: '私有网络' }] : []),
     { to: '/portal/orders', label: '费用订单' },
+    ...(invoice_enabled === 'true' ? [{ to: '/portal/invoices', label: '发票' }] : []),
     { to: '/portal/tickets', label: '工单' },
   ]
 
@@ -89,24 +91,19 @@ function NavLinks({ mobile, onClick }: { mobile?: boolean; onClick?: () => void 
 function NotificationBell() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [unreadCount, setUnreadCount] = useState(0)
+  const queryClient = useQueryClient()
 
-  const fetchCount = useCallback(async () => {
-    try {
-      const { data: res } = await getPortalNotificationsUnreadCount()
-      if (res?.code === 0) setUnreadCount((res.data as { count: number })?.count ?? 0)
-    } catch { /* ignore */ }
-  }, [])
+  // 未读数：60 秒后台轮询，失败静默保留旧值
+  const countQuery = useQuery({
+    ...getPortalNotificationsUnreadCountOptions(),
+    refetchInterval: 60_000,
+  })
+  const unreadCount = (countQuery.data?.data as { count: number } | undefined)?.count ?? 0
 
+  // 路由切换时刷新（如从通知页标记已读返回）
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时数据获取
-    fetchCount()
-  }, [fetchCount, location.pathname])
-
-  useEffect(() => {
-    const timer = setInterval(fetchCount, 60_000)
-    return () => clearInterval(timer)
-  }, [fetchCount])
+    void queryClient.invalidateQueries({ queryKey: getPortalNotificationsUnreadCountQueryKey() })
+  }, [queryClient, location.pathname])
 
   return (
     <Button variant="ghost" size="icon" className="relative size-8" onClick={() => navigate('/portal/notifications')}>

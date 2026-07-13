@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { getPublicCmsPagesBySlug } from "@/api"
+import { getPublicCmsPagesBySlugOptions } from "@/api/@tanstack/react-query.gen"
 import type { PublicPublicPageItem } from "@/api"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
@@ -13,29 +13,17 @@ export default function CMSPage() {
   const siteName = useSiteName()
   const formatDate = useFormatDate()
 
-  const [page, setPage] = useState<PublicPublicPageItem | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const { data: res, isPending, isError } = useQuery({
+    ...getPublicCmsPagesBySlugOptions({ path: { slug: slug ?? "" } }),
+    enabled: !!slug,
+  })
+  const page = res?.code === 0 && res.data
+    ? (res.data as PublicPublicPageItem)
+    : null
+  const loading = !!slug && isPending
+  const notFound = isError || (res != null && !page)
 
   useDocumentTitle(page ? `${page.title} - ${siteName}` : siteName)
-
-  useEffect(() => {
-    if (!slug) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
-    setNotFound(false)
-    setPage(null)
-    getPublicCmsPagesBySlug({ path: { slug } })
-      .then(({ data: res }) => {
-        if (res?.code === 0 && res.data) {
-          setPage(res.data as PublicPublicPageItem)
-        } else {
-          setNotFound(true)
-        }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
-  }, [slug])
 
   if (loading) {
     return (

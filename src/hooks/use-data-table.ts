@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
+import { keepPreviousData, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import type { ColumnFiltersState, PaginationState, SortingState } from "@tanstack/react-table"
 import type { PaginatedData } from "@/components/data-table"
 
@@ -12,8 +13,17 @@ export interface FetchParams {
 
 interface UseDataTableOptions<T> {
   fetchFn: (params: FetchParams) => Promise<PaginatedData<T>>
+  /** 基础 queryKey（不含分页参数），传接口生成的 xxxQueryKey()；分页/排序/筛选参数由 hook 内部追加 */
+  queryKey: QueryKey
   defaultPageSize?: number
   filterKeys?: string[]
+  /** 自动刷新间隔（毫秒），后台静默刷新当前页；false 或省略为不刷新 */
+  refetchInterval?: number | false
+  /**
+   * 是否将分页/排序/筛选状态同步到 URL（默认 true）。
+   * 同页多表格/嵌入式 tab 场景设为 false，避免多个表格争抢同一组 URL 参数
+   */
+  syncUrl?: boolean
 }
 
 function parseStateFromURL(
@@ -76,150 +86,106 @@ function buildSearchParams(
 
 export function useDataTable<T>({
   fetchFn,
+  queryKey: baseQueryKey,
   defaultPageSize = 20,
   filterKeys = [],
+  refetchInterval,
+  syncUrl = true,
 }: UseDataTableOptions<T>) {
+  // hooks 不能条件调用，syncUrl 为 false 时照常调用但不解析、不写回
   const [searchParams, setSearchParams] = useSearchParams()
+  const queryClient = useQueryClient()
 
   const initialState = useMemo(
-    () => parseStateFromURL(searchParams, defaultPageSize, filterKeys),
+    () =>
+      syncUrl
+        ? parseStateFromURL(searchParams, defaultPageSize, filterKeys)
+        : {
+            pagination: { pageIndex: 0, pageSize: defaultPageSize } satisfies PaginationState,
+            sorting: [] as SortingState,
+            columnFilters: [] as ColumnFiltersState,
+          },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在首次渲染时解析 URL 参数
     [],
   )
 
-  const [data, setData] = useState<PaginatedData<T>>({ items: [], total: 0, page: 1, page_size: defaultPageSize })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error>()
   const [pagination, setPagination] = useState<PaginationState>(initialState.pagination)
   const [sorting, setSorting] = useState<SortingState>(initialState.sorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(initialState.columnFilters)
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  const prevSortingRef = useRef(sorting)
-  const prevFiltersRef = useRef(columnFilters)
-  // 组件挂载标记：守卫卸载后的静默刷新写回（前台请求另由各自的 disposed 标记守卫）
-  const mountedRef = useRef(true)
-  // 前台请求序号：每次前台请求（筛选/翻页/排序/手动刷新）递增，供静默刷新判断其在飞期间是否有前台请求发起
-  const fgSeqRef = useRef(0)
-  // 在飞的前台请求数：静默刷新仅在无前台请求在飞时才允许写回
-  const fgInflightRef = useRef(0)
-  // 持有最新的分页/排序/筛选状态，使 refreshSilent 身份保持稳定（避免翻页/筛选时反复重建自动刷新定时器）
-  const latestStateRef = useRef({ pagination, sorting, columnFilters })
-  useEffect(() => {
-    latestStateRef.current = { pagination, sorting, columnFilters }
-  }, [pagination, sorting, columnFilters])
-
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-
-  const fetchData = useCallback((
-    paginationVal: PaginationState,
-    sortingVal: SortingState,
-    filtersVal: ColumnFiltersState,
-    silent = false,
-  ) => {
-    const filters: Record<string, unknown> = {}
-    for (const f of filtersVal) {
-      if (f.value !== "" && f.value != null) {
-        filters[f.id] = f.value
-      }
-    }
-    const params = {
-      page: paginationVal.pageIndex + 1,
-      pageSize: paginationVal.pageSize,
-      sorting: sortingVal,
-      filters,
-    }
-
-    // 静默刷新（后台轮询）：不触发 loading/error，且完全让位于前台请求——
-    // 仅在其在飞期间无前台请求发起、当前无前台请求在飞、且组件仍挂载时才写回，绝不抢占或丢弃前台结果
-    if (silent) {
-      const fgSnapshot = fgSeqRef.current
-      fetchFn(params)
-        .then((result) => {
-          if (mountedRef.current && fgSeqRef.current === fgSnapshot && fgInflightRef.current === 0) {
-            setData(result)
-          }
-        })
-        .catch(() => {
-          // 静默刷新失败不展示错误，保持当前数据
-        })
-      return
-    }
-
-    // 前台请求：始终展示 loading，其结果对当前状态具有权威性
-    ++fgSeqRef.current
-    fgInflightRef.current++
-    let disposed = false
-    setError(undefined)
-    setLoading(true)
-
-    fetchFn(params)
-      .then((result) => {
-        if (!disposed) setData(result)
-      })
-      .catch((err) => {
-        if (!disposed) setError(err instanceof Error ? err : new Error(String(err)))
-      })
-      .finally(() => {
-        fgInflightRef.current--
-        if (!disposed) setLoading(false)
-      })
-
-    // effect 清理（筛选/翻页变更或组件卸载）时作废本次前台请求：
-    // 不再写回数据、不再清理 loading（交由接管的新前台请求负责）
-    return () => {
-      disposed = true
-    }
-  }, [fetchFn])
-
-  useEffect(() => {
-    const sortingChanged = prevSortingRef.current !== sorting
-    const filtersChanged = prevFiltersRef.current !== columnFilters
-    prevSortingRef.current = sorting
-    prevFiltersRef.current = columnFilters
-
-    const effectivePageIndex =
-      (sortingChanged || filtersChanged) && pagination.pageIndex !== 0
-        ? 0
-        : pagination.pageIndex
-
-    if (effectivePageIndex !== pagination.pageIndex) {
+  // 排序/筛选变化时在渲染期重置回第一页（React「在渲染期间调整状态」模式），
+  // 被丢弃的渲染不会 commit，因此不会按旧页码多发一次请求
+  const [prevSorting, setPrevSorting] = useState(sorting)
+  const [prevFilters, setPrevFilters] = useState(columnFilters)
+  if (prevSorting !== sorting || prevFilters !== columnFilters) {
+    setPrevSorting(sorting)
+    setPrevFilters(columnFilters)
+    if (pagination.pageIndex !== 0) {
       setPagination((prev) => ({ ...prev, pageIndex: 0 }))
     }
+  }
 
-    const effectivePagination = { ...pagination, pageIndex: effectivePageIndex }
-    const newParams = buildSearchParams(effectivePagination, sorting, columnFilters, defaultPageSize)
+  // 分页/排序/筛选状态同步到 URL（可分享、刷新不丢状态）；syncUrl 为 false 时跳过
+  useEffect(() => {
+    if (!syncUrl) return
+    const newParams = buildSearchParams(pagination, sorting, columnFilters, defaultPageSize)
     if (newParams.toString() !== searchParams.toString()) {
       setSearchParams(newParams, { replace: true })
     }
+  }, [syncUrl, pagination, sorting, columnFilters, defaultPageSize, searchParams, setSearchParams])
 
-    return fetchData(effectivePagination, sorting, columnFilters)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination, sorting, columnFilters, fetchData, refreshKey, defaultPageSize, setSearchParams])
+  const filters: Record<string, unknown> = {}
+  for (const f of columnFilters) {
+    if (f.value !== "" && f.value != null) {
+      filters[f.id] = f.value
+    }
+  }
+  const queryParams: FetchParams = {
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+    sorting,
+    filters,
+  }
+
+  // 请求去重、竞态丢弃、后台刷新均由 query 内核保证；
+  // keepPreviousData 使翻页/筛选期间旧数据保持可见（fetching 为 true），不再闪加载态
+  const query = useQuery({
+    queryKey: [...baseQueryKey, queryParams],
+    queryFn: () => fetchFn(queryParams),
+    placeholderData: keepPreviousData,
+    refetchInterval,
+  })
+
+  // 基础 key 由调用方每次渲染重新构造，经 ref 稳定 refresh 的回调身份
+  const baseKeyRef = useRef(baseQueryKey)
+  useEffect(() => {
+    baseKeyRef.current = baseQueryKey
+  })
+
+  // 失效该接口的全部缓存（含其他分页/筛选组合）并后台重取当前页，不闪加载态
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: baseKeyRef.current })
+  }, [queryClient])
+
+  // 稳定引用的空页对象，避免每次渲染重建新对象击穿下游 memo
+  const emptyPage = useMemo<PaginatedData<T>>(
+    () => ({ items: [], total: 0, page: 1, page_size: defaultPageSize }),
+    [defaultPageSize],
+  )
 
   return {
-    data,
-    loading,
-    error,
+    data: query.data ?? emptyPage,
+    /** 仅首次加载为 true；后续翻页/刷新见 fetching */
+    loading: query.isPending,
+    /** 后台刷新中（已有数据可见），供表格渲染细微的刷新指示 */
+    fetching: query.isFetching && !query.isPending,
+    error: query.error ?? undefined,
     pagination,
     setPagination,
     sorting,
     setSorting,
     columnFilters,
     setColumnFilters,
-    refresh: useCallback(() => {
-      setRefreshKey((k) => k + 1)
-    }, []),
-    // 静默刷新当前页数据，不触发 loading/error 态（用于自动刷新等后台轮询场景）
-    // 从 ref 读取最新状态，保持回调身份稳定，避免自动刷新定时器被反复销毁重建
-    refreshSilent: useCallback(() => {
-      const { pagination, sorting, columnFilters } = latestStateRef.current
-      fetchData(pagination, sorting, columnFilters, true)
-    }, [fetchData]),
+    refresh,
   }
 }

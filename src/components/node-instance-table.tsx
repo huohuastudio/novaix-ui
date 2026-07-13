@@ -12,6 +12,7 @@ import InstanceRetryDialog from "@/components/instance-retry-dialog"
 import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
 import { statusMap, statusFilterOptions, typeFilterOptions } from "@/lib/instance-constants"
+import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
 
 interface NodeInstanceTableProps {
   nodeId: number
@@ -51,6 +52,8 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
 
   const table = useDataTable({
     fetchFn: fetchInstances,
+    // node_id 是接口 query 参数，传入生成 key，避免切换节点时命中旧缓存
+    queryKey: getAdminInstancesQueryKey({ query: { node_id: nodeId } }),
     filterKeys: ["name", "status", "type"],
   })
 
@@ -154,6 +157,7 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
         sorting={table.sorting}

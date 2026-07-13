@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Server,
   ShoppingCart,
@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button'
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
 import { getUser } from '@/lib/auth'
 import { useDocumentTitle } from '@uidotdev/usehooks'
-import { getPortalDashboardStats, getPublicCmsArticles } from '@/api'
-import type { PortalDashboardStatsResponse, PublicPublicArticleItem } from '@/api'
+import {
+  getPortalDashboardStatsOptions,
+  getPublicCmsArticlesOptions,
+} from '@/api/@tanstack/react-query.gen'
 
 const services = [
   {
@@ -47,17 +49,15 @@ export default function PortalDashboard() {
   const user = getUser()
   useDocumentTitle(`控制台 - ${siteName}`)
 
-  const [stats, setStats] = useState<PortalDashboardStatsResponse | null>(null)
-  const [announcements, setAnnouncements] = useState<PublicPublicArticleItem[]>([])
-  useEffect(() => {
-    Promise.all([
-      getPortalDashboardStats(),
-      getPublicCmsArticles({ query: { type: 'announcement', page_size: 5 } }),
-    ]).then(([statsRes, announcementsRes]) => {
-      setStats(statsRes.data?.data ?? null)
-      setAnnouncements(announcementsRes.data?.data?.items ?? [])
-    })
-  }, [])
+  // 仪表盘统计
+  const statsQuery = useQuery(getPortalDashboardStatsOptions())
+  const stats = statsQuery.data?.data ?? null
+
+  // 最新公告
+  const announcementsQuery = useQuery(
+    getPublicCmsArticlesOptions({ query: { type: 'announcement', page_size: 5 } })
+  )
+  const announcements = announcementsQuery.data?.data?.items ?? []
 
   const statItems = [
     { label: '云服务器', value: String(stats?.instances ?? 0), unit: '台', icon: Server, to: '/portal/servers', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/50' },

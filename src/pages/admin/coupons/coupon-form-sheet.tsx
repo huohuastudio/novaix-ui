@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminCoupons, putAdminCouponsById } from "@/api"
@@ -29,18 +29,19 @@ import { FormSheet } from "@/components/form-sheet"
 const formSchema = z.object({
   code: z.string().min(1, "优惠码不能为空").max(64, "优惠码不能超过 64 个字符"),
   type: z.enum(["fixed", "percent"]),
-  value: z.coerce.number().min(1, "面值必须大于 0"),
-  min_order_amount: z.coerce.number().min(0).default(0),
-  max_discount: z.coerce.number().min(0).default(0),
-  usage_limit: z.coerce.number().int().min(0).default(0),
-  per_user_limit: z.coerce.number().int().min(0).default(1),
+  value: z.coerce.number<number | string>().min(1, "面值必须大于 0"),
+  min_order_amount: z.coerce.number<number | string>().min(0).default(0),
+  max_discount: z.coerce.number<number | string>().min(0).default(0),
+  usage_limit: z.coerce.number<number | string>().int().min(0).default(0),
+  per_user_limit: z.coerce.number<number | string>().int().min(0).default(1),
   applicable_types: z.string().default(""),
   enabled: z.boolean().default(true),
   starts_at: z.string().optional(),
   expires_at: z.string().optional(),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   code: "",
@@ -58,7 +59,7 @@ const defaultValues: FormValues = {
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
-function CouponFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   const couponType = form.watch("type")
 
   return (
@@ -270,9 +271,8 @@ export function CouponCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -344,9 +344,8 @@ export function CouponEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

@@ -1,5 +1,5 @@
-import { useFieldArray, type UseFormReturn } from "react-hook-form"
-import type { OtherDevice } from "@/types/incus-config"
+import { useFieldArray } from "react-hook-form"
+import type { OtherDevice, IncusConfigForm } from "@/types/incus-config"
 import { ConfigSection } from "@/components/config-table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -26,8 +26,7 @@ const containerOnlyTypes = new Set(["unix-char", "unix-block", "unix-hotplug", "
 const vmOnlyTypes = new Set(["pci"])
 
 interface OtherDeviceSectionProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
 }
 
 export function OtherDeviceSection({ form }: OtherDeviceSectionProps) {

@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, FileText } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { getPublicCmsHelpArticlesBySlug, getPublicCmsHelpArticles } from "@/api"
-import type { PublicPublicHelpArticleDetail, PublicPublicHelpArticleItem } from "@/api"
+import {
+  getPublicCmsHelpArticlesBySlugOptions,
+  getPublicCmsHelpArticlesOptions,
+} from "@/api/@tanstack/react-query.gen"
+import type { PublicPublicHelpArticleDetail } from "@/api"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 import { sanitizeHtml } from "@/lib/sanitize"
@@ -13,37 +16,27 @@ export default function HelpDetail() {
   const { slug } = useParams<{ slug: string }>()
   const siteName = useSiteName()
 
-  const [article, setArticle] = useState<PublicPublicHelpArticleDetail | null>(null)
-  const [related, setRelated] = useState<PublicPublicHelpArticleItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const detailQuery = useQuery({
+    ...getPublicCmsHelpArticlesBySlugOptions({ path: { slug: slug ?? "" } }),
+    enabled: !!slug,
+  })
+  const detailRes = detailQuery.data
+  const article = detailRes?.code === 0 && detailRes.data
+    ? (detailRes.data as PublicPublicHelpArticleDetail)
+    : null
+  const loading = !!slug && detailQuery.isPending
+  const notFound = detailQuery.isError || (detailRes != null && !article)
+
+  // 详情加载出分类后再取相关文章
+  const relatedQuery = useQuery({
+    ...getPublicCmsHelpArticlesOptions({
+      query: { category_id: article?.category_id ?? 0, page_size: 10 },
+    }),
+    enabled: !!article?.category_id,
+  })
+  const related = (relatedQuery.data?.data?.items ?? []).filter((a) => a.slug !== slug)
 
   useDocumentTitle(article ? `${article.title} - 帮助中心 - ${siteName}` : siteName)
-
-  useEffect(() => {
-    if (!slug) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
-    setNotFound(false)
-    setArticle(null)
-    setRelated([])
-    getPublicCmsHelpArticlesBySlug({ path: { slug } })
-      .then(({ data: res }) => {
-        if (res?.code === 0 && res.data) {
-          const detail = res.data as PublicPublicHelpArticleDetail
-          setArticle(detail)
-          if (detail.category_id) {
-            getPublicCmsHelpArticles({ query: { category_id: detail.category_id, page_size: 10 } })
-              .then(({ data: r }) => setRelated((r?.data?.items ?? []).filter((a) => a.slug !== slug)))
-              .catch(() => {})
-          }
-        } else {
-          setNotFound(true)
-        }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
-  }, [slug])
 
   if (loading) {
     return (

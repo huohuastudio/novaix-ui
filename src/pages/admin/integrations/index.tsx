@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getAdminIntegrations, deleteAdminIntegrationsById } from "@/api"
 import type { IntegrationIntegrationResponse } from "@/api"
+import { getAdminIntegrationsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
@@ -40,6 +41,7 @@ export default function Integrations() {
 
   const table = useDataTable<IntegrationIntegrationResponse>({
     fetchFn: fetchItems,
+    queryKey: getAdminIntegrationsQueryKey(),
     filterKeys: [],
   })
 
@@ -159,6 +161,7 @@ export default function Integrations() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

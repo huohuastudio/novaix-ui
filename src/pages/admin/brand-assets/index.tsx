@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminBrandAssets, deleteAdminBrandAssetsById } from "@/api"
 import type { BrandassetBrandAssetItem } from "@/api"
+import { getAdminBrandAssetsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -47,6 +48,7 @@ export default function BrandAssets() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminBrandAssetsQueryKey(),
     filterKeys: ["name"],
   })
 
@@ -167,6 +169,7 @@ export default function BrandAssets() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

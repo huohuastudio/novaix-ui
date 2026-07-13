@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { queryClient } from '@/lib/query-client'
 import { SiteSettingsProvider, useAdminPath } from '@/hooks/use-site-settings'
 import ProtectedRoute from '@/components/protected-route'
 import MaintenanceGuard from '@/components/maintenance-guard'
@@ -30,6 +32,7 @@ const UserDetail = lazy(() => import('@/pages/admin/users/detail'))
 const Orders = lazy(() => import('@/pages/admin/orders'))
 const Payments = lazy(() => import('@/pages/admin/payments'))
 const Coupons = lazy(() => import('@/pages/admin/coupons'))
+const Invoices = lazy(() => import('@/pages/admin/invoices'))
 const Tickets = lazy(() => import('@/pages/admin/tickets'))
 const Alerts = lazy(() => import('@/pages/admin/alerts'))
 const Logs = lazy(() => import('@/pages/admin/logs'))
@@ -63,6 +66,7 @@ const OAuthComplete = lazy(() => import('@/pages/portal/oauth/complete'))
 const PortalNotifications = lazy(() => import('@/pages/portal/notifications'))
 const PortalAgent = lazy(() => import('@/pages/portal/agent'))
 const PortalVPCs = lazy(() => import('@/pages/portal/vpcs'))
+const PortalInvoices = lazy(() => import('@/pages/portal/invoices'))
 const PortalImpersonate = lazy(() => import('@/pages/portal/impersonate'))
 import Home from './pages/Home'
 const Legal = lazy(() => import('./pages/Legal'))
@@ -78,6 +82,11 @@ const DataCenters = lazy(() => import('@/pages/public/data-centers'))
 const Team = lazy(() => import('@/pages/public/team'))
 const BrandAssets = lazy(() => import('@/pages/public/brand-assets'))
 const CMSPage = lazy(() => import('@/pages/public/page'))
+
+// 开发模式下懒加载 Query 调试面板，生产构建会被摇树移除
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() => import('@tanstack/react-query-devtools').then((m) => ({ default: m.ReactQueryDevtools })))
+  : null
 
 function PageSkeleton() {
   return (
@@ -145,6 +154,7 @@ function AppRoutes() {
         <Route path="orders/*" element={<Orders />} />
         <Route path="payments" element={<Payments />} />
         <Route path="coupons/*" element={<Coupons />} />
+        <Route path="invoices" element={<Invoices />} />
         <Route path="tickets/*" element={<Tickets />} />
         <Route path="cms/*" element={<CMS />} />
         <Route path="vpcs" element={<VPCs />} />
@@ -184,6 +194,7 @@ function AppRoutes() {
         <Route path="tickets" element={<PortalTickets />} />
         <Route path="tickets/:id" element={<PortalTicketDetail />} />
         <Route path="wallet" element={<PortalWallet />} />
+        <Route path="invoices" element={<PortalInvoices />} />
         <Route path="profile" element={<PortalProfile />} />
         <Route path="notifications" element={<PortalNotifications />} />
         <Route path="purchase" element={<PortalPurchase />} />
@@ -197,19 +208,26 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <RouteErrorBoundary>
-        <SiteSettingsProvider>
-        <DemoBanner />
-        <DemoDialog />
-        <TooltipProvider>
-          <Suspense fallback={<PageSkeleton />}>
-            <AppRoutes />
-          </Suspense>
-        </TooltipProvider>
-        </SiteSettingsProvider>
-      </RouteErrorBoundary>
-      <Toaster richColors position="top-center" />
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <RouteErrorBoundary>
+          <SiteSettingsProvider>
+          <DemoBanner />
+          <DemoDialog />
+          <TooltipProvider>
+            <Suspense fallback={<PageSkeleton />}>
+              <AppRoutes />
+            </Suspense>
+          </TooltipProvider>
+          </SiteSettingsProvider>
+        </RouteErrorBoundary>
+        <Toaster richColors position="top-center" />
+      </BrowserRouter>
+      {ReactQueryDevtools && (
+        <Suspense>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Suspense>
+      )}
+    </QueryClientProvider>
   )
 }

@@ -28,11 +28,12 @@ import { useFormatAmount } from "@/hooks/use-site-settings"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 
 const rechargeSchema = z.object({
-  amount: z.coerce.number().min(0.01, "金额必须大于 0"),
+  amount: z.coerce.number<number | string>().min(0.01, "金额必须大于 0"),
   remark: z.string().max(255).optional(),
 })
 
-type RechargeFormValues = z.infer<typeof rechargeSchema>
+type RechargeFormInput = z.input<typeof rechargeSchema>
+type RechargeFormValues = z.output<typeof rechargeSchema>
 
 interface RechargeDialogProps {
   open: boolean
@@ -44,9 +45,8 @@ interface RechargeDialogProps {
 export function RechargeDialog({ open, onOpenChange, user, onSuccess }: RechargeDialogProps) {
   const formatAmount = useFormatAmount()
   const [serverError, setServerError] = useState("")
-  const form = useForm<RechargeFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(rechargeSchema) as any,
+  const form = useForm<RechargeFormInput, unknown, RechargeFormValues>({
+    resolver: zodResolver(rechargeSchema),
     defaultValues: { amount: 0, remark: "" },
   })
 
@@ -128,11 +128,12 @@ export function RechargeDialog({ open, onOpenChange, user, onSuccess }: Recharge
 }
 
 const adjustSchema = z.object({
-  amount: z.coerce.number().refine(v => v !== 0, "金额不能为 0"),
+  amount: z.coerce.number<number | string>().refine(v => v !== 0, "金额不能为 0"),
   remark: z.string().min(1, "请填写备注").max(255),
 })
 
-type AdjustFormValues = z.infer<typeof adjustSchema>
+type AdjustFormInput = z.input<typeof adjustSchema>
+type AdjustFormValues = z.output<typeof adjustSchema>
 
 interface AdjustDialogProps {
   open: boolean
@@ -144,9 +145,8 @@ interface AdjustDialogProps {
 export function AdjustBalanceDialog({ open, onOpenChange, user, onSuccess }: AdjustDialogProps) {
   const formatAmount = useFormatAmount()
   const [serverError, setServerError] = useState("")
-  const form = useForm<AdjustFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(adjustSchema) as any,
+  const form = useForm<AdjustFormInput, unknown, AdjustFormValues>({
+    resolver: zodResolver(adjustSchema),
     defaultValues: { amount: 0, remark: "" },
   })
 

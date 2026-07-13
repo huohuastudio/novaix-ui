@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { getOauthProviders, getOauthByNameAuthorize } from "@/api"
+import { getOauthByNameAuthorize } from "@/api"
+import { getOauthProvidersOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { getBrandMeta } from "@/lib/brand"
 import { getErrorMessage } from "@/lib/utils"
@@ -15,19 +16,13 @@ interface ProviderInfo {
 
 export function SocialLoginButtons() {
   const { oauth_providers } = useSiteSettings()
-  const [providers, setProviders] = useState<ProviderInfo[]>([])
 
-  useEffect(() => {
-    if (!oauth_providers) return
-    void (async () => {
-      try {
-        const { data: res } = await getOauthProviders()
-        if (res?.code === 0 && res.data?.providers) {
-          setProviders(res.data.providers as ProviderInfo[])
-        }
-      } catch { /* ignore */ }
-    })()
-  }, [oauth_providers])
+  // 站点未开启第三方登录时不请求（对应原 effect 的提前返回）；加载失败保持空列表
+  const query = useQuery({
+    ...getOauthProvidersOptions(),
+    enabled: !!oauth_providers,
+  })
+  const providers = ((oauth_providers && query.data?.data?.providers) || []) as ProviderInfo[]
 
   if (providers.length === 0) return null
 

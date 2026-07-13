@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
-import { getAdminCouponsById, getAdminCouponsByIdUsages } from "@/api"
+import { getAdminCouponsByIdUsages } from "@/api"
 import type { CouponCouponItem, CouponUsageItem } from "@/api"
+import {
+  getAdminCouponsByIdOptions,
+  getAdminCouponsByIdUsagesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -41,22 +46,18 @@ export default function CouponDetail() {
   const adminPath = useAdminPath()
   const formatAmount = useFormatAmount()
   const formatDate = useFormatDate()
-  const [coupon, setCoupon] = useState<CouponCouponItem | null>(null)
-  const [loading, setLoading] = useState(true)
+  const couponQuery = useQuery({
+    ...getAdminCouponsByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const coupon: CouponCouponItem | null =
+    couponQuery.data?.code === 0 && couponQuery.data.data ? couponQuery.data.data : null
+  const loading = couponQuery.isPending
 
   useBreadcrumb([
     { label: "优惠券管理", href: `${adminPath}/coupons` },
     { label: coupon?.code ?? "详情" },
   ])
-
-  useEffect(() => {
-    if (!id) return
-    getAdminCouponsById({ path: { id: Number(id) } })
-      .then(({ data: res }) => {
-        if (res?.code === 0 && res.data) setCoupon(res.data)
-      })
-      .finally(() => setLoading(false))
-  }, [id])
 
   const fetchUsages = useCallback(async ({ page, pageSize }: FetchParams) => {
     const { data: res } = await getAdminCouponsByIdUsages({
@@ -71,7 +72,11 @@ export default function CouponDetail() {
     }
   }, [id])
 
-  const usageTable = useDataTable<CouponUsageItem>({ fetchFn: fetchUsages })
+  // couponId（路由参数）是 fetchUsages 的闭包变量，传入 key 函数避免切换优惠券时命中旧缓存
+  const usageTable = useDataTable<CouponUsageItem>({
+    fetchFn: fetchUsages,
+    queryKey: getAdminCouponsByIdUsagesQueryKey({ path: { id: Number(id) } }),
+  })
 
   const usageColumns: ColumnDef<CouponUsageItem>[] = useMemo(() => [
     {
@@ -208,6 +213,7 @@ export default function CouponDetail() {
           columns={usageColumns}
           data={usageTable.data}
           loading={usageTable.loading}
+          fetching={usageTable.fetching}
           pagination={usageTable.pagination}
           onPaginationChange={usageTable.setPagination}
           sorting={usageTable.sorting}

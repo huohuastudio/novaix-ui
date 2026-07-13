@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import type { UseFormReturn } from "react-hook-form"
+import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { getAdminIpsFree } from "@/api"
 import type { IppoolFreeIpItem } from "@/api"
 import { Button } from "@/components/ui/button"
@@ -31,8 +32,7 @@ import { cn } from "@/lib/utils"
 const PAGE_SIZE = 20
 
 interface IPSelectorProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<InstanceFormValues>
 }
 
 export function IPSelector({ form }: IPSelectorProps) {

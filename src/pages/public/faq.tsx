@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { HelpCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FaqItem } from "@/components/faq-item"
-import { getPublicCmsFaqs } from "@/api"
 import type { PublicPublicFaqItem } from "@/api"
+import { getPublicCmsFaqsOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -26,15 +26,8 @@ export default function FAQ() {
   const siteName = useSiteName()
   useDocumentTitle(`常见问题 - ${siteName}`)
 
-  const [faqs, setFaqs] = useState<PublicPublicFaqItem[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPublicCmsFaqs()
-      .then(({ data: res }) => setFaqs(res?.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: res, isPending } = useQuery(getPublicCmsFaqsOptions())
+  const faqs = res?.data ?? []
 
   const groups = groupFaqs(faqs)
 
@@ -43,7 +36,7 @@ export default function FAQ() {
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tighter text-center">常见问题</h1>
       <p className="mt-2 text-muted-foreground text-center">关于产品和服务的常见问题解答</p>
 
-      {loading ? (
+      {isPending ? (
         <div className="mt-10 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="border-b border-border/50 py-5">

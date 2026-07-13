@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { History } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { SimplePagination } from "@/components/simple-pagination"
-import { getPublicCmsChangelogs } from "@/api"
-import type { PublicPublicChangelogItem } from "@/api"
+import { getPublicCmsChangelogsOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 import { sanitizeHtml } from "@/lib/sanitize"
@@ -14,26 +14,15 @@ export default function Changelog() {
   const formatDate = useFormatDate()
   useDocumentTitle(`更新日志 - ${siteName}`)
 
-  const [items, setItems] = useState<PublicPublicChangelogItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const pageSize = 10
-  const [loading, setLoading] = useState(true)
 
-  const fetchData = useCallback(() => {
-    setLoading(true)
-    getPublicCmsChangelogs({ query: { page, page_size: pageSize } })
-      .then(({ data: res }) => {
-        setItems(res?.data?.items ?? [])
-        setTotal(res?.data?.total ?? 0)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [page])
-
-  useEffect(() => {
-    fetchData() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [fetchData])
+  const { data: res, isPending: loading } = useQuery({
+    ...getPublicCmsChangelogsOptions({ query: { page, page_size: pageSize } }),
+    placeholderData: keepPreviousData,
+  })
+  const items = res?.data?.items ?? []
+  const total = res?.data?.total ?? 0
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12 sm:py-16">

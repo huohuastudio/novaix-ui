@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { Users, Coins, TrendingUp, Copy, Check, Link2 } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,16 +10,12 @@ import { useSiteName, useFormatAmount, useFormatDate } from "@/hooks/use-site-se
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { useCopyToClipboard } from "@uidotdev/usehooks"
 import {
-  getPortalAgentStats,
-  getPortalAgentLink,
-  getPortalAgentUsers,
-  getPortalAgentCommissions,
-} from "@/api"
-import type {
-  PortalAgentStatsResponse,
-  PortalPortalSubUserItem,
-  PortalPortalCommissionItem,
-} from "@/api"
+  getPortalAgentStatsOptions,
+  getPortalAgentLinkOptions,
+  getPortalAgentUsersOptions,
+  getPortalAgentCommissionsOptions,
+} from "@/api/@tanstack/react-query.gen"
+import type { PortalAgentStatsResponse } from "@/api"
 
 export default function PortalAgent() {
   const siteName = useSiteName()
@@ -29,58 +26,39 @@ export default function PortalAgent() {
   const [, copyToClipboard] = useCopyToClipboard()
   const [copied, setCopied] = useState(false)
 
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [stats, setStats] = useState<PortalAgentStatsResponse | null>(null)
-  const [link, setLink] = useState("")
-
-  const [usersLoading, setUsersLoading] = useState(true)
-  const [users, setUsers] = useState<PortalPortalSubUserItem[]>([])
-  const [usersTotal, setUsersTotal] = useState(0)
   const [usersPage, setUsersPage] = useState(1)
-
-  const [commissionsLoading, setCommissionsLoading] = useState(true)
-  const [commissions, setCommissions] = useState<PortalPortalCommissionItem[]>([])
-  const [commissionsTotal, setCommissionsTotal] = useState(0)
   const [commissionsPage, setCommissionsPage] = useState(1)
 
   const pageSize = 10
 
-  // 加载统计和链接
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载数据
-    setStatsLoading(true)
-    Promise.all([
-      getPortalAgentStats(),
-      getPortalAgentLink(),
-    ]).then(([statsRes, linkRes]) => {
-      if (statsRes.data?.code === 0) setStats(statsRes.data.data as PortalAgentStatsResponse)
-      if (linkRes.data?.code === 0) setLink((linkRes.data.data as { link?: string })?.link ?? "")
-    }).finally(() => setStatsLoading(false))
-  }, [])
+  // 统计和推荐链接
+  const statsQuery = useQuery(getPortalAgentStatsOptions())
+  const linkQuery = useQuery(getPortalAgentLinkOptions())
+  const statsLoading = statsQuery.isPending || linkQuery.isPending
+  const stats = statsQuery.data?.code === 0
+    ? (statsQuery.data.data as PortalAgentStatsResponse)
+    : null
+  const link = linkQuery.data?.code === 0
+    ? ((linkQuery.data.data as { link?: string })?.link ?? "")
+    : ""
 
-  // 加载下级用户
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 加载数据
-    setUsersLoading(true)
-    getPortalAgentUsers({ query: { page: usersPage, page_size: pageSize } })
-      .then(({ data: res }) => {
-        setUsers(res?.data?.items ?? [])
-        setUsersTotal(res?.data?.total ?? 0)
-      })
-      .finally(() => setUsersLoading(false))
-  }, [usersPage])
+  // 下级用户
+  const usersQuery = useQuery({
+    ...getPortalAgentUsersOptions({ query: { page: usersPage, page_size: pageSize } }),
+    placeholderData: keepPreviousData,
+  })
+  const usersLoading = usersQuery.isPending
+  const users = usersQuery.data?.data?.items ?? []
+  const usersTotal = usersQuery.data?.data?.total ?? 0
 
-  // 加载返佣记录
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 加载数据
-    setCommissionsLoading(true)
-    getPortalAgentCommissions({ query: { page: commissionsPage, page_size: pageSize } })
-      .then(({ data: res }) => {
-        setCommissions(res?.data?.items ?? [])
-        setCommissionsTotal(res?.data?.total ?? 0)
-      })
-      .finally(() => setCommissionsLoading(false))
-  }, [commissionsPage])
+  // 返佣记录
+  const commissionsQuery = useQuery({
+    ...getPortalAgentCommissionsOptions({ query: { page: commissionsPage, page_size: pageSize } }),
+    placeholderData: keepPreviousData,
+  })
+  const commissionsLoading = commissionsQuery.isPending
+  const commissions = commissionsQuery.data?.data?.items ?? []
+  const commissionsTotal = commissionsQuery.data?.data?.total ?? 0
 
   const handleCopy = () => {
     copyToClipboard(link)

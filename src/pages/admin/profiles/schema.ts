@@ -11,7 +11,7 @@ export const profileFormSchema = incusConfigSchema.extend({
     .string()
     .min(1, "请输入配置文件名称")
     .max(128, "名称不能超过 128 个字符"),
-  description: z.string().optional().default(""),
+  description: z.string().optional(),
 })
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>

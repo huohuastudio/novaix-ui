@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getPublicCmsArticlesBySlug } from "@/api"
+import { getPublicCmsArticlesBySlugOptions } from "@/api/@tanstack/react-query.gen"
 import type { PublicPublicArticleDetail } from "@/api"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
@@ -19,29 +19,20 @@ export default function ArticleDetail() {
   const siteName = useSiteName()
   const formatDate = useFormatDate()
 
-  const [article, setArticle] = useState<PublicPublicArticleDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const { data: res, isPending, isError } = useQuery({
+    ...getPublicCmsArticlesBySlugOptions({
+      path: { slug: slug ?? "" },
+      query: articleType ? { type: articleType } : undefined,
+    }),
+    enabled: !!slug,
+  })
+  const article = res?.code === 0 && res.data
+    ? (res.data as PublicPublicArticleDetail)
+    : null
+  const loading = !!slug && isPending
+  const notFound = isError || (res != null && !article)
 
   useDocumentTitle(article ? `${article.title} - ${siteName}` : siteName)
-
-  useEffect(() => {
-    if (!slug) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
-    setNotFound(false)
-    setArticle(null)
-    getPublicCmsArticlesBySlug({ path: { slug }, query: articleType ? { type: articleType } : undefined })
-      .then(({ data: res }) => {
-        if (res?.code === 0 && res.data) {
-          setArticle(res.data as PublicPublicArticleDetail)
-        } else {
-          setNotFound(true)
-        }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
-  }, [slug, articleType])
 
   if (loading) {
     return (

@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import {
   Server,
   Play,
@@ -17,8 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getPortalInstances } from "@/api"
 import type { PortalPortalInstanceItem } from "@/api"
+import {
+  getPortalInstancesOptions,
+  getPortalInstancesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { SimplePagination } from "@/components/simple-pagination"
 import { usePortalInstanceActions, type PortalPowerAction } from "@/hooks/use-portal-instance-actions"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
@@ -163,67 +167,54 @@ function ListSkeleton() {
 export default function PortalInstances() {
   const siteName = useSiteName()
   useDocumentTitle(`云服务器 - ${siteName}`)
+  const queryClient = useQueryClient()
 
-  const [instances, setInstances] = useState<PortalPortalInstanceItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const pageSize = 12
-  const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState("")
   const debouncedKeyword = useDebounce(keyword, 300)
-
-  const seqRef = useRef(0)
-
-  const fetchInstances = useCallback(async (search: string, p: number) => {
-    const seq = ++seqRef.current
-    try {
-      const { data: res } = await getPortalInstances({
-        query: {
-          page: p,
-          page_size: pageSize,
-          keyword: search || undefined,
-        },
-      })
-      if (seq !== seqRef.current) return
-      setInstances(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      if (seq === seqRef.current) setLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 搜索关键词变化时重置页码
     setPage(1)
   }, [debouncedKeyword])
 
-  useEffect(() => {
-    fetchInstances(debouncedKeyword, page)
-  }, [fetchInstances, debouncedKeyword, page])
+  const listQuery = useQuery({
+    ...getPortalInstancesOptions({
+      query: {
+        page,
+        page_size: pageSize,
+        keyword: debouncedKeyword || undefined,
+      },
+    }),
+    placeholderData: keepPreviousData,
+    // 存在过渡状态的实例（有进行中任务）时轮询刷新
+    refetchInterval: (query) => {
+      const items = query.state.data?.data?.items ?? []
+      return items.some((i) => i.active_task_id != null) ? 10_000 : false
+    },
+  })
+  const instances = listQuery.data?.data?.items ?? []
+  const total = listQuery.data?.data?.total ?? 0
 
-  const { handlePowerAction, loadingId, ConfirmDialog } = usePortalInstanceActions(() => fetchInstances(debouncedKeyword, page))
+  // 后台静默刷新实例列表（失效所有分页/搜索组合的缓存）
+  const invalidateList = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getPortalInstancesQueryKey() })
+  }, [queryClient])
 
-  const hasTransitional = instances.some((i) => i.active_task_id != null)
-
-  useEffect(() => {
-    if (!hasTransitional) return
-    const timer = setInterval(() => {
-      fetchInstances(debouncedKeyword, page)
-    }, 10_000)
-    return () => clearInterval(timer)
-  }, [hasTransitional, fetchInstances, debouncedKeyword, page])
+  const { handlePowerAction, loadingId, ConfirmDialog } = usePortalInstanceActions(invalidateList)
 
   // SSE 事件驱动刷新（防抖合并连续事件）
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
     const cleanup = onPortalInstanceChange(() => {
       clearTimeout(timer)
-      timer = setTimeout(() => fetchInstances(debouncedKeyword, page), 800)
+      timer = setTimeout(invalidateList, 800)
     })
     return () => { clearTimeout(timer); cleanup() }
-  }, [fetchInstances, debouncedKeyword, page])
+  }, [invalidateList])
 
-  if (loading) {
+  if (listQuery.isPending) {
     return (
       <div className="space-y-6">
         <div>

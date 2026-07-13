@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, FolderTree } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { getAdminHelpArticles, deleteAdminHelpArticlesById, getAdminHelpCategories } from "@/api"
+import { getAdminHelpArticles, deleteAdminHelpArticlesById } from "@/api"
 import type { HelparticleHelpArticleItem, HelpcategoryHelpCategoryItem } from "@/api"
+import { getAdminHelpArticlesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { HelpArticleCreateSheet, HelpArticleEditSheet } from "./help-article-form-sheet"
 import HelpCategoryDialog from "./help-category-dialog"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getAdminHelpCategoriesOptions, getAdminHelpCategoriesQueryKey } from "@/api/@tanstack/react-query.gen"
 
 export default function HelpCenter() {
   const formatDate = useFormatDate()
@@ -20,17 +23,16 @@ export default function HelpCenter() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const [categories, setCategories] = useState<HelpcategoryHelpCategoryItem[]>([])
-
-  const fetchCategories = useCallback(async () => {
-    const { data: res } = await getAdminHelpCategories({ query: { page: 1, page_size: 100 } })
-    setCategories(res?.data?.items ?? [])
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchCategories()
-  }, [fetchCategories])
+  // 分类字典（与分类管理弹窗共享同一缓存 key）
+  const queryClient = useQueryClient()
+  const categoriesQuery = useQuery(getAdminHelpCategoriesOptions({ query: { page: 1, page_size: 100 } }))
+  const categories = useMemo<HelpcategoryHelpCategoryItem[]>(
+    () => categoriesQuery.data?.data?.items ?? [],
+    [categoriesQuery.data],
+  )
+  const fetchCategories = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: getAdminHelpCategoriesQueryKey() })
+  }, [queryClient])
 
   const categoryMap = useMemo(() => {
     const map = new Map<number, string>()
@@ -65,6 +67,7 @@ export default function HelpCenter() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminHelpArticlesQueryKey(),
     filterKeys: ["title", "status"],
   })
 
@@ -191,6 +194,7 @@ export default function HelpCenter() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

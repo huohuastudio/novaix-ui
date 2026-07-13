@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import { useDebounce } from "@uidotdev/usehooks"
-import { getAdminNodes, postAdminInstancesByIdMigrate } from "@/api"
-import type { NodeNodeItem } from "@/api"
+import { postAdminInstancesByIdMigrate } from "@/api"
+import { getAdminNodesOptions } from "@/api/@tanstack/react-query.gen"
 import {
   Dialog,
   DialogContent,
@@ -32,31 +33,23 @@ interface MigrateDialogProps {
 }
 
 export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, currentNodeId, onSuccess }: MigrateDialogProps) {
-  const [nodes, setNodes] = useState<NodeNodeItem[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const keyword = useDebounce(search, 300)
   const [targetNodeId, setTargetNodeId] = useState<string>("")
   const [loading, setLoading] = useState(false)
-  const [fetching, setFetching] = useState(false)
   const { addTask } = useTasks()
-  const fetchIdRef = useRef(0)
 
-  const fetchNodes = useCallback(async (p: number, kw: string) => {
-    const id = ++fetchIdRef.current
-    setFetching(true)
-    try {
-      const { data: res } = await getAdminNodes({
-        query: { page: p, page_size: PAGE_SIZE, status: 1, exclude_id: currentNodeId, keyword: kw || undefined },
-      })
-      if (id !== fetchIdRef.current) return
-      setNodes(res?.data?.items ?? [])
-      setTotal(res?.data?.total ?? 0)
-    } finally {
-      if (id === fetchIdRef.current) setFetching(false)
-    }
-  }, [currentNodeId])
+  // 弹窗打开才取数；page/keyword/currentNodeId 通过 options 参数进入 queryKey
+  const nodesQuery = useQuery({
+    ...getAdminNodesOptions({
+      query: { page, page_size: PAGE_SIZE, status: 1, exclude_id: currentNodeId, keyword: keyword || undefined },
+    }),
+    enabled: open,
+  })
+  const nodes = nodesQuery.data?.data?.items ?? []
+  const total = nodesQuery.data?.data?.total ?? 0
+  const fetching = nodesQuery.isLoading
 
   useEffect(() => {
     if (!open) return
@@ -65,11 +58,6 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
     setSearch("")
     setPage(1)
   }, [open])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- keyword 变化时获取数据
-    if (open) fetchNodes(page, keyword)
-  }, [open, page, keyword, fetchNodes])
 
   const handleMigrate = async () => {
     if (!targetNodeId) return

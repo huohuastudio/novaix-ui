@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { getAdminIsos, postAdminIsos, putAdminIsosByIdReady, deleteAdminIsosById } from "@/api"
 import type { IsoIsoItem } from "@/api"
+import { getAdminIsosQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -56,6 +57,7 @@ export default function ISOs() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminIsosQueryKey(),
     filterKeys: ["name"],
   })
 
@@ -229,6 +231,7 @@ export default function ISOs() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

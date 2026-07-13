@@ -20,6 +20,7 @@ const actionBadgeVariant: Record<string, "default" | "secondary" | "destructive"
 
 export function FirewallSection({ instanceId }: { instanceId: number }) {
   const api = useMemo(() => ({
+    scope: "admin" as const,
     list: getAdminInstancesByIdFirewallRules,
     create: postAdminInstancesByIdFirewallRules,
     update: putAdminInstancesByIdFirewallRulesByRuleId,

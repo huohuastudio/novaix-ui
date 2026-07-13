@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 
 export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; isNAT?: boolean }) {
   const api = useMemo(() => ({
+    scope: "admin" as const,
     list: getAdminInstancesByIdPortForwardRules,
     create: postAdminInstancesByIdPortForwardRules,
     update: putAdminInstancesByIdPortForwardRulesByRuleId,

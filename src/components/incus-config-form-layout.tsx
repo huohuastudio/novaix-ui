@@ -1,5 +1,5 @@
-import type { UseFormReturn } from "react-hook-form"
 import type { NodeResources } from "@/hooks/use-node-resources"
+import type { IncusConfigForm } from "@/types/incus-config"
 import type { NavItem } from "@/components/form-nav-layout"
 import { FormNavLayout } from "@/components/form-nav-layout"
 import {
@@ -51,8 +51,7 @@ const navItems: NavItem[] = [
 ]
 
 interface IncusConfigFormLayoutProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: IncusConfigForm
   nodeResources: NodeResources
   nodeId?: number
   mainSection: React.ReactNode

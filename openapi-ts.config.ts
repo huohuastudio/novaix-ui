@@ -7,5 +7,6 @@ export default defineConfig({
     '@hey-api/typescript',
     '@hey-api/sdk',
     '@hey-api/client-axios',
+    '@tanstack/react-query',
   ],
 })

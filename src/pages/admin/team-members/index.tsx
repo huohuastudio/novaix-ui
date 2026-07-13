@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminTeamMembers, deleteAdminTeamMembersById } from "@/api"
 import type { TeammemberTeamMemberItem } from "@/api"
+import { getAdminTeamMembersQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -43,6 +44,7 @@ export default function TeamMembers() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminTeamMembersQueryKey(),
     filterKeys: ["name", "status"],
   })
 
@@ -171,6 +173,7 @@ export default function TeamMembers() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

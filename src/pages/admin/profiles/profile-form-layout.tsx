@@ -1,10 +1,11 @@
 import type { UseFormReturn } from "react-hook-form"
 import type { NodeResources } from "@/hooks/use-node-resources"
+import { asIncusConfigForm } from "@/types/incus-config"
 import { IncusConfigFormLayout } from "@/components/incus-config-form-layout"
+import type { ProfileFormValues } from "./schema"
 
 interface ProfileFormLayoutProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
+  form: UseFormReturn<ProfileFormValues>
   nodeResources: NodeResources
   nodeId: number
   mainSection: React.ReactNode
@@ -20,7 +21,7 @@ export function ProfileFormLayout({
 }: ProfileFormLayoutProps) {
   return (
     <IncusConfigFormLayout
-      form={form}
+      form={asIncusConfigForm(form)}
       nodeResources={nodeResources}
       nodeId={nodeId}
       mainSection={mainSection}

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import {
-  getAdminProvidersByKind,
-  type ProviderDescriptor,
-} from "@/api"
+import { type ProviderDescriptor } from "@/api"
+import { getAdminProvidersByKindOptions } from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -17,25 +16,17 @@ import { SettingSkeleton } from "./setting-skeleton"
 import { getErrorMessage } from "@/lib/utils"
 
 export function PaymentSection() {
-  const [descriptors, setDescriptors] = useState<ProviderDescriptor[]>([])
-  const [loading, setLoading] = useState(true)
+  const query = useQuery(getAdminProvidersByKindOptions({ path: { kind: "payment" } }))
+  const descriptors: ProviderDescriptor[] =
+    query.data?.code === 0 && query.data.data
+      ? query.data.data.filter((d) => !d.plugin)
+      : []
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const { data: res } = await getAdminProvidersByKind({ path: { kind: "payment" } })
-        if (res?.code === 0 && res.data) {
-          setDescriptors(res.data.filter((d) => !d.plugin))
-        }
-      } catch (err) {
-        toast.error(getErrorMessage(err, "加载支付渠道失败"))
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [])
+    if (query.isError) toast.error(getErrorMessage(query.error, "加载支付渠道失败"))
+  }, [query.isError, query.error])
 
-  if (loading) return <SettingSkeleton rows={6} />
+  if (query.isPending) return <SettingSkeleton rows={6} />
   if (descriptors.length === 0) return <p className="text-sm text-muted-foreground">暂无可用的支付渠道</p>
 
   return (

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import {
   Area,
   AreaChart,
@@ -7,8 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { getPortalInstancesByIdMetrics } from "@/api"
-import type { PortalInstanceMetricPoint } from "@/api"
+import { getPortalInstancesByIdMetricsOptions } from "@/api/@tanstack/react-query.gen"
 import { formatBytes } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChartCard, ChartLegend } from "@/components/chart-card"
@@ -17,7 +17,6 @@ import { Spinner } from "@/components/ui/spinner"
 import {
   CHART_RANGES,
   type TimeRange,
-  type TooltipFormatter,
   formatTime,
   formatBytesPerSec,
   formatPercent,
@@ -33,38 +32,22 @@ interface InstanceStatsChartProps {
 
 export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
   const [range, setRange] = useState<TimeRange>("1h")
-  const [data, setData] = useState<PortalInstanceMetricPoint[]>([])
-  const [loading, setLoading] = useState(true)
 
-  const fetchMetrics = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
-    try {
-      const { data: res } = await getPortalInstancesByIdMetrics({
-        path: { id: instanceId },
-        query: { range },
-      })
-      if (res?.code === 0 && res.data) {
-        const points = res.data as PortalInstanceMetricPoint[]
-        setData((prev) => {
-          const lastNew = points[points.length - 1]?.timestamp
-          const lastOld = prev[prev.length - 1]?.timestamp
-          if (points.length === prev.length && lastNew === lastOld) return prev
-          return points
-        })
-      }
-    } catch {
-      // ignore
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [instanceId, range])
+  // instanceId/range 均通过 options 参数进入 queryKey，切换时自动重新请求
+  const query = useQuery({
+    ...getPortalInstancesByIdMetricsOptions({
+      path: { id: instanceId },
+      query: { range },
+    }),
+    // 每 60 秒后台轮询一次（对应原 setInterval 静默刷新）
+    refetchInterval: 60_000,
+    // 切换时间范围时保留旧图表数据，避免闪骨架屏（对应原实现的行为）
+    placeholderData: keepPreviousData,
+  })
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 数据获取模式需在 effect 中触发加载状态
-    fetchMetrics()
-    const interval = setInterval(() => fetchMetrics(true), 60_000)
-    return () => clearInterval(interval)
-  }, [fetchMetrics])
+  const data = useMemo(() => query.data?.data ?? [], [query.data])
+  // 初始加载或切换范围时显示顶部 spinner；后台轮询保持静默
+  const loading = query.isPending || query.isPlaceholderData
 
   const chartData = useMemo(() => {
     if (data.length === 0) return []
@@ -117,7 +100,7 @@ export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                 <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
                 <YAxis domain={[0, 100]} tick={TICK_STYLE} tickFormatter={(v) => `${v}%`} {...AXIS_PROPS} />
-                <Tooltip {...tooltipStyle} formatter={((v: number) => [formatPercent(v as number | undefined), "CPU"]) as TooltipFormatter} />
+                <Tooltip {...tooltipStyle} formatter={(v) => [formatPercent(v as number | undefined), "CPU"]} />
                 <Area type="monotone" dataKey="cpu_usage" stroke="var(--color-chart-1)" fill="url(#instCpuGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             )}
@@ -137,10 +120,10 @@ export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
                 <YAxis domain={[0, 100]} tick={TICK_STYLE} tickFormatter={(v) => `${v}%`} {...AXIS_PROPS} />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={((_v: number, _name: string, props: Record<string, unknown>) => {
-                    const p = (props as unknown as { payload: (typeof chartData)[number] }).payload
+                  formatter={(_v, _name, item) => {
+                    const p = item.payload as (typeof chartData)[number]
                     return [`${formatPercent(p.mem_percent)} (${formatBytes(p.mem_used ?? 0)} / ${formatBytes(p.mem_total ?? 0)})`, "内存"]
-                  }) as TooltipFormatter}
+                  }}
                 />
                 <Area type="monotone" dataKey="mem_percent" stroke="var(--color-chart-2)" fill="url(#instMemGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
@@ -161,10 +144,10 @@ export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
                 <YAxis domain={[0, 100]} tick={TICK_STYLE} tickFormatter={(v) => `${v}%`} {...AXIS_PROPS} />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={((_v: number, _name: string, props: Record<string, unknown>) => {
-                    const p = (props as unknown as { payload: (typeof chartData)[number] }).payload
+                  formatter={(_v, _name, item) => {
+                    const p = item.payload as (typeof chartData)[number]
                     return [`${formatPercent(p.disk_percent)} (${formatBytes(p.disk_used ?? 0)} / ${formatBytes(p.disk_total ?? 0)})`, "磁盘"]
-                  }) as TooltipFormatter}
+                  }}
                 />
                 <Area type="monotone" dataKey="disk_percent" stroke="var(--color-chart-3)" fill="url(#instDiskGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
@@ -193,10 +176,10 @@ export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
                 <YAxis tick={TICK_STYLE} tickFormatter={(v) => formatBytes(v)} {...AXIS_PROPS} />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={((v: number, name: string) => [
+                  formatter={(v, name) => [
                     formatBytesPerSec(v as number),
                     name === "net_rx" ? "接收" : "发送",
-                  ]) as TooltipFormatter}
+                  ]}
                 />
                 <Area type="monotone" dataKey="net_rx" stroke="var(--color-chart-4)" fill="url(#instRxGrad)" strokeWidth={1.5} dot={false} name="net_rx" />
                 <Area type="monotone" dataKey="net_tx" stroke="var(--color-chart-5)" fill="url(#instTxGrad)" strokeWidth={1.5} dot={false} name="net_tx" />

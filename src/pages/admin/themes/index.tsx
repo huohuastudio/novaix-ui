@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircle,
   Check,
@@ -13,14 +14,18 @@ import {
   Upload,
 } from "lucide-react"
 import {
-  getAdminThemes,
   postAdminThemesReload,
-  getAdminThemesMarketplace,
   putAdminThemesActive,
   postAdminThemesUpload,
   postAdminThemesMarketplaceByIdInstall,
   deleteAdminThemesById,
 } from "@/api"
+import {
+  getAdminThemesMarketplaceOptions,
+  getAdminThemesMarketplaceQueryKey,
+  getAdminThemesOptions,
+  getAdminThemesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -364,27 +369,19 @@ function InstalledThemes({
 }
 
 function Marketplace({ onInstalled }: { onInstalled: () => void }) {
-  const [items, setItems] = useState<MarketplaceItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<Record<string, boolean>>({})
+  const queryClient = useQueryClient()
 
-  const loadMarketplace = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: res } = await getAdminThemesMarketplace()
-      if (res?.code === 0 && res.data) {
-        setItems(res.data as MarketplaceItem[])
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err, "加载主题市场失败"))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const marketQuery = useQuery(getAdminThemesMarketplaceOptions())
+  const items =
+    marketQuery.data?.code === 0 && marketQuery.data.data
+      ? (marketQuery.data.data as MarketplaceItem[])
+      : []
+  const loading = marketQuery.isPending
 
   useEffect(() => {
-    loadMarketplace() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [loadMarketplace])
+    if (marketQuery.isError) toast.error(getErrorMessage(marketQuery.error, "加载主题市场失败"))
+  }, [marketQuery.isError, marketQuery.error])
 
   const handleInstall = async (item: MarketplaceItem) => {
     if (!item.id) return
@@ -396,7 +393,8 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
       if (res?.code === 0) {
         toast.success(`${item.name} 安装成功`)
         onInstalled()
-        loadMarketplace()
+        // 安装成功后刷新市场列表（已安装标记）
+        void queryClient.invalidateQueries({ queryKey: getAdminThemesMarketplaceQueryKey() })
       } else {
         toast.error(res?.message ?? "安装失败")
       }
@@ -462,29 +460,42 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
 export default function Themes() {
   useBreadcrumb([{ label: "主题管理" }])
 
-  const [themes, setThemes] = useState<ThemeInfo[]>([])
-  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("installed")
+  const [rescanning, setRescanning] = useState(false)
+  const queryClient = useQueryClient()
 
-  const loadThemes = useCallback(async (rescan = false) => {
-    setLoading(true)
+  const themesQuery = useQuery(getAdminThemesOptions())
+  const themes =
+    themesQuery.data?.code === 0 && themesQuery.data.data
+      ? (themesQuery.data.data as ThemeInfo[])
+      : []
+  const loading = themesQuery.isPending
+
+  useEffect(() => {
+    if (themesQuery.isError) toast.error(getErrorMessage(themesQuery.error, "加载主题列表失败"))
+  }, [themesQuery.isError, themesQuery.error])
+
+  // 写操作成功后刷新主题列表
+  const refreshThemes = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: getAdminThemesQueryKey() })
+  }, [queryClient])
+
+  // 刷新按钮：触发磁盘重新扫描（写操作），完成后使列表缓存失效
+  const handleRescan = async () => {
+    setRescanning(true)
     try {
-      const { data: res } = rescan
-        ? await postAdminThemesReload()
-        : await getAdminThemes()
-      if (res?.code === 0 && res.data) {
-        setThemes(res.data as ThemeInfo[])
+      const { data: res } = await postAdminThemesReload()
+      if (res?.code === 0) {
+        refreshThemes()
+      } else {
+        toast.error(res?.message ?? "刷新失败")
       }
     } catch (err) {
       toast.error(getErrorMessage(err, "加载主题列表失败"))
     } finally {
-      setLoading(false)
+      setRescanning(false)
     }
-  }, [])
-
-  useEffect(() => {
-    loadThemes() // eslint-disable-line react-hooks/set-state-in-effect
-  }, [loadThemes])
+  }
 
   return (
     <div className="px-6 pt-6 space-y-6">
@@ -498,8 +509,8 @@ export default function Themes() {
             自定义前端界面外观，安装和切换主题
           </p>
         </div>
-        <Button variant="outline" onClick={() => loadThemes(true)} disabled={loading}>
-          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+        <Button variant="outline" onClick={handleRescan} disabled={rescanning || themesQuery.isFetching}>
+          <RefreshCw className={`size-4 ${rescanning || themesQuery.isFetching ? "animate-spin" : ""}`} />
           刷新
         </Button>
       </div>
@@ -515,9 +526,9 @@ export default function Themes() {
       </Tabs>
 
       {activeTab === "installed" ? (
-        <InstalledThemes themes={themes} loading={loading} onRefresh={loadThemes} />
+        <InstalledThemes themes={themes} loading={loading} onRefresh={refreshThemes} />
       ) : (
-        <Marketplace onInstalled={loadThemes} />
+        <Marketplace onInstalled={refreshThemes} />
       )}
     </div>
   )

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getPortalKyc, postPortalKycVerify, postPortalKycFaceInit, postPortalKycFaceResult } from '@/api'
-import type { ServiceKycStatus } from '@/api'
+import { postPortalKycVerify, postPortalKycFaceInit, postPortalKycFaceResult } from '@/api'
+import { getPortalKycOptions, getPortalKycQueryKey } from '@/api/@tanstack/react-query.gen'
 import { getErrorMessage } from '@/lib/utils'
 import { useFormatDate } from '@/hooks/use-site-settings'
 import { useSiteSettings } from '@/hooks/use-site-settings'
@@ -14,36 +15,35 @@ import { toast } from 'sonner'
 export function KYCSection() {
   const formatDate = useFormatDate()
   const { kyc_mode } = useSiteSettings()
-  const [status, setStatus] = useState<ServiceKycStatus | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [realName, setRealName] = useState('')
   const [idNumber, setIdNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [kycToken] = useState(() => new URLSearchParams(window.location.search).get('kyc_token'))
   const [querying, setQuerying] = useState(() => !!kycToken)
 
-  const refreshStatus = async () => {
-    const { data: res } = await getPortalKyc()
-    setStatus(res?.data ?? null)
-  }
+  // 认证状态
+  const statusQuery = useQuery(getPortalKycOptions())
+  const status = statusQuery.data?.data ?? null
+  const loading = statusQuery.isPending
 
+  // 写操作成功后失效缓存刷新认证状态
+  const invalidateKyc = () =>
+    queryClient.invalidateQueries({ queryKey: getPortalKycQueryKey() })
+
+  // 从第三方人脸识别页面跳回时携带 kyc_token，提交查询识别结果（写操作，保留 effect）
   useEffect(() => {
-    getPortalKyc()
-      .then(({ data: res }) => setStatus(res?.data ?? null))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-
-    if (kycToken) {
-      window.history.replaceState({}, '', window.location.pathname)
-      postPortalKycFaceResult({ body: { kyc_token: kycToken } })
-        .then(() => {
-          toast.success('人脸识别认证成功')
-          return refreshStatus()
-        })
-        .catch((err) => toast.error(getErrorMessage(err, '人脸识别认证失败')))
-        .finally(() => setQuerying(false))
-    }
-  }, [kycToken])
+    if (!kycToken) return
+    window.history.replaceState({}, '', window.location.pathname)
+    postPortalKycFaceResult({ body: { kyc_token: kycToken } })
+      .then(() => {
+        toast.success('人脸识别认证成功')
+        // 等待认证状态重新拉取后再结束"查询中"状态
+        return queryClient.invalidateQueries({ queryKey: getPortalKycQueryKey() })
+      })
+      .catch((err) => toast.error(getErrorMessage(err, '人脸识别认证失败')))
+      .finally(() => setQuerying(false))
+  }, [kycToken, queryClient])
 
   const handleTwoFactorVerify = async () => {
     if (!realName.trim() || !idNumber.trim()) {
@@ -58,7 +58,7 @@ export function KYCSection() {
       toast.success('实名认证成功')
       setRealName('')
       setIdNumber('')
-      refreshStatus()
+      invalidateKyc()
     } catch (err) {
       toast.error(getErrorMessage(err, '认证失败'))
     } finally {

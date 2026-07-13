@@ -10,9 +10,6 @@ export const CHART_RANGES = [
 
 export type TimeRange = (typeof CHART_RANGES)[number]["value"]
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TooltipFormatter = any
-
 export function formatTime(ts: string | undefined, range: TimeRange) {
   if (!ts) return "-"
   const d = new Date(ts)

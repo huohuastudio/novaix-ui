@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, Wallet, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -12,11 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { PaymentPending } from "@/components/payment-pending"
 import {
-  getPortalPaymentMethods,
   postPortalOrdersByIdPay,
   postPortalPayments,
 } from "@/api"
-import type { PortalPaymentMethodItem } from "@/api"
+import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
@@ -31,8 +31,6 @@ interface PayDialogProps {
 
 export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: PayDialogProps) {
   const formatAmount = useFormatAmount()
-  const [methods, setMethods] = useState<PortalPaymentMethodItem[]>([])
-  const [loadingMethods, setLoadingMethods] = useState(true)
   const [payMode, setPayMode] = useState<"balance" | "online">("balance")
   const [selectedProvider, setSelectedProvider] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("")
@@ -43,6 +41,14 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
     qrCode: boolean
   } | null>(null)
 
+  // 对话框打开时才加载支付方式
+  const methodsQuery = useQuery({
+    ...getPortalPaymentMethodsOptions(),
+    enabled: open,
+  })
+  const methods = methodsQuery.data?.data ?? []
+  const loadingMethods = methodsQuery.isPending
+
   useEffect(() => {
     if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置状态
@@ -50,18 +56,11 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
     setPayMode("balance")
     setSelectedProvider("")
     setSelectedMethod("")
-    setLoadingMethods(true)
-    getPortalPaymentMethods()
-      .then(({ data: res }) => {
-        const items = res?.data ?? []
-        setMethods(items)
-        if (items.length > 0) {
-          setSelectedProvider(items[0].provider ?? "")
-          setSelectedMethod(items[0].method ?? "")
-        }
-      })
-      .finally(() => setLoadingMethods(false))
   }, [open])
+
+  // 未手动选择时默认选中第一个支付方式（原逻辑在加载完成后 setState，这里改为派生）
+  const effectiveProvider = selectedProvider || (methods[0]?.provider ?? "")
+  const effectiveMethod = selectedProvider ? selectedMethod : (methods[0]?.method ?? "")
 
   const handleBalancePay = async () => {
     setSubmitting(true)
@@ -82,7 +81,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
   }
 
   const handleOnlinePay = async () => {
-    if (!selectedProvider) {
+    if (!effectiveProvider) {
       toast.error("请选择支付方式")
       return
     }
@@ -91,8 +90,8 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
       const { data: res } = await postPortalPayments({
         body: {
           order_id: orderId,
-          provider: selectedProvider,
-          method: selectedMethod || undefined,
+          provider: effectiveProvider,
+          method: effectiveMethod || undefined,
         },
       })
       if (res?.code !== 0) {
@@ -199,8 +198,8 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
               ) : (
                 <PaymentMethodGrid
                   methods={methods}
-                  selectedProvider={selectedProvider}
-                  selectedMethod={selectedMethod}
+                  selectedProvider={effectiveProvider}
+                  selectedMethod={effectiveMethod}
                   onSelect={(p, m) => { setSelectedProvider(p); setSelectedMethod(m) }}
                 />
               )}
@@ -209,7 +208,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
 
           <Button
             className="w-full"
-            disabled={submitting || (payMode === "online" && !selectedProvider)}
+            disabled={submitting || (payMode === "online" && !effectiveProvider)}
             onClick={payMode === "balance" ? handleBalancePay : handleOnlinePay}
           >
             {submitting ? (

@@ -9,6 +9,7 @@ import {
   deleteAdminNodeGroupsById,
 } from "@/api"
 import type { NodeGroupNodeGroupItem } from "@/api"
+import { getAdminNodeGroupsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import NodeGroupFormDialog from "../node-groups/node-group-form-dialog"
@@ -41,7 +42,7 @@ export default function NodeGroups() {
     }
   }, [])
 
-  const table = useDataTable({ fetchFn: fetchGroups, filterKeys: ["name"] })
+  const table = useDataTable({ fetchFn: fetchGroups, queryKey: getAdminNodeGroupsQueryKey(), filterKeys: ["name"] })
 
   const handleCreate = () => {
     setEditing(undefined)
@@ -160,6 +161,7 @@ export default function NodeGroups() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

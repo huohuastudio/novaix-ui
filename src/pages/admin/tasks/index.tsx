@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import { toast } from "sonner"
 import {
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { getAdminTasks, getAdminTasksStats, deleteAdminTasksFinished } from "@/api"
 import type { TaskTaskItem, TaskStatsResponse } from "@/api"
+import { getAdminTasksQueryKey, getAdminTasksStatsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
@@ -94,7 +96,6 @@ export default function Tasks() {
   useBreadcrumb([{ label: "任务管理" }])
   const formatDate = useFormatDate()
 
-  const [stats, setStats] = useState<TaskStatsResponse>()
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [clearing, setClearing] = useState(false)
 
@@ -127,36 +128,26 @@ export default function Tasks() {
     }
   }, [])
 
+  // 自动刷新开启时后台静默轮询当前页，避免卸载已展开的实时日志面板
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminTasksQueryKey(),
     filterKeys: ["status", "type", "node_id", "instance_id"],
+    refetchInterval: autoRefresh ? AUTO_REFRESH_INTERVAL : false,
   })
 
-  const fetchStats = useCallback(async () => {
-    try {
+  // 任务统计：与列表共用自动刷新开关，统计失败不打断主流程（query 内部吞错并保留旧数据）
+  const statsQuery = useQuery({
+    queryKey: getAdminTasksStatsQueryKey(),
+    queryFn: async () => {
       const { data: res } = await getAdminTasksStats()
-      if (res?.data) setStats(res.data)
-    } catch {
-      // 统计失败不打断主流程
-    }
-  }, [])
+      return res?.data ?? null
+    },
+    refetchInterval: autoRefresh ? AUTO_REFRESH_INTERVAL : false,
+  })
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载任务统计
-    void fetchStats()
-  }, [fetchStats])
-
-  // 自动刷新：静默刷新列表与统计，避免卸载已展开的实时日志面板
-  const { refresh, refreshSilent } = table
-  useEffect(() => {
-    if (!autoRefresh) return
-    const id = setInterval(() => {
-      refreshSilent()
-      void fetchStats()
-    }, AUTO_REFRESH_INTERVAL)
-    return () => clearInterval(id)
-  }, [autoRefresh, refreshSilent, fetchStats])
-
+  const { refresh } = table
+  const { refetch: refetchStats } = statsQuery
   const handleClear = useCallback(async () => {
     setClearing(true)
     try {
@@ -164,7 +155,7 @@ export default function Tasks() {
       if (res?.code === 0) {
         toast.success("已清理 30 天前的已完成任务日志")
         refresh()
-        void fetchStats()
+        void refetchStats()
       } else {
         toast.error(res?.message ?? "清理失败")
       }
@@ -173,7 +164,7 @@ export default function Tasks() {
     } finally {
       setClearing(false)
     }
-  }, [refresh, fetchStats])
+  }, [refresh, refetchStats])
 
   const columns: ColumnDef<TaskTaskItem>[] = useMemo(() => [
     {
@@ -289,12 +280,13 @@ export default function Tasks() {
         <p className="mt-1 text-sm text-muted-foreground">查看系统异步任务的执行状态与日志，点击任意行展开查看实时日志</p>
       </div>
 
-      <StatCards stats={stats} />
+      <StatCards stats={statsQuery.data ?? undefined} />
 
       <DataTable
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

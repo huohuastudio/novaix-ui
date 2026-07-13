@@ -45,14 +45,15 @@ const schema = z.object({
   phone: z.string().max(20).regex(/^\d*$/, "手机号只能是数字"),
   password: z.string().max(72).optional().default(""),
   role: z.enum(["admin", "agent", "user"]),
-  status: z.coerce.number().int(),
+  status: z.coerce.number<number | string>().int(),
   parent_id: z.string(),
-  commission_rate: z.coerce.number().int().min(0).max(100),
-  commission_rate_recurring: z.coerce.number().int().min(0).max(100),
+  commission_rate: z.coerce.number<number | string>().int().min(0).max(100),
+  commission_rate_recurring: z.coerce.number<number | string>().int().min(0).max(100),
   agent_group_id: z.string(),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormValues = z.output<typeof schema>
 
 export function ProfileTab({
   user,
@@ -76,9 +77,8 @@ export function ProfileTab({
     ? { id: String(user.agent_group_id), label: summary.agent_group_name || `分组 #${user.agent_group_id}` }
     : undefined
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: {
       username: user.username ?? "",
       email: user.email ?? "",

@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import { putAdminInstancesById } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
-import { handleServerErrors } from "@/lib/form-utils"
+import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { instanceFormSchema, fieldNames, buildUpdateBody, instanceToFormValues } from "@/pages/admin/instances/schema"
 import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { Button } from "@/components/ui/button"
@@ -36,8 +36,7 @@ interface InstanceEditInlineProps {
 
 export function InstanceEditInline({ instanceId, instance, onSuccess }: InstanceEditInlineProps) {
   const form = useForm<InstanceFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(instanceFormSchema) as any,
+    resolver: zodResolver(instanceFormSchema),
     defaultValues: instanceToFormValues(instance),
   })
 
@@ -48,11 +47,9 @@ export function InstanceEditInline({ instanceId, instance, onSuccess }: Instance
   const onSubmit = async (values: InstanceFormValues) => {
     const body = buildUpdateBody(values)
     const result = await putAdminInstancesById({ path: { id: instanceId }, body })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = result.data ?? (result as any).error
+    const res = unwrapResponse(result)
     if (res?.code !== 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      handleServerErrors<InstanceFormValues>(res as any, {
+      handleServerErrors(res, {
         setError: form.setError,
         fieldNames,
       })

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAdminCoupons, deleteAdminCouponsById } from "@/api"
 import type { CouponCouponItem } from "@/api"
+import { getAdminCouponsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
@@ -51,6 +52,7 @@ function CouponList() {
 
   const table = useDataTable({
     fetchFn: fetchData,
+    queryKey: getAdminCouponsQueryKey(),
     filterKeys: ["code", "enabled"],
   })
 
@@ -212,6 +214,7 @@ function CouponList() {
         columns={columns}
         data={table.data}
         loading={table.loading}
+        fetching={table.fetching}
         error={table.error}
         pagination={table.pagination}
         onPaginationChange={table.setPagination}

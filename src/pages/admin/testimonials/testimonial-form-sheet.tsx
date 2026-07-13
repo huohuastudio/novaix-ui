@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminTestimonials, putAdminTestimonialsById } from "@/api"
@@ -32,12 +32,13 @@ const formSchema = z.object({
   company: z.string().max(255, "公司名不能超过 255 个字符").optional().or(z.literal("")),
   position: z.string().max(255, "职位不能超过 255 个字符").optional().or(z.literal("")),
   content: z.string().min(1, "评价内容不能为空").max(2000, "评价内容不能超过 2000 个字符"),
-  rating: z.coerce.number().int().min(1).max(5),
-  status: z.coerce.number().int(),
-  sort_order: z.coerce.number().int().min(0, "排序权重不能为负数"),
+  rating: z.coerce.number<number | string>().int().min(1).max(5),
+  status: z.coerce.number<number | string>().int(),
+  sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   name: "",
@@ -52,7 +53,7 @@ const defaultValues: FormValues = {
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
-function TestimonialFormFields({ form }: { form: ReturnType<typeof useForm<FormValues>> }) {
+function TestimonialFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
     <>
       <FormField
@@ -197,9 +198,8 @@ export function TestimonialCreateSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 
@@ -276,9 +276,8 @@ export function TestimonialEditSheet({
 }) {
   const [serverError, setServerError] = useState("")
 
-  const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   })
 

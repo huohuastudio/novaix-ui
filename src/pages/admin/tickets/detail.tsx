@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, Lock, Send, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  getAdminTicketsById,
   putAdminTicketsById,
   postAdminTicketsByIdReply,
 } from "@/api"
-import type { TicketTicketDetailResponse, TicketReplyItem } from "@/api"
+import type { TicketReplyItem } from "@/api"
+import {
+  getAdminTicketsByIdOptions,
+  getAdminTicketsByIdQueryKey,
+  getAdminTicketsQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -116,32 +121,30 @@ export default function TicketDetail() {
   const navigate = useNavigate()
   const adminPath = useAdminPath()
   const formatDate = useFormatDate()
-  const [ticket, setTicket] = useState<TicketTicketDetailResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [replyContent, setReplyContent] = useState("")
   const [isInternal, setIsInternal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const threadEndRef = useRef<HTMLDivElement>(null)
   const { departments, staffUsers } = useTicketMeta()
 
+  const ticketQuery = useQuery({
+    ...getAdminTicketsByIdOptions({ path: { id: Number(id) } }),
+    enabled: !!id,
+  })
+  const ticket = ticketQuery.data?.data ?? null
+  const loading = ticketQuery.isPending
+
   useBreadcrumb([
     { label: "工单管理", href: `${adminPath}/tickets` },
     { label: ticket ? `#${ticket.id} ${ticket.subject}` : "详情" },
   ])
 
-  const fetchTicket = useCallback(async () => {
-    if (!id) return
-    try {
-      const { data: res } = await getAdminTicketsById({ path: { id: Number(id) } })
-      if (res?.data) setTicket(res.data)
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    fetchTicket()
-  }, [fetchTicket])
+  // 操作成功后刷新工单详情缓存，并失效工单列表的全部分页缓存
+  const fetchTicket = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getAdminTicketsByIdQueryKey({ path: { id: Number(id) } }) })
+    queryClient.invalidateQueries({ queryKey: getAdminTicketsQueryKey() })
+  }, [queryClient, id])
 
   useEffect(() => {
     if (!loading && ticket) {
@@ -154,48 +157,47 @@ export default function TicketDetail() {
     if (!ticket) return
     try {
       await putAdminTicketsById({ path: { id: ticket.id! }, body: { status } })
-      setTicket(prev => prev ? { ...prev, status } : prev)
+      fetchTicket()
       toast.success("状态已更新")
     } catch (err) {
       toast.error(getErrorMessage(err, "更新失败"))
     }
-  }, [ticket])
+  }, [ticket, fetchTicket])
 
   const handlePriorityChange = useCallback(async (priority: string) => {
     if (!ticket) return
     try {
       await putAdminTicketsById({ path: { id: ticket.id! }, body: { priority: Number(priority) } })
-      setTicket(prev => prev ? { ...prev, priority: Number(priority) } : prev)
+      fetchTicket()
       toast.success("优先级已更新")
     } catch (err) {
       toast.error(getErrorMessage(err, "更新失败"))
     }
-  }, [ticket])
+  }, [ticket, fetchTicket])
 
   const handleDepartmentChange = useCallback(async (department: string) => {
     if (!ticket) return
     const value = department === "__none__" ? "" : department
     try {
       await putAdminTicketsById({ path: { id: ticket.id! }, body: { department: value } })
-      setTicket(prev => prev ? { ...prev, department: value } : prev)
+      fetchTicket()
       toast.success("部门已更新")
     } catch (err) {
       toast.error(getErrorMessage(err, "更新失败"))
     }
-  }, [ticket])
+  }, [ticket, fetchTicket])
 
   const handleAssigneeChange = useCallback(async (assigneeId: string) => {
     if (!ticket) return
     const id = assigneeId === "__none__" ? 0 : Number(assigneeId)
     try {
       await putAdminTicketsById({ path: { id: ticket.id! }, body: { assignee_id: id } })
-      const user = staffUsers.find(u => u.id === id)
-      setTicket(prev => prev ? { ...prev, assignee_id: id, assignee_name: user?.username ?? "" } : prev)
+      fetchTicket()
       toast.success("指派人已更新")
     } catch (err) {
       toast.error(getErrorMessage(err, "更新失败"))
     }
-  }, [ticket, staffUsers])
+  }, [ticket, fetchTicket])
 
   const handleReply = useCallback(async () => {
     if (!ticket || !replyContent.trim() || replyContent === "<p></p>") {
