@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import type { Upload } from "tus-js-client"
+import CodeMirror from "@uiw/react-codemirror"
+import { yaml } from "@codemirror/lang-yaml"
 import { postAdminImages, putAdminImagesById } from "@/api"
 import type { ImageImageItem, ImageGroupItem, ImageCreateRequest, ImageUpdateRequest } from "@/api"
 import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
@@ -12,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Form,
   FormControl,
@@ -29,19 +30,26 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TusUploader } from "@/components/tus-uploader"
 import { ImageSelector, type ImageSelectInfo } from "@/components/image-selector"
+import { FormSheet } from "@/components/form-sheet"
+import { HelpLink } from "@/components/help-doc"
 import { getErrorMessage } from "@/lib/utils"
 
-const OS_OPTIONS = ["Ubuntu", "Debian", "CentOS", "Rocky Linux", "AlmaLinux", "Alpine", "Fedora", "Arch Linux", "openSUSE"]
+const yamlExtensions = [yaml()]
+const yamlBasicSetup = { lineNumbers: true, foldGutter: false, autocompletion: false }
+
+const tabContentCls = "mt-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4"
+
+const OS_OPTIONS = ["Ubuntu", "Debian", "CentOS", "Rocky Linux", "AlmaLinux", "Alpine", "Fedora", "Arch Linux", "openSUSE", "Windows", "Windows Server"]
 
 const osLabelMap: Record<string, string> = {
   ubuntu: "Ubuntu",
@@ -81,6 +89,7 @@ const imageBaseSchema = z.object({
   disk_mode: z.string(),
   cpu_mode: z.string(),
   boot_mode: z.string(),
+  tpm: z.boolean(),
   hidden: z.boolean(),
 })
 
@@ -114,13 +123,14 @@ const CPU_MODE_OPTIONS = [
 
 // normalizeImageValues 将表单值中的分组/模式哨兵值（"0"/"default"）归一化为后端请求字段
 function normalizeImageValues(values: ImageBaseValues, isEdit: boolean): Record<string, unknown> {
-  const { group_id, boot_script, disk_mode, cpu_mode, boot_mode, hidden, ...rest } = values
+  const { group_id, boot_script, disk_mode, cpu_mode, boot_mode, tpm, hidden, ...rest } = values
   const out: Record<string, unknown> = {
     ...rest,
     boot_script: boot_script || "",
     disk_mode: disk_mode === "default" ? "" : disk_mode,
     cpu_mode: cpu_mode === "default" ? "" : cpu_mode,
     boot_mode: boot_mode === "default" ? "" : boot_mode,
+    tpm,
     hidden,
   }
   const gid = Number(group_id)
@@ -156,7 +166,7 @@ type LocalFormValues = z.infer<typeof localSchema>
 
 const extraDefaults = {
   min_disk: 0, min_memory: 0, default_user: "root", cloud_init: true, description: "", status: 1,
-  group_id: "0", boot_script: "", disk_mode: "default", cpu_mode: "default", boot_mode: "default", hidden: false,
+  group_id: "0", boot_script: "", disk_mode: "default", cpu_mode: "default", boot_mode: "default", tpm: false, hidden: false,
 }
 
 const libraryDefaults: LibraryFormValues = {
@@ -197,7 +207,7 @@ function CoreFields({ form }: { form: ImageBaseForm }) {
           <FormMessage />
         </FormItem>
       )} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField control={form.control} name="os" render={({ field }) => (
           <FormItem>
             <FormLabel required>操作系统</FormLabel>
@@ -218,7 +228,7 @@ function CoreFields({ form }: { form: ImageBaseForm }) {
           </FormItem>
         )} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField control={form.control} name="arch" render={({ field }) => (
           <FormItem>
             <FormLabel>架构</FormLabel>
@@ -251,7 +261,7 @@ function CoreFields({ form }: { form: ImageBaseForm }) {
 function ExtraFields({ form }: { form: ImageBaseForm }) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField control={form.control} name="min_disk" render={({ field }) => (
           <FormItem>
             <FormLabel>最小磁盘 (GB)</FormLabel>
@@ -327,13 +337,24 @@ function AdvancedFields({ form, groups }: { form: ImageBaseForm; groups: ImageGr
       <FormField control={form.control} name="boot_script" render={({ field }) => (
         <FormItem>
           <FormLabel>开机脚本</FormLabel>
-          <FormControl><Textarea rows={4} placeholder={"#cloud-config 格式，例如：\nruncmd:\n  - echo hello > /root/init.log"} className="font-mono text-xs" {...field} /></FormControl>
+          <FormControl>
+            <div className="rounded-md border overflow-hidden">
+              <CodeMirror
+                value={field.value}
+                onChange={field.onChange}
+                extensions={yamlExtensions}
+                height="140px"
+                placeholder={"#cloud-config 格式，例如：\nruncmd:\n  - echo hello > /root/init.log"}
+                basicSetup={yamlBasicSetup}
+              />
+            </div>
+          </FormControl>
           <p className="text-xs text-muted-foreground">cloud-config 格式，开通实例时与 SSH 公钥合并注入（需镜像启用 Cloud-Init）</p>
           <FormMessage />
         </FormItem>
       )} />
-      {isVM && (
-        <div className="grid grid-cols-3 gap-4">
+      {isVM && (<>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FormField control={form.control} name="boot_mode" render={({ field }) => (
             <FormItem>
               <FormLabel>启动模式</FormLabel>
@@ -371,7 +392,18 @@ function AdvancedFields({ form, groups }: { form: ImageBaseForm; groups: ImageGr
             </FormItem>
           )} />
         </div>
-      )}
+        <FormField control={form.control} name="tpm" render={({ field }) => (
+          <FormItem className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <FormLabel className="!mt-0 inline-flex items-center gap-1">TPM 2.0 <HelpLink path="/novaix/image#windows" /></FormLabel>
+              <p className="text-xs text-muted-foreground">启用虚拟 TPM 设备，Windows 11 和 Windows Server 2025 需要</p>
+            </div>
+            <FormControl>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )} />
+      </>)}
       <FormField control={form.control} name="hidden" render={({ field }) => (
         <FormItem className="flex items-center justify-between rounded-lg border p-3">
           <div className="space-y-0.5">
@@ -491,21 +523,21 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
   const uploadDone = !!uploadId
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg" preventClose>
-        <DialogHeader>
-          <DialogTitle>添加镜像</DialogTitle>
-          <DialogDescription>添加操作系统镜像到全局目录</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="data-[side=right]:sm:max-w-[min(80vw,1100px)] flex flex-col gap-0 overflow-hidden" showCloseButton={false}>
+        <SheetHeader>
+          <SheetTitle>添加镜像</SheetTitle>
+          <SheetDescription>添加操作系统镜像到全局目录</SheetDescription>
+        </SheetHeader>
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="w-full shrink-0">
+          <TabsList className="mx-4 shrink-0">
             <TabsTrigger value="library" className="flex-1">镜像库</TabsTrigger>
             <TabsTrigger value="url" className="flex-1">远程下载</TabsTrigger>
             <TabsTrigger value="upload" className="flex-1">上传镜像</TabsTrigger>
             <TabsTrigger value="local" className="flex-1">本地路径</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="library" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-4">
+          <TabsContent value="library" className={tabContentCls}>
             <Form {...libraryForm}>
               <form className="flex flex-col gap-4">
                 <FormField control={libraryForm.control} name="alias" render={({ field }) => (
@@ -538,7 +570,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
             </Form>
           </TabsContent>
 
-          <TabsContent value="url" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-4">
+          <TabsContent value="url" className={tabContentCls}>
             <Form {...urlForm}>
               <form className="flex flex-col gap-4">
                 <FormField control={urlForm.control} name="source_url" render={({ field }) => (
@@ -556,7 +588,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
             </Form>
           </TabsContent>
 
-          <TabsContent value="upload" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-4">
+          <TabsContent value="upload" className={tabContentCls}>
             <div className="flex flex-col gap-4">
               {/* eslint-disable-next-line react-hooks/refs */}
               {uploading && fileRef.current ? (
@@ -601,7 +633,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
             </div>
           </TabsContent>
 
-          <TabsContent value="local" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-4">
+          <TabsContent value="local" className={tabContentCls}>
             <Form {...localForm}>
               <form className="flex flex-col gap-4">
                 <FormField control={localForm.control} name="local_path" render={({ field }) => (
@@ -619,7 +651,7 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
             </Form>
           </TabsContent>
         </Tabs>
-        <DialogFooter className="shrink-0">
+        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-end gap-3">
           {tab === "library" && (
             <Button onClick={libraryForm.handleSubmit(onSubmitLibrary)} disabled={libraryForm.formState.isSubmitting}>
               {libraryForm.formState.isSubmitting ? "提交中..." : "创建"}
@@ -640,9 +672,9 @@ function CreateImageForm({ open, onOpenChange, onSuccess, groups }: {
               {localForm.formState.isSubmitting ? "提交中..." : "创建"}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -690,6 +722,7 @@ function EditImageForm({ open, onOpenChange, image, onSuccess, groups }: {
         disk_mode: image.disk_mode || "default",
         cpu_mode: image.cpu_mode || "default",
         boot_mode: image.boot_mode || "default",
+        tpm: image.tpm ?? false,
         hidden: image.hidden ?? false,
       })
     }
@@ -714,28 +747,25 @@ function EditImageForm({ open, onOpenChange, image, onSuccess, groups }: {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg" preventClose>
-        <DialogHeader>
-          <DialogTitle>编辑镜像</DialogTitle>
-          <DialogDescription>修改镜像元数据</DialogDescription>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <Form {...form}>
-            <form className="flex flex-col gap-4">
-              <CoreFields form={asImageBaseForm(form)} />
-              <ExtraFields form={asImageBaseForm(form)} />
-              <AdvancedFields form={asImageBaseForm(form)} groups={groups} />
-            </form>
-          </Form>
-        </div>
-        <DialogFooter className="shrink-0">
-          <Button onClick={form.handleSubmit(onSubmit)} disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "保存中..." : "保存"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="编辑镜像"
+      description="修改镜像元数据"
+      footer={
+        <Button onClick={form.handleSubmit(onSubmit)} disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "保存中..." : "保存"}
+        </Button>
+      }
+    >
+      <Form {...form}>
+        <form className="flex flex-col gap-4 pb-4">
+          <CoreFields form={asImageBaseForm(form)} />
+          <ExtraFields form={asImageBaseForm(form)} />
+          <AdvancedFields form={asImageBaseForm(form)} groups={groups} />
+        </form>
+      </Form>
+    </FormSheet>
   )
 }
 

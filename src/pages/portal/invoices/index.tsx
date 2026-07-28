@@ -26,7 +26,6 @@ import {
 } from '@/api/@tanstack/react-query.gen'
 
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
-import { useBreadcrumb } from '@/hooks/use-breadcrumb'
 import { useConfirm } from '@/hooks/use-confirm'
 
 import { SimplePagination } from '@/components/simple-pagination'
@@ -78,7 +77,6 @@ export default function PortalInvoices() {
   const queryClient = useQueryClient()
   const { confirm, ConfirmDialog } = useConfirm()
 
-  useBreadcrumb([{ label: '发票' }])
   useDocumentTitle(`发票 - ${siteName}`)
 
   const [activeTab, setActiveTab] = useState('apply')

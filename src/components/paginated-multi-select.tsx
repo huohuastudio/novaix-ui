@@ -110,22 +110,26 @@ export function PaginatedMultiSelect({
           className="h-auto min-h-9 w-full justify-start font-normal"
         >
           {selectedItems.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {selectedItems.map((item) => (
-                <Badge key={item.id} variant="secondary" className="gap-0.5 pr-0.5">
-                  {item.label}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="ml-0.5 rounded-sm p-0.5 hover:bg-muted-foreground/20"
-                    onClick={(e) => handleRemove(item.id, e)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleRemove(item.id, e as unknown as React.MouseEvent) }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </Badge>
-              ))}
-            </div>
+            selectedItems.length <= 2 ? (
+              <div className="flex items-center gap-1 overflow-hidden">
+                {selectedItems.map((item) => (
+                  <Badge key={item.id} variant="secondary" className="gap-0.5 pr-0.5 shrink-0">
+                    {item.label}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="ml-0.5 rounded-sm p-0.5 hover:bg-muted-foreground/20"
+                      onClick={(e) => handleRemove(item.id, e)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleRemove(item.id, e as unknown as React.MouseEvent) }}
+                    >
+                      <X className="size-3" />
+                    </span>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm">已选 {selectedItems.length} 项</span>
+            )
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}

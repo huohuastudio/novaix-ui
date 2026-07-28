@@ -299,7 +299,34 @@ export default function PortalOrderDetail() {
             {order.remark && (
               <InfoRow label="备注" value={order.remark} />
             )}
-            {!!order.instance_id && (
+            {order.instances && order.instances.length > 0 ? (
+              <div className="px-5 py-3.5 space-y-2">
+                <span className="text-[13px] text-muted-foreground">关联云服务器（{order.quantity} 台）</span>
+                {order.instances.map((slot) => (
+                  <div key={slot.instance_index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">#{slot.instance_index}</span>
+                      {slot.instance_id ? (
+                        <span className="text-[13px]">{slot.instance_name}</span>
+                      ) : (
+                        <span className="text-[13px] text-muted-foreground">
+                          {slot.status === "failed" ? "创建失败" : "开通中..."}
+                        </span>
+                      )}
+                    </div>
+                    {slot.instance_id && (
+                      <Link
+                        to={`/portal/servers/${slot.instance_id}`}
+                        className="text-[13px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <Server className="size-3" />
+                        查看
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : !!order.instance_id && (
               <div className="flex items-center justify-between px-5 py-3.5">
                 <span className="text-[13px] text-muted-foreground">关联云服务器</span>
                 <Link

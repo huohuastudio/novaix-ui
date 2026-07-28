@@ -79,16 +79,6 @@ function DialogContent({
     [preventClose, triggerShake, onPointerDownOutsideProp],
   )
 
-  const handleEscapeKeyDown = React.useCallback(
-    (e: Event) => {
-      onEscapeKeyDownProp?.(e as never)
-      if (!preventClose) return
-      e.preventDefault()
-      triggerShake()
-    },
-    [preventClose, triggerShake, onEscapeKeyDownProp],
-  )
-
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -101,7 +91,7 @@ function DialogContent({
           className
         )}
         onPointerDownOutside={handlePointerDownOutside}
-        onEscapeKeyDown={handleEscapeKeyDown}
+        onEscapeKeyDown={onEscapeKeyDownProp}
         {...props}
       >
         {children}

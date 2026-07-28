@@ -66,22 +66,26 @@ export function MultiSelect({
           className="min-h-8 h-auto w-full justify-start font-normal"
         >
           {selected.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {selected.map((item) => (
-                <Badge key={item.value} variant="secondary" className="gap-0.5 pr-0.5">
-                  {item.label}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="ml-0.5 rounded-sm p-0.5 hover:bg-muted-foreground/20"
-                    onClick={(e) => handleRemove(item.value, e)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleRemove(item.value, e as unknown as React.MouseEvent) }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </Badge>
-              ))}
-            </div>
+            selected.length <= 2 ? (
+              <div className="flex items-center gap-1 overflow-hidden">
+                {selected.map((item) => (
+                  <Badge key={item.value} variant="secondary" className="gap-0.5 pr-0.5 shrink-0">
+                    {item.label}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="ml-0.5 rounded-sm p-0.5 hover:bg-muted-foreground/20"
+                      onClick={(e) => handleRemove(item.value, e)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleRemove(item.value, e as unknown as React.MouseEvent) }}
+                    >
+                      <X className="size-3" />
+                    </span>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm">已选 {selected.length} 项</span>
+            )
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}

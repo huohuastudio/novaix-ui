@@ -261,8 +261,35 @@ export default function OrderDetail() {
             </Link>
             <span className="text-muted-foreground text-xs ml-1">(ID: {order.user_id})</span>
           </KV>
+          {(order.quantity ?? 1) > 1 && <KV label="数量">{order.quantity} 台</KV>}
           <KV label="关联实例">
-            {order.instance ? (
+            {order.instances && order.instances.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {order.instances.map((slot) => (
+                  <div key={slot.instance_index} className="flex items-center gap-1.5 text-sm">
+                    <span className="text-muted-foreground text-xs w-5">#{slot.instance_index}</span>
+                    {slot.instance_id ? (
+                      <Link to={`${adminPath}/instances/${slot.instance_id}`} className="text-primary hover:underline">
+                        {slot.instance_name}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                    <Badge
+                      variant={slot.status === "completed" ? "default" : slot.status === "failed" ? "destructive" : "secondary"}
+                      className="text-[10px] px-1 py-0"
+                    >
+                      {slot.status === "completed" ? "已完成" : slot.status === "failed" ? "失败" : "开通中"}
+                    </Badge>
+                    {slot.instance_id && slot.instance_status && instanceStatusMap[slot.instance_status] && (
+                      <Badge variant={instanceStatusMap[slot.instance_status].variant} className="text-[10px] px-1 py-0">
+                        {instanceStatusMap[slot.instance_status].label}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : order.instance ? (
               <Link to={`${adminPath}/instances/${order.instance.id}`} className="text-primary hover:underline">
                 {order.instance.name}
                 {instanceStatusMap[order.instance.status ?? ""] && (

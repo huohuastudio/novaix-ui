@@ -1,14 +1,24 @@
-import { useCallback, useMemo, useState } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getAdminInstances, postAdminInstancesByIdRenew } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
 import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useInstanceActions } from "@/hooks/use-instance-actions"
+import { useBatchActions, type BatchAction } from "@/hooks/use-batch-actions"
 import { useConfirm as useConfirmRenew } from "@/hooks/use-confirm"
 import InstanceRetryDialog from "@/components/instance-retry-dialog"
 import { InstanceEditSheet } from "@/components/instance-edit-sheet"
@@ -16,7 +26,7 @@ import { InstanceActionCell } from "@/components/instance-action-cell"
 import { statusMap, statusFilterOptions, typeFilterOptions } from "@/lib/instance-constants"
 import { NodePopover } from "@/components/node-popover"
 import { EmptyState } from "@/components/empty-state"
-import { MonitorCog } from "lucide-react"
+import { MonitorCog, Play, Square, RotateCw, ChevronDown, X } from "lucide-react"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -31,6 +41,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
   const [retryInstance, setRetryInstance] = useState<InstanceInstanceItem | null>(null)
   const { confirm: confirmRenew, ConfirmDialog: RenewConfirmDialog } = useConfirmRenew()
   const [editInstanceId, setEditInstanceId] = useState<number | null>(null)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   const fetchInstances = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
     const sort = sorting[0]?.id as "id" | "name" | "status" | "type" | "cpu" | "memory" | "created_at" | undefined
@@ -64,6 +75,16 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
 
   const { handleDelete, handlePowerAction, loadingId, ConfirmDialog } = useInstanceActions(table.refresh)
 
+  const { refresh } = table
+  const onBatchSuccess = useCallback(() => {
+    setRowSelection({})
+    refresh()
+  }, [refresh])
+  const { handleBatchAction, loading: batchLoading, ConfirmDialog: BatchConfirmDialog } = useBatchActions(onBatchSuccess)
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 分页/筛选/排序变化时清除选中状态
+  useEffect(() => { setRowSelection({}) }, [table.pagination, table.columnFilters, table.sorting])
+
   const handleRenew = useCallback(async (inst: InstanceInstanceItem) => {
     const cycle = inst.billing_cycle || "monthly"
     if (cycle === "hourly") {
@@ -93,7 +114,78 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
     }
   }, [confirmRenew, table])
 
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).map(Number),
+    [rowSelection],
+  )
+
+  const handleBatch = useCallback(
+    (action: BatchAction) => handleBatchAction(selectedIds, action),
+    [selectedIds, handleBatchAction],
+  )
+
+  const primaryActions = [
+    { action: "start" as BatchAction, icon: Play, label: "启动" },
+    { action: "stop" as BatchAction, icon: Square, label: "停止" },
+    { action: "restart" as BatchAction, icon: RotateCw, label: "重启" },
+  ]
+
+  const batchToolbar = selectedIds.length > 0 ? (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground whitespace-nowrap">
+        已选 {selectedIds.length} 项
+      </span>
+      {primaryActions.map(({ action, icon: Icon, label }) => (
+        <Button key={action} size="sm" variant="outline" disabled={batchLoading} className="hidden sm:inline-flex" onClick={() => handleBatch(action)}>
+          <Icon className="size-4" />{label}
+        </Button>
+      ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" disabled={batchLoading}>
+            <span className="sm:hidden">操作</span>
+            <span className="hidden sm:inline">更多</span>
+            <ChevronDown className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {primaryActions.map(({ action, label }) => (
+            <DropdownMenuItem key={action} className="sm:hidden" onClick={() => handleBatch(action)}>{label}</DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator className="sm:hidden" />
+          <DropdownMenuItem onClick={() => handleBatch("freeze")}>冻结</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleBatch("unfreeze")}>解冻</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleBatch("force-stop")}>强制停止</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-destructive" onClick={() => handleBatch("delete")}>删除</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
+        <X className="size-4" />
+      </Button>
+    </div>
+  ) : toolbar
+
   const columns: ColumnDef<InstanceInstanceItem>[] = useMemo(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="全选"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="选择行"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+    },
     {
       accessorKey: "id",
       header: "ID",
@@ -209,8 +301,12 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
-        toolbar={toolbar}
+        toolbar={batchToolbar}
         tourId={tourId}
+        getRowId={(row) => String(row.id)}
+        enableRowSelection
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
         emptyState={
           <EmptyState
             icon={MonitorCog}
@@ -220,6 +316,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         }
       />
       {ConfirmDialog}
+      {BatchConfirmDialog}
       {RenewConfirmDialog}
       <InstanceRetryDialog
         instance={retryInstance}

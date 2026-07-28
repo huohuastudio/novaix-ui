@@ -64,9 +64,12 @@ export default function PortalPurchase() {
   )
   const [showPassword, setShowPassword] = useState(false)
   const [selectedKeyId, setSelectedKeyId] = useState<number | null>(null)
+  const [quantity, setQuantity] = useState(1)
   const [couponCode, setCouponCode] = useState('')
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponValidating, setCouponValidating] = useState(false)
+
+  const maxQuantity = Math.min(Number(settings.instance_batch_max_quantity) || 10, 100)
 
   // SSH 密钥列表
   const sshKeysQuery = useQuery(getPortalSshKeysOptions())
@@ -100,6 +103,9 @@ export default function PortalPurchase() {
     ? userImageId
     : images[0]?.id ?? null
 
+  const selectedImage = useMemo(() => images.find(img => img.id === selectedImageId) ?? null, [images, selectedImageId])
+  const isWindows = selectedImage?.os?.toLowerCase().includes('windows') ?? false
+
   // 切换套餐：清除节点/镜像/周期的用户选择，回到新套餐的默认值
   const selectPlan = (plan: PortalPurchasePlanItem) => {
     setUserPlanId(plan.id ?? null)
@@ -109,12 +115,13 @@ export default function PortalPurchase() {
     setCouponDiscount(0)
   }
 
-  const price = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
+  const unitPrice = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
+  const price = unitPrice * quantity
   const finalPrice = Math.max(0, price - couponDiscount)
   const selectedPlanSoldOut = selectedPlan ? isPlanSoldOut(selectedPlan) : false
 
   const handleApplyCoupon = async () => {
-    if (!couponCode.trim() || price <= 0) return
+    if (!couponCode.trim() || unitPrice <= 0) return
     setCouponValidating(true)
     try {
       const { data: res } = await postPortalCouponsValidate({
@@ -163,6 +170,7 @@ export default function PortalPurchase() {
           billing_cycle: selectedCycle,
           hostname: hostname.trim(),
           password,
+          quantity,
           ...(selectedKeyId ? { ssh_key_id: selectedKeyId } : {}),
           ...(couponDiscount > 0 && couponCode ? { coupon_code: couponCode.trim() } : {}),
         },
@@ -285,7 +293,7 @@ export default function PortalPurchase() {
       {/* 计费周期 */}
       <div className="space-y-4" data-tour="purchase-cycle">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">计费周期</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(['hourly', 'monthly', 'quarterly', 'yearly'] as BillingCycle[]).map((cycle) => {
             const active = cycle === selectedCycle
             const cyclePrice = selectedPlan ? getPlanPrice(selectedPlan, cycle) : 0
@@ -370,13 +378,57 @@ export default function PortalPurchase() {
         </div>
       )}
 
+      {/* 数量 */}
+      <div className="space-y-4">
+        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">购买数量</h2>
+        <div className="rounded-2xl bg-background p-6">
+          <div className="flex items-center gap-4 max-w-xs">
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              disabled={quantity <= 1}
+              onClick={() => { setQuantity(q => Math.max(1, q - 1)); setCouponDiscount(0) }}
+            >
+              −
+            </Button>
+            <Input
+              type="number"
+              min={1}
+              max={maxQuantity}
+              value={quantity}
+              onChange={(e) => {
+                const v = Math.max(1, Math.min(maxQuantity, Number(e.target.value) || 1))
+                setQuantity(v)
+                setCouponDiscount(0)
+              }}
+              className="text-center font-semibold"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              disabled={quantity >= maxQuantity}
+              onClick={() => { setQuantity(q => Math.min(maxQuantity, q + 1)); setCouponDiscount(0) }}
+            >
+              +
+            </Button>
+          </div>
+          {quantity > 1 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              单价 {formatAmount(unitPrice)} × {quantity} 台 = {formatAmount(price)}
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* 主机名和密码 */}
       <div className="space-y-4" data-tour="purchase-config">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">基本配置</h2>
         <div className="rounded-2xl bg-background p-6">
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
             <div className="space-y-2">
-              <Label htmlFor="hostname">主机名</Label>
+              <Label htmlFor="hostname">主机名{quantity > 1 && '（基础名）'}</Label>
               <div className="flex gap-2">
                 <Input
                   id="hostname"
@@ -394,9 +446,15 @@ export default function PortalPurchase() {
                   <RefreshCw className="size-4" />
                 </Button>
               </div>
+              {quantity > 1 && hostname.trim() && (
+                <p className="text-xs text-muted-foreground">
+                  将生成：{Array.from({ length: Math.min(quantity, 3) }, (_, i) => `${hostname.trim()}-${i + 1}`).join('、')}
+                  {quantity > 3 && ` … 共 ${quantity} 台`}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">root 密码</Label>
+              <Label htmlFor="password">{isWindows ? 'Administrator 密码' : 'root 密码'}</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -425,6 +483,9 @@ export default function PortalPurchase() {
                   <RefreshCw className="size-4" />
                 </Button>
               </div>
+              {selectedImage && !selectedImage.cloud_init && (
+                <p className="text-xs text-muted-foreground">该镜像不支持自动配置，请在系统安装过程中手动设置密码</p>
+              )}
             </div>
           </div>
           {sshKeys.length > 0 && (
@@ -506,7 +567,7 @@ export default function PortalPurchase() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">
-              {selectedPlan?.name} · {billingCycleMap[selectedCycle]}
+              {selectedPlan?.name} · {billingCycleMap[selectedCycle]}{quantity > 1 && ` × ${quantity} 台`}
             </p>
             {couponDiscount > 0 ? (
               <div className="flex items-baseline gap-2 mt-1">

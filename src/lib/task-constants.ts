@@ -40,6 +40,7 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   add_nat_dedicated_ip: "添加 NAT 独享 IP",
   remove_nat_dedicated_ip: "移除 NAT 独享 IP",
   change_nat_dedicated_ip: "更换 NAT 独享 IP",
+  trial_instance: "试用实例",
 }
 
 export function taskTypeLabel(type: string) {
@@ -51,7 +52,7 @@ export const taskTypeOptions = Object.entries(TASK_TYPE_LABELS).map(
   ([value, label]) => ({ label, value }),
 )
 
-export type TaskStatus = "pending" | "running" | "completed" | "failed"
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "compensation_failed"
 
 type BadgeVariant = "default" | "secondary" | "outline" | "destructive"
 
@@ -60,6 +61,7 @@ export const taskStatusMap: Record<string, { label: string; variant: BadgeVarian
   running: { label: "运行中", variant: "default" },
   completed: { label: "已完成", variant: "secondary" },
   failed: { label: "失败", variant: "destructive" },
+  compensation_failed: { label: "补偿失败", variant: "destructive" },
 }
 
 export function taskStatusLabel(status: string) {

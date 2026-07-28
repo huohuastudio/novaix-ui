@@ -62,6 +62,7 @@ function SelectContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const hasChildren = React.Children.toArray(children).length > 0
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -78,10 +79,12 @@ function SelectContent({
         <SelectPrimitive.Viewport
           className={cn(
             "p-1 flex flex-col gap-0.5",
-            position === "popper" && "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)"
+            position === "popper" && hasChildren && "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)"
           )}
         >
-          {children}
+          {hasChildren ? children : (
+            <div className="py-4 text-center text-sm text-muted-foreground">暂无选项</div>
+          )}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>

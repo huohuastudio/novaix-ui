@@ -253,17 +253,17 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
   return (
     <div className="space-y-1.5">
       {items.map(({ label, data }) => (
-        <div key={label} className="flex items-center gap-2 text-sm">
+        <div key={label} className="flex items-start gap-2 text-sm">
           {data?.success ? (
-            <CheckCircle2 className="size-4 text-green-600 dark:text-green-400 shrink-0" />
+            <CheckCircle2 className="size-4 mt-0.5 text-green-600 dark:text-green-400 shrink-0" />
           ) : (
-            <XCircle className="size-4 text-destructive shrink-0" />
+            <XCircle className="size-4 mt-0.5 text-destructive shrink-0" />
           )}
-          <span className="font-medium">{label}</span>
+          <span className="font-medium shrink-0">{label}</span>
           {data?.success ? (
             <span className="text-muted-foreground">{data.latency}ms</span>
           ) : (
-            <span className="text-destructive text-xs truncate">{data?.message}</span>
+            <span className="text-destructive text-xs min-w-0 break-words">{data?.message}</span>
           )}
         </div>
       ))}

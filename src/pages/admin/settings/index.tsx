@@ -79,7 +79,7 @@ const settingGroups: SettingGroup[] = [
     label: "基础设置",
     tourId: "settings-basic",
     items: [
-      { id: "site", label: "站点信息", description: "站点名称、URL、Logo、Favicon", icon: Globe, component: SiteSection, docPath: "/novaix/setting" },
+      { id: "site", label: "站点信息", description: "站点名称、URL、Logo、Favicon、SEO", icon: Globe, component: SiteSection, docPath: "/novaix/setting" },
       { id: "homepage", label: "首页内容", description: "Hero 区域、功能特性、FAQ、CTA", icon: LayoutDashboard, component: HomepageSection, docPath: "/novaix/setting" },
       { id: "locale", label: "货币与本地化", description: "货币符号、小数位数、时区", icon: Languages, component: LocaleSection, docPath: "/novaix/setting" },
       { id: "legal", label: "服务条款", description: "服务条款与隐私政策", icon: Scale, component: LegalSection, docPath: "/novaix/setting" },

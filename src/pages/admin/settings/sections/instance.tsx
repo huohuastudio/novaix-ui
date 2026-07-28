@@ -88,6 +88,19 @@ export function InstanceSection() {
         </div>
       )}
 
+      <div className="space-y-2">
+        <Label htmlFor="instance_batch_max_quantity">批量创建数量上限</Label>
+        <Input
+          id="instance_batch_max_quantity"
+          type="number"
+          min={1}
+          max={100}
+          value={data.instance_batch_max_quantity ?? "10"}
+          onChange={(e) => update("instance_batch_max_quantity", e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">用户单次下单可创建的最大实例数量，范围 1-100</p>
+      </div>
+
       <div className="pt-2">
         <Button onClick={() => save(data)} disabled={saving}>
           {saving ? "保存中..." : "保存"}

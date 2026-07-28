@@ -54,6 +54,7 @@ const schema = z.object({
   image_id: z.coerce.number<number>().min(1, "请选择镜像"),
   password: z.string().min(6, "密码至少 6 位").max(256),
   hostname: z.string().max(128).optional(),
+  quantity: z.coerce.number<number>().min(1).max(100).default(1),
   ip_id: z.coerce.number<number>().optional(),
   auto_pay: z.boolean().default(true),
 })
@@ -82,6 +83,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
       image_id: 0,
       password: "",
       hostname: "",
+      quantity: 1,
       ip_id: undefined,
       auto_pay: true,
     },
@@ -156,16 +158,18 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
   const selectedPlan = planMap.get(form.watch("plan_id"))
   const billingCycle = form.watch("billing_cycle")
   const autoPay = form.watch("auto_pay")
-  const price = selectedPlan
+  const qty = form.watch("quantity") || 1
+  const unitPrice = selectedPlan
     ? billingCycle === "hourly" ? (selectedPlan as Record<string, number>).price_hourly ?? 0
     : billingCycle === "yearly" ? selectedPlan.price_yearly
     : billingCycle === "quarterly" ? selectedPlan.price_quarterly
     : selectedPlan.price_monthly
     : 0
+  const price = (unitPrice ?? 0) * qty
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
-    const fieldNames = ["user_id", "plan_id", "billing_cycle", "node_id", "image_id", "password", "hostname", "ip_id"] as const
+    const fieldNames = ["user_id", "plan_id", "billing_cycle", "node_id", "image_id", "password", "hostname", "quantity", "ip_id"] as const
     try {
       const { data: res } = await postAdminOrders({
         body: {
@@ -176,6 +180,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
           image_id: values.image_id,
           password: values.password,
           hostname: values.hostname || undefined,
+          quantity: values.quantity,
           ip_id: values.ip_id || undefined,
           auto_pay: values.auto_pay,
         },
@@ -207,7 +212,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
           <SheetTitle>创建新购订单</SheetTitle>
           <SheetDescription>选择用户、套餐、节点和镜像，创建新购订单并开通实例</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-4">
           <Form {...form}>
             <form id="create-order-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
               <FormField
@@ -341,6 +346,25 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>数量</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        {...field}
+                        onChange={(e) => field.onChange(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="ip_id"

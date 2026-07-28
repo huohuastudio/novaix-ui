@@ -10,6 +10,7 @@ export const orderStatusMap: Record<string, { label: string; variant: "default" 
   paid: { label: "已支付", variant: "default" },
   cancelled: { label: "已取消", variant: "secondary" },
   refunded: { label: "已退款", variant: "destructive" },
+  pending_refund: { label: "待退款", variant: "destructive" },
 }
 
 export const orderTypeMap: Record<string, string> = {

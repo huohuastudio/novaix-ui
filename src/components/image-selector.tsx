@@ -9,9 +9,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const DEFAULT_SOURCE = "https://images.linuxcontainers.org"
+
+const imageSources = [
+  { label: "官方源", value: DEFAULT_SOURCE },
+  { label: "南阳理工镜像", value: "https://mirror.nyist.edu.cn/lxc-images/" },
+  { label: "清华大学镜像", value: "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/" },
+]
 
 interface ImageOption {
   alias: string
@@ -122,6 +137,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [activeTab, setActiveTab] = useState("all")
+  const [selectedSource, setSelectedSource] = useState(DEFAULT_SOURCE)
   const tabsListRef = useRef<HTMLDivElement>(null)
 
   const handleTabChange = useCallback((val: string) => {
@@ -155,7 +171,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
 
   const handleSelect = (img: ImageOption) => {
     onChange(img.alias)
-    onServerChange?.("")
+    onServerChange?.(selectedSource === DEFAULT_SOURCE ? "" : selectedSource)
     onProtocolChange?.("simplestreams")
     onImageSelect?.({ alias: img.alias, os: img.os, version: img.version, variant: img.variant, arch: img.arch })
     setOpen(false)
@@ -163,7 +179,7 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
 
   return (
     <>
-      <Button type="button" variant="default" onClick={() => setOpen(true)}>
+      <Button type="button" variant="outline" className="w-fit" onClick={() => setOpen(true)}>
         浏览镜像库
       </Button>
 
@@ -176,7 +192,20 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
             </DialogDescription>
           </DialogHeader>
 
-          <div className="shrink-0">
+          <div className="shrink-0 space-y-3">
+            <Select value={selectedSource} onValueChange={setSelectedSource}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="选择镜像源" />
+              </SelectTrigger>
+              <SelectContent>
+                {imageSources.map((src) => (
+                  <SelectItem key={src.value} value={src.value}>
+                    <span>{src.label}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{src.value}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input

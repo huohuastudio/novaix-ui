@@ -7,6 +7,8 @@ interface SiteSettings {
   site_url: string
   site_logo: string
   site_copyright: string
+  site_description: string
+  site_keywords: string
   site_favicon: string
   currency_code: string
   currency_symbol: string
@@ -28,6 +30,7 @@ interface SiteSettings {
   instance_hostname_suffix_length: string
   instance_auto_password: string
   instance_auto_password_length: string
+  instance_batch_max_quantity: string
   oauth_providers: string
   captcha_enabled: string
   captcha_forms: string
@@ -44,6 +47,8 @@ const defaultSettings: SiteSettings = {
   site_url: "",
   site_logo: "",
   site_copyright: "",
+  site_description: "",
+  site_keywords: "",
   site_favicon: "",
   currency_code: "CNY",
   currency_symbol: "¥",
@@ -65,6 +70,7 @@ const defaultSettings: SiteSettings = {
   instance_hostname_suffix_length: "8",
   instance_auto_password: "true",
   instance_auto_password_length: "16",
+  instance_batch_max_quantity: "10",
   oauth_providers: "",
   captcha_enabled: "false",
   captcha_forms: "",
@@ -74,6 +80,20 @@ const defaultSettings: SiteSettings = {
   invoice_enabled: "false",
   edition: "free",
   features: "[]",
+}
+
+function setOrRemoveMeta(name: string, content: string) {
+  let el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+  if (content) {
+    if (!el) {
+      el = document.createElement("meta")
+      el.name = name
+      document.head.appendChild(el)
+    }
+    el.content = content
+  } else {
+    el?.remove()
+  }
 }
 
 const SiteSettingsContext = createContext<SiteSettings>(defaultSettings)
@@ -119,6 +139,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       document.title = settings.site_name
     }
   }, [settings.site_name])
+
+  useEffect(() => {
+    setOrRemoveMeta("description", settings.site_description)
+    setOrRemoveMeta("keywords", settings.site_keywords)
+  }, [settings.site_description, settings.site_keywords])
 
   if (!loaded) return null
 

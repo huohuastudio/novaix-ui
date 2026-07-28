@@ -2,6 +2,7 @@ import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { SettingSkeleton } from "./setting-skeleton"
 
 export function SiteSection() {
@@ -51,6 +52,29 @@ export function SiteSection() {
           onChange={(e) => update("site_favicon", e.target.value)}
           placeholder="https://example.com/favicon.ico"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="site_description">站点描述</Label>
+        <Textarea
+          id="site_description"
+          value={data.site_description ?? ""}
+          onChange={(e) => update("site_description", e.target.value)}
+          placeholder="一句话介绍您的站点，用于搜索引擎展示"
+          rows={2}
+        />
+        <p className="text-xs text-muted-foreground">搜索引擎结果中显示的描述文字（meta description）</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="site_keywords">站点关键词</Label>
+        <Input
+          id="site_keywords"
+          value={data.site_keywords ?? ""}
+          onChange={(e) => update("site_keywords", e.target.value)}
+          placeholder="云服务器,VPS,高性能主机"
+        />
+        <p className="text-xs text-muted-foreground">多个关键词用英文逗号分隔（meta keywords）</p>
       </div>
 
       <div className="space-y-2">

@@ -32,6 +32,7 @@ interface TaskContextValue {
   selectedTaskId: number | null
   setSelectedTaskId: (id: number | null) => void
   addTask: (taskId: number, type: string) => void
+  addTasks: (items: Array<{ id: number; type: string }>) => void
   clearFinished: () => void
   refreshTasks: () => void
 }
@@ -205,26 +206,33 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [selectedTaskId, tasks, fetchTaskLogs])
 
-  const addTask = useCallback(
-    (taskId: number, type: string) => {
+  const addTasks = useCallback(
+    (items: Array<{ id: number; type: string }>) => {
+      if (items.length === 0) return
       setTasks((prev) => {
-        if (prev.some((t) => t.id === taskId)) return prev
-        return [
-          {
-            id: taskId,
-            type,
+        const existingIds = new Set(prev.map((t) => t.id))
+        const newEntries = items
+          .filter((item) => !existingIds.has(item.id))
+          .map((item) => ({
+            id: item.id,
+            type: item.type,
             status: "pending",
             created_at: new Date().toISOString(),
-            logs: [],
-            wsStatus: "idle",
-          },
-          ...prev,
-        ]
+            logs: [] as string[],
+            wsStatus: "idle" as const,
+          }))
+        if (newEntries.length === 0) return prev
+        return [...newEntries, ...prev]
       })
-      setSelectedTaskId(taskId)
+      setSelectedTaskId(items[0].id)
       setTimeout(fetchActiveTasks, 1000)
     },
     [fetchActiveTasks],
+  )
+
+  const addTask = useCallback(
+    (taskId: number, type: string) => addTasks([{ id: taskId, type }]),
+    [addTasks],
   )
 
   const clearFinished = useCallback(async () => {
@@ -246,6 +254,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         selectedTaskId,
         setSelectedTaskId,
         addTask,
+        addTasks,
         clearFinished,
         refreshTasks: fetchActiveTasks,
       }}

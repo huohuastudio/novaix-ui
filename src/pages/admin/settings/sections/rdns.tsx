@@ -59,7 +59,7 @@ export function RDNSSection() {
                 <Input
                   id="rdns_api_url"
                   value={data.rdns_api_url ?? ""}
-                  placeholder="https://dns.example.com/api/v1"
+                  placeholder="https://dns.example.com"
                   onChange={(e) => update("rdns_api_url", e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">PowerDNS API 服务器地址</p>

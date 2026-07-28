@@ -4,6 +4,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type PaginationState,
+  type RowSelectionState,
   type SortingState,
   type OnChangeFn,
   flexRender,
@@ -85,6 +86,12 @@ interface DataTableProps<TData, TValue> {
   emptyState?: React.ReactNode
   /** 新手教程高亮标识 */
   tourId?: string
+  /** 启用行多选 */
+  enableRowSelection?: boolean
+  /** 受控的选中行状态 */
+  rowSelection?: RowSelectionState
+  /** 选中行状态变更回调 */
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -146,6 +153,9 @@ export function DataTable<TData, TValue>({
   getRowId,
   emptyState,
   tourId,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [internalFilters, setInternalFilters] = useState<ColumnFiltersState>([])
   const columnFilters = externalFilters ?? internalFilters
@@ -164,10 +174,13 @@ export function DataTable<TData, TValue>({
       pagination,
       sorting,
       columnFilters,
+      ...(rowSelection !== undefined && { rowSelection }),
     },
     onPaginationChange,
     onSortingChange,
     onColumnFiltersChange,
+    onRowSelectionChange,
+    enableRowSelection,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,

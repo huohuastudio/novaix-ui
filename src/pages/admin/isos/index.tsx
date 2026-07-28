@@ -166,7 +166,7 @@ export default function ISOs() {
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-muted-foreground text-sm line-clamp-1 max-w-[200px] cursor-default">
+              <span className="text-muted-foreground text-sm block truncate max-w-[200px] cursor-default">
                 {desc}
               </span>
             </TooltipTrigger>

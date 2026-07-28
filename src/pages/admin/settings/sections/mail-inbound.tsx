@@ -64,17 +64,17 @@ export function MailInboundSection() {
               onChange={(e) => update("mail_inbound_webhook_secret", e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              配置后，入站请求需携带 <code className="text-xs bg-muted px-1 py-0.5 rounded">?token=密钥</code> 参数
+              配置后，入站请求需在 HTTP 头中携带 <code className="text-xs bg-muted px-1 py-0.5 rounded">X-Webhook-Token: 密钥</code>
             </p>
           </div>
 
           <div className="rounded-lg border p-4 bg-muted/30">
             <p className="text-sm font-medium mb-2">Webhook 地址</p>
             <code className="text-xs text-muted-foreground break-all">
-              POST /api/callbacks/mail/inbound{data.mail_inbound_webhook_secret ? `?token=${data.mail_inbound_webhook_secret}` : "?token=YOUR_SECRET"}
+              POST /api/callbacks/mail/inbound
             </code>
             <p className="text-xs text-muted-foreground mt-2">
-              将此地址配置到邮件服务商的入站路由设置中
+              将此地址配置到邮件服务商的入站路由设置中，请求须携带 <code className="text-xs bg-background px-1 py-0.5 rounded">X-Webhook-Token</code> 头
             </p>
           </div>
         </>

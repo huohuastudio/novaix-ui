@@ -7,12 +7,15 @@ import {
   postPortalInstancesByIdResetPassword,
   postPortalInstancesByIdReinstall,
   postPortalInstancesByIdTrafficPackages,
+  postPortalInstancesByIdMountIso,
+  postPortalInstancesByIdUnmountIso,
 } from "@/api"
 import {
   getPortalInstancesByIdTrafficPackagesOptions,
   getPortalPlansOptions,
+  getPortalIsosOptions,
 } from "@/api/@tanstack/react-query.gen"
-import type { PortalPortalInstanceItem, PortalPurchaseImageItem, PortalPortalTrafficPackageItem } from "@/api"
+import type { PortalPortalInstanceItem, PortalPurchaseImageItem, PortalPortalTrafficPackageItem, PortalPortalIsoItem } from "@/api"
 import { Badge } from "@/components/ui/badge"
 import { getErrorMessage } from "@/lib/utils"
 import { usePortalTasks } from "@/hooks/use-portal-tasks"
@@ -34,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2, KeyRound, RefreshCw, CreditCard, ArrowUpDown, Gauge } from "lucide-react"
+import { Loader2, KeyRound, RefreshCw, CreditCard, ArrowUpDown, Gauge, Disc } from "lucide-react"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { billingCycleMap } from "@/lib/order-constants"
 import { trafficPackageTypeMap } from "@/lib/traffic-package-constants"
@@ -72,6 +75,12 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
   const [reinstallPassword, setReinstallPassword] = useState("")
   const [reinstalling, setReinstalling] = useState(false)
 
+  const [isoOpen, setIsoOpen] = useState(false)
+  const [selectedIsoId, setSelectedIsoId] = useState<number | null>(null)
+  const [selectedDriverIsoId, setSelectedDriverIsoId] = useState<number | null>(null)
+  const [mountingIso, setMountingIso] = useState(false)
+  const [unmountingIso, setUnmountingIso] = useState(false)
+
   // 流量包列表：打开弹窗时才请求
   const trafficQuery = useQuery({
     ...getPortalInstancesByIdTrafficPackagesOptions({ path: { id: instance.id ?? 0 } }),
@@ -102,6 +111,17 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
   }, [plansQuery.data])
   // 未手动选择时默认选中第一个镜像
   const effectiveImageId = selectedImageId ?? images[0]?.id ?? null
+
+  // ISO 列表：打开挂载弹窗时才请求
+  const isosQuery = useQuery({
+    ...getPortalIsosOptions(),
+    enabled: isoOpen,
+  })
+  const isos = useMemo<PortalPortalIsoItem[]>(
+    () => (isosQuery.data?.data as PortalPortalIsoItem[] | undefined) ?? [],
+    [isosQuery.data],
+  )
+  const effectiveIsoId = selectedIsoId ?? isos[0]?.id ?? null
 
   const handleRenew = async () => {
     if (!instance.id) return
@@ -204,6 +224,54 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
     }
   }
 
+  const handleMountIso = async () => {
+    if (!instance.id || !effectiveIsoId) return
+    setMountingIso(true)
+    try {
+      const body: { iso_id: number; iso1_id?: number } = { iso_id: effectiveIsoId }
+      if (selectedDriverIsoId) body.iso1_id = selectedDriverIsoId
+      const { data: res } = await postPortalInstancesByIdMountIso({
+        path: { id: instance.id },
+        body,
+      })
+      if (res?.code === 0) {
+        const taskId = res.data?.task_id
+        if (taskId) addTask(taskId, "mount_iso", instance.id)
+        toast.success("ISO 挂载任务已提交")
+        setIsoOpen(false)
+        onRefresh()
+      } else {
+        toast.error(res?.message || "挂载 ISO 失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "挂载 ISO 失败"))
+    } finally {
+      setMountingIso(false)
+    }
+  }
+
+  const handleUnmountIso = async () => {
+    if (!instance.id) return
+    setUnmountingIso(true)
+    try {
+      const { data: res } = await postPortalInstancesByIdUnmountIso({
+        path: { id: instance.id },
+      })
+      if (res?.code === 0) {
+        const taskId = res.data?.task_id
+        if (taskId) addTask(taskId, "unmount_iso", instance.id)
+        toast.success("ISO 卸载任务已提交")
+        onRefresh()
+      } else {
+        toast.error(res?.message || "卸载 ISO 失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "卸载 ISO 失败"))
+    } finally {
+      setUnmountingIso(false)
+    }
+  }
+
   const isStopped = instance.status === "stopped"
 
   return (
@@ -255,6 +323,16 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
               <Gauge className="size-5 text-muted-foreground mb-2" />
               <p className="text-sm font-medium">购买流量包</p>
               <p className="text-xs text-muted-foreground mt-1">叠加流量额度或重置已用流量</p>
+            </button>
+          )}
+          {instance.type === "virtual-machine" && (
+            <button
+              className="rounded-2xl bg-background p-5 text-left hover:bg-foreground/[.05] transition-colors"
+              onClick={() => setIsoOpen(true)}
+            >
+              <Disc className="size-5 text-muted-foreground mb-2" />
+              <p className="text-sm font-medium">ISO 管理</p>
+              <p className="text-xs text-muted-foreground mt-1">挂载或卸载 ISO 镜像</p>
             </button>
           )}
         </div>
@@ -427,6 +505,65 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
             >
               {reinstalling && <Loader2 className="size-4 animate-spin" />}
               确认重装
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ISO 管理 Dialog */}
+      <Dialog open={isoOpen} onOpenChange={setIsoOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>ISO 管理</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>系统 ISO</Label>
+              <Select
+                value={effectiveIsoId ? String(effectiveIsoId) : ""}
+                onValueChange={(v) => setSelectedIsoId(Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择 ISO 镜像" />
+                </SelectTrigger>
+                <SelectContent className="shadow-sm ring-0">
+                  {isos.map((iso) => (
+                    <SelectItem key={iso.id} value={String(iso.id)}>
+                      {iso.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>驱动 ISO（可选）</Label>
+              <Select
+                value={selectedDriverIsoId ? String(selectedDriverIsoId) : "none"}
+                onValueChange={(v) => setSelectedDriverIsoId(v === "none" ? null : Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="不使用驱动 ISO" />
+                </SelectTrigger>
+                <SelectContent className="shadow-sm ring-0">
+                  <SelectItem value="none">不使用</SelectItem>
+                  {isos.map((iso) => (
+                    <SelectItem key={iso.id} value={String(iso.id)}>
+                      {iso.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">安装 Windows 时可挂载 VirtIO 驱动 ISO</p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={handleUnmountIso} disabled={instanceBusy || unmountingIso}>
+              {unmountingIso && <Loader2 className="size-4 animate-spin" />}
+              卸载 ISO
+            </Button>
+            <Button onClick={handleMountIso} disabled={instanceBusy || mountingIso || !effectiveIsoId}>
+              {mountingIso && <Loader2 className="size-4 animate-spin" />}
+              挂载 ISO
             </Button>
           </DialogFooter>
         </DialogContent>
