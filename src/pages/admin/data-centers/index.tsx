@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Building } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -181,6 +181,10 @@ export default function DataCenters() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Building}
+        emptyTitle="暂无数据中心"
+        emptyDescription="添加数据中心信息以在页面展示"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>添加数据中心</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

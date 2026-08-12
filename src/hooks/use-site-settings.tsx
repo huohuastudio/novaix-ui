@@ -7,6 +7,7 @@ interface SiteSettings {
   site_url: string
   site_logo: string
   site_copyright: string
+  site_tagline: string
   site_description: string
   site_keywords: string
   site_favicon: string
@@ -47,6 +48,7 @@ const defaultSettings: SiteSettings = {
   site_url: "",
   site_logo: "",
   site_copyright: "",
+  site_tagline: "",
   site_description: "",
   site_keywords: "",
   site_favicon: "",
@@ -136,9 +138,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (settings.site_name) {
-      document.title = settings.site_name
+      document.title = settings.site_tagline
+        ? settings.site_name + " - " + settings.site_tagline
+        : settings.site_name
     }
-  }, [settings.site_name])
+  }, [settings.site_name, settings.site_tagline])
 
   useEffect(() => {
     setOrRemoveMeta("description", settings.site_description)

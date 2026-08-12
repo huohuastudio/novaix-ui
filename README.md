@@ -35,13 +35,17 @@ OPENAPI_INPUT=openapi.json pnpm api:gen
 pnpm dev
 ```
 
-### 构建
+> **重要**：前端生成的 API 客户端使用相对路径 `/api/v1` 作为 baseURL，不包含域名。开发时 Vite 会自动将 `/api` 请求代理到后端（默认 `http://localhost:8080`），所以无需额外配置。如果后端运行在其他地址，修改 `vite.config.ts` 中 proxy 的 `target` 即可。
+
+### 构建与部署
 
 ```bash
 pnpm build
 ```
 
 构建产物在 `dist/` 目录下。
+
+> **注意**：构建产物必须部署在 Novaix 后端的同一域名下（作为主题安装，或由后端直接托管静态文件），因为 API 请求使用的是相对路径。如果你需要将前端独立部署在不同的域名或端口上，需要自行配置反向代理（如 Nginx），将 `/api` 路径转发到 Novaix 后端。
 
 ## 制作主题
 

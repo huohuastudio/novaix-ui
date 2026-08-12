@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Menu } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -231,6 +231,10 @@ export default function NavMenus() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Menu}
+        emptyTitle="暂无导航菜单"
+        emptyDescription="创建导航菜单以自定义站点导航"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建菜单</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

@@ -27,14 +27,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 
 // ── Schema ──
 
@@ -48,6 +50,10 @@ const baseFields = {
   ssh_auth_method: z.enum(["password", "key"]).default("password"),
   ssh_password: z.string().max(256).optional().default(""),
   ssh_key: z.string().optional().default(""),
+  cpu_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
+  mem_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
+  disk_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
+  mem_ballooning_mode: z.boolean().optional().default(false),
 }
 
 const createSchema = z.object(baseFields).superRefine((data, ctx) => {
@@ -62,9 +68,10 @@ const createSchema = z.object(baseFields).superRefine((data, ctx) => {
 const editSchema = z.object({
   ...baseFields,
   cluster_member_name: z.string().max(128).optional().default(""),
+  network_name: z.string().max(64).optional().default(""),
+  storage_pool: z.string().max(64).optional().default(""),
 })
 
-// 共享字段组件基于 createSchema（基础字段）的类型；编辑表单类型是其超集，可安全传入
 type NodeFormInput = z.input<typeof createSchema>
 type NodeFormValues = z.output<typeof createSchema>
 type EditFormInput = z.input<typeof editSchema>
@@ -81,6 +88,12 @@ const defaultValues: EditFormValues = {
   ssh_password: "",
   ssh_key: "",
   cluster_member_name: "",
+  network_name: "",
+  storage_pool: "",
+  cpu_overcommit: 1,
+  mem_overcommit: 1,
+  disk_overcommit: 1,
+  mem_ballooning_mode: false,
 }
 
 const fieldNames = Object.keys(defaultValues)
@@ -242,6 +255,72 @@ function SSHAuthFields({ form, optional }: { form: UseFormReturn<NodeFormInput, 
   )
 }
 
+function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
+  return (
+    <>
+      <Separator />
+      <div className="flex items-center gap-1.5">
+        <p className="text-sm font-medium">资源超开</p>
+        <HelpLink path="/novaix/node#overcommit" />
+      </div>
+      <p className="text-xs text-muted-foreground -mt-2">可分配量 = 物理总量 × 比率，设为 1 表示不超开，范围 1~100</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <FormField
+          control={form.control}
+          name="cpu_overcommit"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>CPU</FormLabel>
+              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 2~8" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="mem_overcommit"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>内存</FormLabel>
+              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 1~2" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="disk_overcommit"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>磁盘</FormLabel>
+              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 1~1.5" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <FormField
+        control={form.control}
+        name="mem_ballooning_mode"
+        render={({ field }) => (
+          <FormItem className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <FormLabel>动态内存</FormLabel>
+                <HelpLink path="/novaix/node#dynamic-memory" />
+              </div>
+              <p className="text-xs text-muted-foreground">允许容器在宿主机空闲时使用超出限制的内存</p>
+            </div>
+            <FormControl>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+    </>
+  )
+}
+
 // ── 连接测试结果展示 ──
 
 function ConnectionTestResults({ result }: { result: ServiceTestConnectionResponse }) {
@@ -273,7 +352,7 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
 
 // ── 构建请求 body ──
 
-function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name">>) {
+function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name" | "network_name" | "storage_pool">>) {
   return {
     name: values.name,
     region: values.region || undefined,
@@ -284,7 +363,13 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
     ssh_auth_method: values.ssh_auth_method,
     ssh_password: values.ssh_auth_method === "password" ? (values.ssh_password || undefined) : undefined,
     ssh_key: values.ssh_auth_method === "key" ? (values.ssh_key || undefined) : undefined,
-    cluster_member_name: values.cluster_member_name || values.name,
+    cluster_member_name: values.cluster_member_name ?? values.name,
+    network_name: values.network_name || undefined,
+    storage_pool: values.storage_pool || undefined,
+    cpu_overcommit: values.cpu_overcommit,
+    mem_overcommit: values.mem_overcommit,
+    disk_overcommit: values.disk_overcommit,
+    mem_ballooning_mode: values.mem_ballooning_mode,
   }
 }
 
@@ -354,48 +439,51 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" preventClose>
-        <DialogHeader>
-          <DialogTitle>添加节点</DialogTitle>
-          <DialogDescription>添加一台宿主机，保存后点击初始化按钮进行环境配置</DialogDescription>
-        </DialogHeader>
-        <Alert>
-          <Info className="size-4" />
-          <AlertDescription>
-            节点服务器需运行受支持的操作系统：Ubuntu 20.04+、Debian 11+、CentOS/RHEL/Rocky/Alma 9+、Fedora 38+，推荐 Ubuntu 24.04 LTS
-          </AlertDescription>
-        </Alert>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" data-tour="node-form">
-            <div className="grid grid-cols-2 gap-4" data-tour="node-form-basic">
-              <NameField form={form} />
-              <RegionField form={form} />
-            </div>
-            <div data-tour="node-form-host">
-              <HostField form={form} />
-            </div>
-            <div data-tour="node-form-ports">
-              <PortFields form={form} />
-            </div>
-            <div data-tour="node-form-ssh" className="flex flex-col gap-4">
-              <SSHAuthFields form={form} />
-            </div>
-            {testResult && <ConnectionTestResults result={testResult} />}
-            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={testing || !form.watch("host")} onClick={handleTestConnection}>
-                {testing && <Loader2 className="size-4 animate-spin" />}
-                测试连接
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "提交中..." : "创建"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="data-[side=right]:sm:max-w-[min(80vw,1100px)] flex flex-col overflow-hidden" showCloseButton={false}>
+        <SheetHeader>
+          <SheetTitle>添加节点</SheetTitle>
+          <SheetDescription>添加一台宿主机，保存后点击初始化按钮进行环境配置</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-4">
+          <Alert className="mb-4">
+            <Info className="size-4" />
+            <AlertDescription>
+              节点服务器需运行受支持的操作系统：Ubuntu 20.04+、Debian 11+、CentOS/RHEL/Rocky/Alma 9+、Fedora 38+，推荐 Ubuntu 24.04 LTS
+            </AlertDescription>
+          </Alert>
+          <Form {...form}>
+            <form id="create-node-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" data-tour="node-form">
+              <div className="grid grid-cols-2 gap-4" data-tour="node-form-basic">
+                <NameField form={form} />
+                <RegionField form={form} />
+              </div>
+              <div data-tour="node-form-host">
+                <HostField form={form} />
+              </div>
+              <div data-tour="node-form-ports">
+                <PortFields form={form} />
+              </div>
+              <div data-tour="node-form-ssh" className="flex flex-col gap-4">
+                <SSHAuthFields form={form} />
+              </div>
+              <OvercommitFields form={form} />
+              {testResult && <ConnectionTestResults result={testResult} />}
+              {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+            </form>
+          </Form>
+        </div>
+        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-end gap-3">
+          <Button type="button" variant="outline" disabled={testing || !form.watch("host")} onClick={handleTestConnection}>
+            {testing && <Loader2 className="size-4 animate-spin" />}
+            测试连接
+          </Button>
+          <Button type="submit" form="create-node-form" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "提交中..." : "创建"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -459,6 +547,12 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
         ssh_password: "",
         ssh_key: "",
         cluster_member_name: node.cluster_member_name ?? "",
+        network_name: node.network_name ?? "",
+        storage_pool: node.storage_pool ?? "",
+        cpu_overcommit: node.cpu_overcommit ?? 1,
+        mem_overcommit: node.mem_overcommit ?? 1,
+        disk_overcommit: node.disk_overcommit ?? 1,
+        mem_ballooning_mode: node.mem_ballooning_mode ?? false,
       })
     }
   }, [open, node, form])
@@ -478,49 +572,77 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" preventClose>
-        <DialogHeader>
-          <DialogTitle>编辑节点</DialogTitle>
-          <DialogDescription>修改节点连接信息</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <NameField form={form} />
-              <RegionField form={form} />
-            </div>
-            <HostField form={form} />
-            <PortFields form={form} />
-            <SSHAuthFields form={form} optional />
-            {node.node_group_id && (
-              <FormField
-                control={form.control}
-                name="cluster_member_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>集群成员名</FormLabel>
-                    <FormControl><Input placeholder="留空使用节点名称" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {testResult && <ConnectionTestResults result={testResult} />}
-            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={testing} onClick={handleTestConnection}>
-                {testing && <Loader2 className="size-4 animate-spin" />}
-                测试连接
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "保存中..." : "保存"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="data-[side=right]:sm:max-w-[min(80vw,1100px)] flex flex-col overflow-hidden" showCloseButton={false}>
+        <SheetHeader>
+          <SheetTitle>编辑节点</SheetTitle>
+          <SheetDescription>修改节点连接信息和资源配置</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-4">
+          <Form {...form}>
+            <form id="edit-node-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <NameField form={form} />
+                <RegionField form={form} />
+              </div>
+              <HostField form={form} />
+              <PortFields form={form} />
+              <SSHAuthFields form={form} optional />
+              {node.node_group_id && (
+                <FormField
+                  control={form.control}
+                  name="cluster_member_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>集群成员名</FormLabel>
+                      <FormControl><Input placeholder="留空使用节点名称" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="network_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>网络名称</FormLabel>
+                      <FormControl><Input placeholder="如 incusbr0" {...field} /></FormControl>
+                      <p className="text-xs text-muted-foreground">初始化时自动检测，修改后需与 IP 池/共享 IP 的网桥名称一致</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="storage_pool"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>存储池</FormLabel>
+                      <FormControl><Input placeholder="如 default" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <OvercommitFields form={form} />
+              {testResult && <ConnectionTestResults result={testResult} />}
+              {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+            </form>
+          </Form>
+        </div>
+        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-end gap-3">
+          <Button type="button" variant="outline" disabled={testing} onClick={handleTestConnection}>
+            {testing && <Loader2 className="size-4 animate-spin" />}
+            测试连接
+          </Button>
+          <Button type="submit" form="edit-node-form" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "保存中..." : "保存"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 

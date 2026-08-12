@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { MessageSquare, Plus, Loader2 } from 'lucide-react'
@@ -21,7 +21,9 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/rich-text-editor'
-import { postPortalTickets } from '@/api'
+import { postPortalTickets, getPortalInstances } from '@/api'
+import { PaginatedCombobox, type PaginatedComboboxItem } from '@/components/paginated-combobox'
+import type { PaginatedFetchResult } from '@/hooks/use-paginated-fetch'
 import {
   getPortalTicketsOptions,
   getPortalTicketsQueryKey,
@@ -72,7 +74,18 @@ export default function PortalTickets() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [newTicket, setNewTicket] = useState({ subject: '', content: '', priority: 1, department: '' })
+  const [newTicket, setNewTicket] = useState({ subject: '', content: '', priority: 1, department: '', instanceId: undefined as number | undefined })
+
+  const fetchInstances = useCallback(async (page: number, keyword: string): Promise<PaginatedFetchResult<PaginatedComboboxItem>> => {
+    const { data: res } = await getPortalInstances({ query: { page, page_size: 20, keyword: keyword || undefined } })
+    const items = (res?.data?.items ?? []).map((i) => ({
+      id: i.id!,
+      label: i.name ?? `#${i.id}`,
+      description: i.ip_address || undefined,
+    }))
+    const total = res?.data?.total ?? 0
+    return { items, hasMore: page * 20 < total }
+  }, [])
 
   // 工单列表（分页/状态筛选进 key）
   const ticketsQuery = useQuery({
@@ -104,11 +117,12 @@ export default function PortalTickets() {
           content: newTicket.content,
           priority: newTicket.priority,
           department: newTicket.department || undefined,
+          instance_id: newTicket.instanceId,
         },
       })
       toast.success('工单已提交')
       setCreateOpen(false)
-      setNewTicket({ subject: '', content: '', priority: 1, department: '' })
+      setNewTicket({ subject: '', content: '', priority: 1, department: '', instanceId: undefined })
       queryClient.invalidateQueries({ queryKey: getPortalTicketsQueryKey() })
     } catch (err) {
       toast.error(getErrorMessage(err, '提交失败'))
@@ -245,6 +259,18 @@ export default function PortalTickets() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>关联实例</Label>
+              <PaginatedCombobox
+                value={newTicket.instanceId}
+                onChange={(v) => setNewTicket({ ...newTicket, instanceId: v })}
+                fetchFn={fetchInstances}
+                placeholder="选择关联的实例（可选）"
+                searchPlaceholder="搜索实例名称/IP..."
+                emptyText="未找到实例"
+                clearable
+              />
             </div>
             <div className="space-y-2">
               <Label>详细描述</Label>

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, Wallet, ArrowUpDown, LogIn } from "lucide-react"
+import { Plus, Pencil, Trash2, Wallet, ArrowUpDown, LogIn, Users as UsersIcon } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -302,6 +302,10 @@ export default function Users() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={UsersIcon}
+        emptyTitle="暂无用户"
+        emptyDescription="添加用户以开始管理"
+        emptyAction={<Button variant="outline" onClick={handleCreate}>添加用户</Button>}
         toolbar={
           <div className="flex gap-2">
             <Button onClick={handleCreate}>

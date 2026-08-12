@@ -61,7 +61,7 @@ export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; 
                     </span>
                     <span className="text-xs text-muted-foreground">→</span>
                     <span className="text-sm font-mono text-muted-foreground">
-                      127.0.0.1:{rule.connect_port}
+                      内网:{rule.connect_port}
                     </span>
                     {rule.enabled === false && (
                       <Badge variant="outline" className="text-muted-foreground">已禁用</Badge>

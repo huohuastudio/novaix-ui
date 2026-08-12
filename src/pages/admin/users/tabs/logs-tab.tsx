@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { ScrollText } from "lucide-react"
 import type { LogLogItem } from "@/api"
 import { getAdminLogs } from "@/api"
 import { getAdminLogsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -117,6 +118,9 @@ export function LogsTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={ScrollText}
+      emptyTitle="暂无日志"
+      emptyDescription="该用户还没有任何操作日志"
     />
   )
 }

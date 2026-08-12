@@ -177,11 +177,24 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
     setOpen(false)
   }
 
+  // 根据当前 value 查找已选镜像信息
+  const selectedImage = useMemo(
+    () => (value ? allImages.find((img) => img.alias === value) : undefined),
+    [value, allImages],
+  )
+
   return (
     <>
-      <Button type="button" variant="outline" className="w-fit" onClick={() => setOpen(true)}>
-        浏览镜像库
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" className="w-fit" onClick={() => setOpen(true)}>
+          浏览镜像库
+        </Button>
+        {selectedImage && (
+          <Badge variant="secondary" className="font-mono text-xs">
+            {selectedImage.os}/{selectedImage.version}
+          </Badge>
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg flex flex-col max-h-[80vh] overflow-hidden">

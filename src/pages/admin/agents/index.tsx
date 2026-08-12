@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Trash2, Pencil } from "lucide-react"
+import { Plus, Trash2, Pencil, Crown } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   getAdminAgents,
+  getAdminUsers,
   postAdminAgents,
   deleteAdminAgentsById,
   putAdminAgentsById,
@@ -39,6 +40,7 @@ import { HelpLink } from "@/components/help-doc"
 import { useFormatDate, useFormatAmount } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import { UserPopover } from "@/components/user-popover"
+import { PaginatedCombobox } from "@/components/paginated-combobox"
 import AgentGroups from "./agent-groups"
 import { useQuery } from "@tanstack/react-query"
 import { getAdminAgentGroupsOptions } from "@/api/@tanstack/react-query.gen"
@@ -51,6 +53,7 @@ function AgentList() {
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createGroup, setCreateGroup] = useState(NO_GROUP)
+  const [createUserId, setCreateUserId] = useState<number | undefined>()
   const [editingItem, setEditingItem] = useState<AgentAgentItem | null>(null)
   const [editGroup, setEditGroup] = useState(NO_GROUP)
   const [editSaving, setEditSaving] = useState(false)
@@ -64,6 +67,23 @@ function AgentList() {
     if (!id) return null
     return groups.find((g) => g.id === id)?.name ?? `分组 ${id}`
   }, [groups])
+
+  // 用户搜索（设置代理对话框的用户选择器）
+  const fetchUserOptions = useCallback(async (page: number, keyword: string) => {
+    const { data: res } = await getAdminUsers({
+      query: { page, page_size: 20, ...(keyword ? { keyword } : {}) },
+    })
+    const users = res?.data?.items ?? []
+    const total = res?.data?.total ?? 0
+    return {
+      items: users.map((u) => ({
+        id: u.id!,
+        label: u.username ?? `用户 ${u.id}`,
+        description: u.email ?? "",
+      })),
+      hasMore: page * 20 < total,
+    }
+  }, [])
 
   const fetchData = useCallback(async ({ page, pageSize, filters }: FetchParams) => {
     const { data: res } = await getAdminAgents({
@@ -89,12 +109,13 @@ function AgentList() {
 
   const handleCreate = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!createUserId) return
     const form = new FormData(e.currentTarget)
     setCreating(true)
     try {
       const { data: res } = await postAdminAgents({
         body: {
-          user_id: Number(form.get("user_id")),
+          user_id: createUserId,
           commission_rate: Number(form.get("commission_rate")),
           commission_rate_recurring: Number(form.get("commission_rate_recurring")),
           // 0 表示不绑定分组（后端归一化为 NULL）
@@ -113,7 +134,7 @@ function AgentList() {
     } finally {
       setCreating(false)
     }
-  }, [table, createGroup])
+  }, [table, createGroup, createUserId])
 
   const handleUpdateRate = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -146,6 +167,7 @@ function AgentList() {
 
   const openCreate = () => {
     setCreateGroup(NO_GROUP)
+    setCreateUserId(undefined)
     setCreateOpen(true)
   }
 
@@ -266,6 +288,15 @@ function AgentList() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Crown}
+        emptyTitle="暂无代理"
+        emptyDescription="设置代理后将显示在这里"
+        emptyAction={
+          <Button variant="outline" onClick={openCreate}>
+            <Plus className="size-4" />
+            设置代理
+          </Button>
+        }
         toolbar={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
@@ -283,8 +314,15 @@ function AgentList() {
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="agent-user-id">用户 ID</Label>
-              <Input id="agent-user-id" name="user_id" type="number" min={1} required placeholder="输入用户 ID" />
+              <Label>用户</Label>
+              <PaginatedCombobox
+                value={createUserId}
+                onChange={setCreateUserId}
+                fetchFn={fetchUserOptions}
+                placeholder="搜索并选择用户"
+                searchPlaceholder="搜索用户名/邮箱..."
+                emptyText="无匹配用户"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -311,7 +349,7 @@ function AgentList() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>取消</Button>
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" disabled={creating || !createUserId}>
                 {creating ? "设置中..." : "设置"}
               </Button>
             </DialogFooter>

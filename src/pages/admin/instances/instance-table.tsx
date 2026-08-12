@@ -7,6 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -42,6 +49,8 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
   const { confirm: confirmRenew, ConfirmDialog: RenewConfirmDialog } = useConfirmRenew()
   const [editInstanceId, setEditInstanceId] = useState<number | null>(null)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+  const [forceDelete, setForceDelete] = useState(false)
 
   const fetchInstances = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
     const sort = sorting[0]?.id as "id" | "name" | "status" | "type" | "cpu" | "memory" | "created_at" | undefined
@@ -157,7 +166,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
           <DropdownMenuItem onClick={() => handleBatch("unfreeze")}>解冻</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleBatch("force-stop")}>强制停止</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={() => handleBatch("delete")}>删除</DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onClick={() => setBatchDeleteOpen(true)}>删除</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
@@ -318,6 +327,44 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       {ConfirmDialog}
       {BatchConfirmDialog}
       {RenewConfirmDialog}
+      <Dialog open={batchDeleteOpen} onOpenChange={(open) => { if (!open) { setBatchDeleteOpen(false); setForceDelete(false) } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>批量删除</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              确定要删除选中的 {selectedIds.length} 个实例吗？此操作不可撤销。
+            </p>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="force-delete"
+                checked={forceDelete}
+                onCheckedChange={(v) => setForceDelete(!!v)}
+              />
+              <label htmlFor="force-delete" className="text-sm cursor-pointer select-none">
+                强制删除（跳过运行状态检查）
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBatchDeleteOpen(false); setForceDelete(false) }}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={batchLoading}
+              onClick={() => {
+                setBatchDeleteOpen(false)
+                handleBatch(forceDelete ? "force-delete" : "delete")
+                setForceDelete(false)
+              }}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <InstanceRetryDialog
         instance={retryInstance}
         onOpenChange={(open) => { if (!open) setRetryInstance(null) }}

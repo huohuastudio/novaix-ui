@@ -59,6 +59,7 @@ const fulfillmentMap: Record<string, string> = {
   '': '—',
   provisioning: '开通中',
   completed: '已完成',
+  partially_completed: '需重启生效',
   failed: '开通失败',
 }
 
@@ -283,7 +284,7 @@ export default function PortalOrderDetail() {
             <InfoRow label="订单类型" value={orderTypeMap[order.type ?? ''] ?? order.type ?? '—'} />
             <InfoRow label="计费周期" value={billingCycleMap[order.billing_cycle ?? ''] ?? order.billing_cycle ?? '—'} />
             <InfoRow label="订单状态" value={orderStatusMap[status]?.label ?? status} />
-            {!!order.fulfillment_status && order.type === 'new' && (
+            {!!order.fulfillment_status && (order.type === 'new' || order.type === 'addon_ip') && (
               <InfoRow label="交付状态" value={fulfillmentMap[String(order.fulfillment_status)] ?? String(order.fulfillment_status)} />
             )}
             {order.period_start && (

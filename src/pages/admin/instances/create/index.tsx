@@ -1,10 +1,11 @@
 "use no memo";
+import { useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { postAdminInstances } from "@/api"
-import type { NodeNodeItem } from "@/api"
+import { getAdminPlans, postAdminInstances } from "@/api"
+import type { NodeNodeItem, ProductPlanItem } from "@/api"
 import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
 import { instanceFormSchema, defaultValues, buildCreateBody, fieldNames } from "../schema"
@@ -22,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ConfigSection } from "@/components/config-table"
 import { useNodeResources } from "@/hooks/use-node-resources"
 import { InstanceFormLayout } from "../instance-form-layout"
@@ -63,6 +65,32 @@ export default function CreateInstance() {
     form.setValue("profiles", "")
   }
 
+  // 套餐导入相关状态
+  const [plans, setPlans] = useState<ProductPlanItem[]>([])
+  const [plansLoaded, setPlansLoaded] = useState(false)
+
+  // 首次展开下拉时加载套餐列表
+  const loadPlans = async () => {
+    if (plansLoaded) return
+    try {
+      const { data: res } = await getAdminPlans({ query: { page: 1, page_size: 100 } })
+      setPlans(res?.data?.items ?? [])
+    } catch { /* ignore */ }
+    setPlansLoaded(true)
+  }
+
+  // 选择套餐后自动填充资源配置
+  const handleImportPlan = (planId: string) => {
+    const plan = plans.find(p => String(p.id) === planId)
+    if (!plan) return
+    form.setValue("cpu", plan.cpu ?? 1)
+    form.setValue("memory", plan.memory ?? 512)
+    form.setValue("disk", plan.disk ?? 10)
+    form.setValue("bandwidth", plan.bandwidth ?? 0)
+    form.setValue("traffic_limit", plan.traffic ?? 0)
+    toast.success(`已导入套餐「${plan.name}」的配置`)
+  }
+
   const onSubmit = async (values: InstanceFormValues) => {
     const body = buildCreateBody(values)
     const result = await postAdminInstances({ body })
@@ -100,6 +128,26 @@ export default function CreateInstance() {
             form={form}
             nodeResources={nodeResources}
             mainSection={
+              <>
+              <div className="max-w-2xl mb-6">
+                <label className="text-sm font-medium">从套餐导入配置</label>
+                <p className="text-xs text-muted-foreground mt-1">选择套餐后自动填充 CPU、内存、磁盘等资源配置</p>
+                <Select onValueChange={handleImportPlan} onOpenChange={() => loadPlans()}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="选择套餐..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map(plan => (
+                      <SelectItem key={plan.id} value={String(plan.id)}>
+                        {plan.name} ({plan.cpu}核 / {plan.memory}MB / {plan.disk}GB)
+                      </SelectItem>
+                    ))}
+                    {plansLoaded && plans.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">暂无套餐</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <ConfigSection title="主要配置">
                 <div className="space-y-6">
                   <div data-tour="create-instance-node">
@@ -178,6 +226,7 @@ export default function CreateInstance() {
                   </div>
                 </div>
               </ConfigSection>
+              </>
             }
             actions={
               <>

@@ -98,19 +98,28 @@ export function useInstanceActions(onRefresh: () => void) {
   const { addTask } = useTasks()
   const [loadingId, setLoadingId] = useState<number | null>(null)
 
-  const handleDelete = useCallback(async (instance: InstanceInstanceItem): Promise<boolean> => {
+  const handleDelete = useCallback(async (instance: InstanceInstanceItem, force?: boolean): Promise<boolean> => {
     const ok = await confirm({
-      title: "删除实例",
-      description: `确定要删除实例「${instance.name}」吗？此操作不可撤销。`,
-      confirmText: "删除",
+      title: force ? "强制删除实例" : "删除实例",
+      description: force
+        ? `确定要强制删除实例「${instance.name}」吗？将跳过运行状态检查，节点不可达时仅清理数据库记录。此操作不可撤销。`
+        : `确定要删除实例「${instance.name}」吗？此操作不可撤销。`,
+      confirmText: force ? "强制删除" : "删除",
       destructive: true,
     })
     if (!ok) return false
     try {
-      const { data: res } = await deleteAdminInstancesById({ path: { id: instance.id! } })
+      const { data: res } = await deleteAdminInstancesById({
+        path: { id: instance.id! },
+        ...(force ? { query: { force: true } } : {}),
+      })
       if (res?.code !== 0) {
         toast.error((res as { message?: string })?.message ?? "删除失败")
         return false
+      }
+      const taskId = (res.data as { task_id?: number })?.task_id
+      if (taskId) {
+        addTask(taskId, "delete_instance")
       }
       onRefresh()
       return true

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
+import { ShoppingCart } from "lucide-react"
 import type { OrderOrderItem } from "@/api"
 import { getAdminOrders } from "@/api"
 import { getAdminOrdersQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -104,6 +105,9 @@ export function OrdersTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={ShoppingCart}
+      emptyTitle="暂无订单"
+      emptyDescription="该用户还没有任何订单"
     />
   )
 }

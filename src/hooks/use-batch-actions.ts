@@ -6,7 +6,7 @@ import { useTasks } from "@/hooks/use-tasks"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 
-export type BatchAction = "start" | "stop" | "restart" | "freeze" | "unfreeze" | "force-stop" | "delete"
+export type BatchAction = "start" | "stop" | "restart" | "freeze" | "unfreeze" | "force-stop" | "delete" | "force-delete"
 
 const ACTION_LABELS: Record<BatchAction, string> = {
   start: "启动",
@@ -16,6 +16,7 @@ const ACTION_LABELS: Record<BatchAction, string> = {
   unfreeze: "解冻",
   "force-stop": "强制停止",
   delete: "删除",
+  "force-delete": "强制删除",
 }
 
 const ACTION_CONFIRM: Partial<Record<BatchAction, { destructive?: boolean; warning?: string }>> = {
@@ -34,6 +35,7 @@ const BATCH_TASK_TYPES: Partial<Record<BatchAction, string>> = {
   unfreeze: "unfreeze_instance",
   "force-stop": "force_stop_instance",
   delete: "delete_instance",
+  "force-delete": "delete_instance",
 }
 
 export function useBatchActions(onSuccess: () => void) {
@@ -45,17 +47,20 @@ export function useBatchActions(onSuccess: () => void) {
     const label = ACTION_LABELS[action]
     const cfg = ACTION_CONFIRM[action]
 
-    const description = cfg
-      ? `确定要批量${label} ${ids.length} 个实例吗？${cfg.warning}`
-      : `确定要批量${label} ${ids.length} 个实例吗？`
+    // delete 和 force-delete 由调用方自行确认，跳过二次确认
+    if (action !== "force-delete" && action !== "delete") {
+      const description = cfg
+        ? `确定要批量${label} ${ids.length} 个实例吗？${cfg.warning}`
+        : `确定要批量${label} ${ids.length} 个实例吗？`
 
-    const ok = await confirm({
-      title: `批量${label}`,
-      description,
-      confirmText: label,
-      destructive: cfg?.destructive,
-    })
-    if (!ok) return
+      const ok = await confirm({
+        title: `批量${label}`,
+        description,
+        confirmText: label,
+        destructive: cfg?.destructive,
+      })
+      if (!ok) return
+    }
 
     setLoading(true)
     try {

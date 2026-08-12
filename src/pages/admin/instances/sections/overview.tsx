@@ -122,7 +122,8 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
     ? Math.min(((instance.traffic_used ?? 0) / instance.traffic_limit) * 100, 100)
     : 0
   const memPercent = state?.mem_total ? ((state.mem_used ?? 0) / state.mem_total) * 100 : 0
-  const diskPercent = state?.disk_total ? ((state.disk_used ?? 0) / state.disk_total) * 100 : 0
+  const diskUsed = state?.disk_used ?? 0
+  const diskPercent = state?.disk_total && diskUsed >= 0 ? (diskUsed / state.disk_total) * 100 : 0
   return (
     <div className="space-y-0">
       {isRunning && (
@@ -153,9 +154,9 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                   {(state.disk_used || state.disk_total || instance.disk) ? (
                     <MetricBar
                       label="系统盘"
-                      percent={diskPercent}
+                      percent={diskUsed >= 0 ? diskPercent : 0}
                       value={`${formatBytes(state.disk_used ?? 0)} / ${formatDisk(instance.disk ?? 0)}`}
-                      sub={state.disk_total ? `${Math.round(diskPercent)}% 使用率` : '用量暂不可用'}
+                      sub={diskUsed < 0 ? '统计不可用' : state.disk_total ? `${Math.round(diskPercent)}% 使用率` : '用量暂不可用'}
                     />
                   ) : null}
                   {state.volumes?.map((vol) => {
@@ -274,14 +275,14 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           <h3 className="text-lg font-semibold">基本信息</h3>
           <p className="text-sm text-muted-foreground mt-1">实例的详细属性</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-2xl">
-          <div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-4xl">
+          <div className="min-w-0">
             <div className="text-muted-foreground">实例名称</div>
-            <div className="font-medium mt-0.5">{instance.name || "-"}</div>
+            <div className="font-medium mt-0.5 truncate" title={instance.name}>{instance.name || "-"}</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-muted-foreground">主机名</div>
-            <div className="font-medium mt-0.5">{state?.os_info?.hostname || instance.hostname || "-"}</div>
+            <div className="font-medium mt-0.5 truncate" title={state?.os_info?.hostname || instance.hostname}>{state?.os_info?.hostname || instance.hostname || "-"}</div>
           </div>
           <div>
             <div className="text-muted-foreground">类型</div>
@@ -314,7 +315,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           )}
         </div>
         {instance.node_group_id && (
-          <div className="flex items-center gap-3 max-w-2xl pt-2">
+          <div className="flex items-center gap-3 max-w-4xl pt-2">
             <Switch
               checked={instance.ha_enabled ?? false}
               onCheckedChange={handleToggleHA}
@@ -379,7 +380,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           <>
             <div className="pt-4">
               <h4 className="text-sm font-medium mb-3">NAT 信息</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-2xl">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-4xl">
                 <div>
                   <div className="text-muted-foreground">共享 IP</div>
                   <div className="font-medium font-mono mt-0.5">{instance.nat_info.shared_ip_address || "-"}</div>
@@ -424,18 +425,18 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                 <p className="text-sm text-muted-foreground mt-1">已挂载的附加存储卷</p>
               </div>
               {volumes.map(([name, d]) => (
-                <div key={name} className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4 text-sm max-w-2xl">
-                  <div>
+                <div key={name} className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4 text-sm max-w-4xl">
+                  <div className="min-w-0">
                     <div className="text-muted-foreground">设备名称</div>
-                    <div className="font-medium mt-0.5">{name}</div>
+                    <div className="font-medium mt-0.5 truncate" title={name}>{name}</div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-muted-foreground">存储卷</div>
-                    <div className="font-medium mt-0.5">{d.source}</div>
+                    <div className="font-medium mt-0.5 truncate" title={d.source}>{d.source}</div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-muted-foreground">挂载路径</div>
-                    <div className="font-medium font-mono mt-0.5">{d.path || "-"}</div>
+                    <div className="font-medium font-mono mt-0.5 truncate" title={d.path}>{d.path || "-"}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground">类型</div>
@@ -453,7 +454,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           <h3 className="text-lg font-semibold">关联信息</h3>
           <p className="text-sm text-muted-foreground mt-1">所属节点和镜像来源</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-2xl">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-4xl">
           <div>
             <div className="text-muted-foreground">所属节点</div>
             <div className="font-medium mt-0.5">{instance.node_name || "-"}</div>
@@ -503,7 +504,7 @@ export function InstanceOverviewSkeleton() {
           <Skeleton className="h-6 w-20" />
           <Skeleton className="h-4 w-40 mt-1" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 max-w-2xl">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 max-w-4xl">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
               <Skeleton className="h-3.5 w-16" />
@@ -518,7 +519,7 @@ export function InstanceOverviewSkeleton() {
           <Skeleton className="h-6 w-20" />
           <Skeleton className="h-4 w-36 mt-1" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 max-w-2xl">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4 max-w-4xl">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
               <Skeleton className="h-3.5 w-16" />

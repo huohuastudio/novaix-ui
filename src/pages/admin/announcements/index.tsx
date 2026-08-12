@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Megaphone } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -173,6 +173,15 @@ export default function Announcements() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Megaphone}
+        emptyTitle="暂无公告"
+        emptyDescription="发布公告后将显示在这里"
+        emptyAction={
+          <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            发布公告
+          </Button>
+        }
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Trash2, MessageSquareText } from "lucide-react"
 import { DataTable } from "@/components/data-table"
@@ -97,6 +97,24 @@ export default function TicketList() {
           >
             {item.subject}
           </button>
+        )
+      },
+    },
+    {
+      id: "instance",
+      header: "关联实例",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const item = row.original
+        if (!item.instance_id) return <span className="text-muted-foreground">-</span>
+        return (
+          <Link
+            to={`${adminPath}/instances/${item.instance_id}`}
+            className="text-primary hover:underline text-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {item.instance_name || `#${item.instance_id}`}
+          </Link>
         )
       },
     },

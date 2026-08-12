@@ -91,13 +91,13 @@ export default function DistributeDialog({ open, onOpenChange, image }: Distribu
     })
   }, [])
 
-  const handleSubmit = async () => {
+  const submitDistribute = async (force: boolean) => {
     if (!image || selected.size === 0) return
     setSubmitting(true)
     try {
       const { data: res } = await postAdminImagesByIdDistribute({
         path: { id: image.id! },
-        body: { node_ids: Array.from(selected) },
+        body: { node_ids: Array.from(selected), force },
       })
       if (res?.code === 0) {
         const taskIds = res.data as number[]
@@ -106,6 +106,10 @@ export default function DistributeDialog({ open, onOpenChange, image }: Distribu
           description: "可在任务列表中查看进度",
         })
         onOpenChange(false)
+      } else if (res?.code === 20406 && !force) {
+        toast("目标节点上已存在该镜像", {
+          action: { label: "覆盖分发", onClick: () => void submitDistribute(true) },
+        })
       } else {
         toast.error(res?.message ?? "分发失败")
       }
@@ -115,6 +119,8 @@ export default function DistributeDialog({ open, onOpenChange, image }: Distribu
       setSubmitting(false)
     }
   }
+
+  const handleSubmit = () => submitDistribute(false)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

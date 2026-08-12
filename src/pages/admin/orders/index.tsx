@@ -1,12 +1,14 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Routes, Route, useNavigate } from "react-router-dom"
-import type { ColumnDef } from "@tanstack/react-table"
-import { RotateCcw, XCircle, CreditCard, Undo2, Plus, ShoppingCart } from "lucide-react"
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
+import { RotateCcw, XCircle, CreditCard, Undo2, Plus, ShoppingCart, X, CheckCheck, Ban } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { EmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -14,8 +16,10 @@ import {
   getAdminTransactions,
   postAdminOrdersByIdPay,
   postAdminOrdersByIdCancel,
+  postAdminOrdersBatchRefund,
+  postAdminOrdersBatchRefundReject,
 } from "@/api"
-import type { OrderOrderItem, OrderTransactionItem } from "@/api"
+import type { OrderOrderItem, OrderTransactionItem, OrderBatchRefundResponse } from "@/api"
 import { getAdminOrdersQueryKey, getAdminTransactionsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
@@ -38,6 +42,8 @@ function OrderList() {
   const formatDate = useFormatDate()
   const [createOpen, setCreateOpen] = useState(false)
   const [refundOrder, setRefundOrder] = useState<OrderOrderItem | null>(null)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [batchLoading, setBatchLoading] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
   const fetchOrders = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
@@ -110,7 +116,116 @@ function OrderList() {
     setRefundOrder(order)
   }, [])
 
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).map(Number),
+    [rowSelection],
+  )
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 分页/筛选/排序变化时清除选中状态
+  useEffect(() => { setRowSelection({}) }, [table.pagination, table.columnFilters, table.sorting])
+
+  const executeBatchAction = useCallback(async (
+    apiFn: () => Promise<{ data?: { code?: number; message?: string; data?: OrderBatchRefundResponse } }>,
+    label: string,
+  ) => {
+    setBatchLoading(true)
+    try {
+      const { data: res } = await apiFn()
+      if (res?.code !== 0) {
+        toast.error(res?.message ?? "操作失败")
+        return
+      }
+      const result = res.data as OrderBatchRefundResponse
+      if (result.failed === 0) {
+        toast.success(`批量${label}完成，共 ${result.total} 个订单`)
+      } else if (result.success === 0) {
+        toast.error(`批量${label}失败，${result.failed} 个订单操作失败`)
+      } else {
+        toast.warning(`批量${label}：${result.success} 个成功，${result.failed} 个失败`)
+      }
+      setRowSelection({})
+      table.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "请求失败"))
+    } finally {
+      setBatchLoading(false)
+    }
+  }, [table])
+
+  const handleBatchRefund = useCallback(async () => {
+    const ok = await confirm({
+      title: "批量退款",
+      description: `确定要批量退款 ${selectedIds.length} 个订单吗？退款金额将退回到用户余额。`,
+      confirmText: "确认退款",
+      destructive: true,
+    })
+    if (!ok) return
+    executeBatchAction(() => postAdminOrdersBatchRefund({ body: { ids: selectedIds } }), "退款")
+  }, [selectedIds, confirm, executeBatchAction])
+
+  const rejectReasonRef = useRef("")
+
+  const handleBatchReject = useCallback(async () => {
+    rejectReasonRef.current = ""
+    const ok = await confirm({
+      title: "批量拒绝退款",
+      description: (
+        <div className="space-y-3">
+          <p>确定要批量拒绝 {selectedIds.length} 个订单的退款申请吗？</p>
+          <Textarea
+            placeholder="请输入拒绝原因"
+            rows={2}
+            onChange={(e) => { rejectReasonRef.current = e.target.value }}
+          />
+        </div>
+      ),
+      confirmText: "确认拒绝",
+      destructive: true,
+    })
+    if (!ok) return
+    const reason = rejectReasonRef.current.trim() || "批量拒绝"
+    executeBatchAction(() => postAdminOrdersBatchRefundReject({ body: { ids: selectedIds, reason } }), "拒绝退款")
+  }, [selectedIds, confirm, executeBatchAction])
+
+  const batchToolbar = selectedIds.length > 0 ? (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground whitespace-nowrap">
+        已选 {selectedIds.length} 项
+      </span>
+      <Button size="sm" variant="outline" disabled={batchLoading} onClick={handleBatchRefund}>
+        <CheckCheck className="size-4" />
+        批量退款
+      </Button>
+      <Button size="sm" variant="outline" disabled={batchLoading} onClick={handleBatchReject}>
+        <Ban className="size-4" />
+        批量拒绝
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
+        <X className="size-4" />
+      </Button>
+    </div>
+  ) : undefined
+
   const columns: ColumnDef<OrderOrderItem>[] = useMemo(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="全选"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="选择行"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+    },
     {
       accessorKey: "id",
       header: "ID",
@@ -285,7 +400,11 @@ function OrderList() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
-        toolbar={
+        getRowId={(row) => String(row.id)}
+        enableRowSelection
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        toolbar={batchToolbar ?? (
           <div className="flex gap-2">
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" />
@@ -293,7 +412,7 @@ function OrderList() {
             </Button>
             <ExportButton endpoint="orders" disabled={table.data.total === 0} />
           </div>
-        }
+        )}
         emptyState={
           <EmptyState
             icon={ShoppingCart}

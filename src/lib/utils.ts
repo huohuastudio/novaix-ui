@@ -37,7 +37,8 @@ export function updateAt<T>(arr: T[], index: number, patch: Partial<T>): T[] {
 }
 
 export function formatBytes(bytes: number | undefined): string {
-  if (!bytes) return "-"
+  if (bytes == null || bytes === 0) return "-"
+  if (bytes < 0) return "统计不可用"
   const units = ["B", "KB", "MB", "GB", "TB"]
   let i = 0
   let size = bytes

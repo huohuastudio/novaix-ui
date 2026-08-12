@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { ScrollText } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,6 +154,9 @@ export default function Logs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={ScrollText}
+        emptyTitle="暂无日志"
+        emptyDescription="系统操作记录会在这里显示"
         toolbar={
           <div className="flex items-center gap-2">
             <Input

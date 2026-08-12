@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatBytes } from "@/lib/utils"
 import { getAdminImages, deleteAdminImagesById } from "@/api"
+import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 import type { ImageImageItem, ImageGroupItem } from "@/api"
 import { getAdminImagesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
@@ -106,8 +108,12 @@ export default function Images() {
       destructive: true,
     })
     if (!ok) return
-    await deleteAdminImagesById({ path: { id: image.id! } })
-    table.refresh()
+    try {
+      await deleteAdminImagesById({ path: { id: image.id! } })
+      table.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "删除失败"))
+    }
   }, [table, confirm])
 
   const handleFormSuccess = () => {

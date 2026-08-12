@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
+import { MessageSquare } from "lucide-react"
 import type { TicketTicketItem } from "@/api"
 import { getAdminTickets } from "@/api"
 import { getAdminTicketsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -98,6 +99,9 @@ export function TicketsTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={MessageSquare}
+      emptyTitle="暂无工单"
+      emptyDescription="该用户还没有提交任何工单"
     />
   )
 }

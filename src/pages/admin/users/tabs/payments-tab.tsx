@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { CreditCard } from "lucide-react"
 import type { PaymentAdminPaymentItem } from "@/api"
 import { getAdminPayments } from "@/api"
 import { getAdminPaymentsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -104,6 +105,9 @@ export function PaymentsTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={CreditCard}
+      emptyTitle="暂无支付记录"
+      emptyDescription="该用户还没有任何支付记录"
     />
   )
 }

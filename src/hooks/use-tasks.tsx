@@ -10,6 +10,7 @@ import { getAdminTasksActive, getAdminTasksByIdHistory, deleteAdminTasksFinished
 import type { TaskTaskItem } from "@/api"
 import { getWSTicket } from "@/lib/ws-ticket"
 import { taskTypeLabel } from "@/lib/task-constants"
+import { onAdminTaskChange } from "@/hooks/use-admin-events"
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { taskTypeLabel }
@@ -47,6 +48,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<TaskEntry[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const wsRefs = useRef<Map<number, WebSocket>>(new Map())
+  const logsFetchedRef = useRef<Set<number>>(new Set())
 
   const fetchActiveTasks = useCallback(async () => {
     try {
@@ -95,6 +97,27 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     void fetchActiveTasks()
   }, [fetchActiveTasks])
 
+  const fetchTaskLogs = useCallback(async (taskId: number) => {
+    try {
+      const { data: res } = await getAdminTasksByIdHistory({
+        path: { id: taskId },
+      })
+      const logs = (res?.data as string[] | undefined) ?? []
+      if (logs.length > 0) {
+        logsFetchedRef.current.add(taskId)
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (t.id !== taskId) return t
+            if (t.logs.length > 0) return t
+            return updateTaskEntry(t, { logs, wsStatus: "closed" })
+          }),
+        )
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
   const connectWs = useCallback(async (taskId: number) => {
     if (wsRefs.current.has(taskId)) return
 
@@ -119,7 +142,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       )
     }
 
+    let receivedMessages = false
     ws.onmessage = (e) => {
+      receivedMessages = true
       const line = e.data as string
       setTasks((prev) =>
         prev.map((t) => {
@@ -131,18 +156,20 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       )
     }
 
-    const handleWsEnd = () => {
+    ws.onclose = (e) => {
       wsRefs.current.delete(taskId)
+      if (receivedMessages) logsFetchedRef.current.add(taskId)
       setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId ? updateTaskEntry(t, { wsStatus: "closed" }) : t,
-        ),
+        prev.map((t) => {
+          if (t.id !== taskId) return t
+          const isActive = t.status === "pending" || t.status === "running"
+          const wsStatus = e.code !== 1000 && isActive ? "idle" : "closed"
+          return updateTaskEntry(t, { wsStatus })
+        }),
       )
       fetchActiveTasks()
     }
-
-    ws.onclose = handleWsEnd
-    ws.onerror = handleWsEnd
+    ws.onerror = () => {}
   }, [fetchActiveTasks])
 
   useEffect(() => {
@@ -155,6 +182,21 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [tasks, connectWs])
+
+  // SSE 事件直接更新任务状态
+  useEffect(() => {
+    return onAdminTaskChange((event) => {
+      setTasks((prev) => {
+        let changed = false
+        const next = prev.map((t) => {
+          if (t.id !== event.task_id) return t
+          changed = true
+          return updateTaskEntry(t, { status: event.status, ...(event.result ? { result: event.result } : {}) })
+        })
+        return changed ? next : prev
+      })
+    })
+  }, [])
 
   const hasActive = tasks.some(
     (t) => t.status === "pending" || t.status === "running",
@@ -172,36 +214,16 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const fetchTaskLogs = useCallback(async (taskId: number) => {
-    try {
-      const { data: res } = await getAdminTasksByIdHistory({
-        path: { id: taskId },
-      })
-      const logs = (res?.data as string[] | undefined) ?? []
-      if (logs.length > 0) {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? updateTaskEntry(t, { logs, wsStatus: "closed" })
-              : t,
-          ),
-        )
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
-
   useEffect(() => {
     if (selectedTaskId == null) return
+    if (logsFetchedRef.current.has(selectedTaskId)) return
     const task = tasks.find((t) => t.id === selectedTaskId)
     if (
       task &&
-      (task.status === "completed" || task.status === "failed") &&
-      task.logs.length === 0 &&
-      task.wsStatus === "idle"
+      (task.status === "completed" || task.status === "failed" || task.status === "compensation_failed") &&
+      task.logs.length === 0
     ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 选中已完成任务时加载日志
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 已完成任务无日志时从 DB 加载
       void fetchTaskLogs(selectedTaskId)
     }
   }, [selectedTaskId, tasks, fetchTaskLogs])

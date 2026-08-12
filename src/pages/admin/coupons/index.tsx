@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { Routes, Route, useNavigate } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Tag } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -222,6 +222,10 @@ function CouponList() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Tag}
+        emptyTitle="暂无优惠券"
+        emptyDescription="创建优惠券供用户使用"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>创建优惠券</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

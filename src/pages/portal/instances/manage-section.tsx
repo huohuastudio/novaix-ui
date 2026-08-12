@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, startTransition } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -6,6 +6,7 @@ import {
   postPortalInstancesByIdRenew,
   postPortalInstancesByIdResetPassword,
   postPortalInstancesByIdReinstall,
+  postPortalInstancesByIdStop,
   postPortalInstancesByIdTrafficPackages,
   postPortalInstancesByIdMountIso,
   postPortalInstancesByIdUnmountIso,
@@ -38,14 +39,20 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2, KeyRound, RefreshCw, CreditCard, ArrowUpDown, Gauge, Disc } from "lucide-react"
-import { useFormatAmount } from "@/hooks/use-site-settings"
+import { PasswordInput } from "@/components/password-input"
+import { useFormatAmount, useSiteSettings } from "@/hooks/use-site-settings"
+import { generatePassword } from "@/lib/utils"
+import { useCouponValidation } from "@/hooks/use-coupon-validation"
 import { billingCycleMap } from "@/lib/order-constants"
 import { trafficPackageTypeMap } from "@/lib/traffic-package-constants"
 
-export function ManageSection({ instance, onRefresh }: { instance: PortalPortalInstanceItem; onRefresh: () => void }) {
+export function ManageSection({ instance, onRefresh, onPasswordChanged }: { instance: PortalPortalInstanceItem; onRefresh: () => void; onPasswordChanged?: () => void }) {
   const navigate = useNavigate()
   const formatPrice = useFormatAmount()
+  const settings = useSiteSettings()
   const { addTask } = usePortalTasks()
+  const newPassword = () => generatePassword(Number(settings.instance_auto_password_length) || 16)
+  const autoPasswordEnabled = settings.instance_auto_password !== 'false'
   const instanceBusy = instance.active_task_id != null
   const enabledCycles = useMemo(() =>
     (instance.enabled_cycles ?? '').split(',').filter(Boolean),
@@ -61,25 +68,43 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
     renewableCycles.includes('monthly') ? 'monthly' : renewableCycles[0] ?? 'monthly'
   )
   const [renewing, setRenewing] = useState(false)
+  const renewCoupon = useCouponValidation()
 
   const [trafficOpen, setTrafficOpen] = useState(false)
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null)
   const [buyingTraffic, setBuyingTraffic] = useState(false)
 
   const [resetPwdOpen, setResetPwdOpen] = useState(false)
-  const [newPassword, setNewPassword] = useState("")
+  const [resetPwd, setResetPwd] = useState("")
+  const [showResetPwd, setShowResetPwd] = useState(false)
+  const [autoRestart, setAutoRestart] = useState(true)
   const [resettingPwd, setResettingPwd] = useState(false)
 
   const [reinstallOpen, setReinstallOpen] = useState(false)
   const [selectedImageId, setSelectedImageId] = useState<number | null>(null)
   const [reinstallPassword, setReinstallPassword] = useState("")
+  const [showReinstallPwd, setShowReinstallPwd] = useState(false)
   const [reinstalling, setReinstalling] = useState(false)
+  const [stopForReinstallOpen, setStopForReinstallOpen] = useState(false)
+  const [stoppingForReinstall, setStoppingForReinstall] = useState(false)
+  const [reinstallStopTaskId, setReinstallStopTaskId] = useState<number | null>(null)
 
   const [isoOpen, setIsoOpen] = useState(false)
   const [selectedIsoId, setSelectedIsoId] = useState<number | null>(null)
   const [selectedDriverIsoId, setSelectedDriverIsoId] = useState<number | null>(null)
   const [mountingIso, setMountingIso] = useState(false)
   const [unmountingIso, setUnmountingIso] = useState(false)
+
+  // 停机完成后自动打开重装弹窗
+  useEffect(() => {
+    if (!reinstallStopTaskId) return
+    if (instance.active_task_id) return
+    if (instance.status === "running") return
+    startTransition(() => {
+      setReinstallStopTaskId(null)
+      if (instance.status === "stopped") setReinstallOpen(true)
+    })
+  }, [reinstallStopTaskId, instance.active_task_id, instance.status])
 
   // 流量包列表：打开弹窗时才请求
   const trafficQuery = useQuery({
@@ -123,13 +148,36 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
   )
   const effectiveIsoId = selectedIsoId ?? isos[0]?.id ?? null
 
+  const openRenewDialog = useCallback(() => {
+    renewCoupon.reset()
+    setRenewOpen(true)
+  }, [renewCoupon])
+
+  // 验证续费优惠码
+  const handleValidateRenewCoupon = async () => {
+    const priceMap: Record<string, number | undefined> = {
+      monthly: instance.price_monthly,
+      quarterly: instance.price_quarterly,
+      yearly: instance.price_yearly,
+    }
+    const renewAmount = priceMap[renewCycle] ?? 0
+    if (renewAmount <= 0) {
+      toast.error("无法获取续费价格，请刷新页面后重试")
+      return
+    }
+    await renewCoupon.validate(renewAmount, "renew")
+  }
+
   const handleRenew = async () => {
     if (!instance.id) return
     setRenewing(true)
     try {
       const { data: res } = await postPortalInstancesByIdRenew({
         path: { id: instance.id },
-        body: { billing_cycle: renewCycle },
+        body: {
+          billing_cycle: renewCycle,
+          ...(renewCoupon.result ? { coupon_code: renewCoupon.code.trim() } : {}),
+        },
       })
       if (res?.code === 0) {
         toast.success("续费订单已创建，请前往支付")
@@ -169,7 +217,7 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
   }
 
   const handleResetPassword = async () => {
-    if (!instance.id || !newPassword || newPassword.length < 8) {
+    if (!instance.id || !resetPwd || resetPwd.length < 8) {
       toast.error("密码至少 8 个字符")
       return
     }
@@ -177,14 +225,15 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
     try {
       const { data: res } = await postPortalInstancesByIdResetPassword({
         path: { id: instance.id },
-        body: { password: newPassword },
+        body: { password: resetPwd, auto_restart: autoRestart },
       })
       if (res?.code === 0) {
         const taskId = res.data?.task_id
         if (taskId) addTask(taskId, "reset_password", instance.id)
-        toast.success("密码重置任务已提交，重启后生效")
+        toast.success(autoRestart ? "密码重置任务已提交，将自动重启" : "密码重置任务已提交，重启后生效")
         setResetPwdOpen(false)
-        setNewPassword("")
+        setResetPwd("")
+        onPasswordChanged?.()
       } else {
         toast.error(res?.message || "重置密码失败")
       }
@@ -192,6 +241,55 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
       toast.error(getErrorMessage(err, "重置密码失败"))
     } finally {
       setResettingPwd(false)
+    }
+  }
+
+  const openResetPwdDialog = () => {
+    setResetPwd(autoPasswordEnabled ? newPassword() : '')
+    setShowResetPwd(autoPasswordEnabled)
+    setAutoRestart(instance.status === 'running')
+    setResetPwdOpen(true)
+  }
+
+  const openReinstallFlow = () => {
+    const status = instance.status ?? ""
+    if (status !== "stopped" && status !== "running" && status !== "frozen") {
+      toast.error("当前状态不支持重装系统")
+      return
+    }
+    const pwd = autoPasswordEnabled ? newPassword() : ''
+    setReinstallPassword(pwd)
+    setShowReinstallPwd(!!pwd)
+    if (status === "stopped") {
+      setReinstallOpen(true)
+    } else {
+      setStopForReinstallOpen(true)
+    }
+  }
+
+  const handleStopForReinstall = async () => {
+    if (!instance.id) return
+    setStoppingForReinstall(true)
+    try {
+      const { data: res } = await postPortalInstancesByIdStop({ path: { id: instance.id } })
+      if (res?.code === 0) {
+        const taskId = (res.data as { task_id?: number })?.task_id
+        if (taskId) {
+          addTask(taskId, "stop_instance", instance.id)
+          setReinstallStopTaskId(taskId)
+        }
+        toast.success("正在停止服务器，完成后将自动打开重装弹窗")
+        setStopForReinstallOpen(false)
+        onRefresh()
+      } else {
+        toast.error(res?.message || "停止服务器失败")
+        setReinstallStopTaskId(null)
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "停止服务器失败"))
+      setReinstallStopTaskId(null)
+    } finally {
+      setStoppingForReinstall(false)
     }
   }
 
@@ -213,6 +311,7 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
         toast.success("重装系统任务已提交")
         setReinstallOpen(false)
         setReinstallPassword("")
+        onPasswordChanged?.()
         onRefresh()
       } else {
         toast.error(res?.message || "重装系统失败")
@@ -272,8 +371,6 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
     }
   }
 
-  const isStopped = instance.status === "stopped"
-
   return (
     <>
       <section>
@@ -282,7 +379,7 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
           {instance.billing_cycle !== "hourly" && (
             <button
               className="rounded-2xl bg-background p-5 text-left hover:bg-foreground/[.05] transition-colors"
-              onClick={() => setRenewOpen(true)}
+              onClick={openRenewDialog}
             >
               <CreditCard className="size-5 text-muted-foreground mb-2" />
               <p className="text-sm font-medium">续费</p>
@@ -301,19 +398,19 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
           )}
           <button
             className="rounded-2xl bg-background p-5 text-left hover:bg-foreground/[.05] transition-colors"
-            onClick={() => setResetPwdOpen(true)}
+            onClick={openResetPwdDialog}
           >
             <KeyRound className="size-5 text-muted-foreground mb-2" />
             <p className="text-sm font-medium">重置密码</p>
-            <p className="text-xs text-muted-foreground mt-1">重置 root 密码，重启后生效</p>
+            <p className="text-xs text-muted-foreground mt-1">重置登录密码</p>
           </button>
           <button
-            className={`rounded-2xl bg-background p-5 text-left transition-colors ${isStopped ? 'hover:bg-foreground/[.05]' : 'opacity-50 cursor-not-allowed'}`}
-            onClick={isStopped ? () => setReinstallOpen(true) : undefined}
+            className="rounded-2xl bg-background p-5 text-left hover:bg-foreground/[.05] transition-colors"
+            onClick={openReinstallFlow}
           >
             <RefreshCw className="size-5 text-muted-foreground mb-2" />
             <p className="text-sm font-medium">重装系统</p>
-            <p className="text-xs text-muted-foreground mt-1">{isStopped ? "更换操作系统镜像" : "需要先停止服务器"}</p>
+            <p className="text-xs text-muted-foreground mt-1">更换操作系统镜像</p>
           </button>
           {(instance.traffic_limit ?? 0) > 0 && (
             <button
@@ -406,7 +503,7 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>计费周期</Label>
-              <Select value={renewCycle} onValueChange={setRenewCycle}>
+              <Select value={renewCycle} onValueChange={(v) => { setRenewCycle(v); renewCoupon.setResult(null) }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -421,6 +518,31 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">续费订单创建后需要前往订单页面支付</p>
+            <div className="space-y-2">
+              <Label>优惠码（可选）</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="输入优惠码"
+                  value={renewCoupon.code}
+                  onChange={(e) => renewCoupon.updateCode(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={handleValidateRenewCoupon}
+                  disabled={renewCoupon.validating || !renewCoupon.code.trim()}
+                >
+                  {renewCoupon.validating && <Loader2 className="size-4 animate-spin" />}
+                  验证
+                </Button>
+              </div>
+              {renewCoupon.result && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  优惠 {formatPrice(renewCoupon.result.discount_amount ?? 0)}
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenewOpen(false)}>取消</Button>
@@ -441,18 +563,31 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>新密码</Label>
-              <Input
-                type="password"
-                placeholder="至少 8 个字符"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+              <PasswordInput
+                value={resetPwd}
+                onChange={setResetPwd}
+                show={showResetPwd}
+                onToggleShow={() => setShowResetPwd(!showResetPwd)}
+                onGenerate={() => { setResetPwd(newPassword()); setShowResetPwd(true) }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">密码修改后需要重启服务器才能生效</p>
+            {instance.status === 'running' ? (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={autoRestart} onChange={(e) => setAutoRestart(e.target.checked)} className="accent-foreground" />
+                <span className="text-sm">重置后自动重启</span>
+              </label>
+            ) : instance.cloud_init === false ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400">该镜像不支持离线密码注入，请先启动服务器再重置密码</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">密码将在下次启动时生效</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetPwdOpen(false)}>取消</Button>
-            <Button onClick={handleResetPassword} disabled={instanceBusy || resettingPwd || !newPassword}>
+            <Button
+              onClick={handleResetPassword}
+              disabled={instanceBusy || resettingPwd || !resetPwd || (instance.cloud_init === false && instance.status !== 'running')}
+            >
               {resettingPwd && <Loader2 className="size-4 animate-spin" />}
               确认重置
             </Button>
@@ -487,11 +622,12 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
             </div>
             <div className="space-y-2">
               <Label>新密码</Label>
-              <Input
-                type="password"
-                placeholder="至少 8 个字符"
+              <PasswordInput
                 value={reinstallPassword}
-                onChange={(e) => setReinstallPassword(e.target.value)}
+                onChange={setReinstallPassword}
+                show={showReinstallPwd}
+                onToggleShow={() => setShowReinstallPwd(!showReinstallPwd)}
+                onGenerate={() => { setReinstallPassword(newPassword()); setShowReinstallPwd(true) }}
               />
             </div>
             <p className="text-xs text-destructive">重装将清除所有数据，此操作不可撤销</p>
@@ -505,6 +641,25 @@ export function ManageSection({ instance, onRefresh }: { instance: PortalPortalI
             >
               {reinstalling && <Loader2 className="size-4 animate-spin" />}
               确认重装
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 停机后重装确认 Dialog */}
+      <Dialog open={stopForReinstallOpen} onOpenChange={setStopForReinstallOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>需要先停止服务器</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">重装系统需要先停止服务器。停止后将自动打开重装弹窗。</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStopForReinstallOpen(false)}>取消</Button>
+            <Button onClick={handleStopForReinstall} disabled={instanceBusy || stoppingForReinstall}>
+              {stoppingForReinstall && <Loader2 className="size-4 animate-spin" />}
+              停止并重装
             </Button>
           </DialogFooter>
         </DialogContent>

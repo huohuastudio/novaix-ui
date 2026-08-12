@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react"
+import { CreditCard } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -155,6 +156,9 @@ export default function Payments() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={CreditCard}
+        emptyTitle="暂无支付记录"
+        emptyDescription="用户完成支付后记录将显示在这里"
         toolbar={
           <ExportButton endpoint="payments" disabled={table.data.total === 0} />
         }

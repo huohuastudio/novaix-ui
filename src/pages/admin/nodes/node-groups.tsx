@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, Server } from "lucide-react"
+import { Plus, Pencil, Trash2, Server, Folder } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -166,6 +166,15 @@ export default function NodeGroups() {
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
         enableSorting={false}
+        emptyIcon={Folder}
+        emptyTitle="暂无节点组"
+        emptyDescription="创建节点组来组织和管理节点"
+        emptyAction={
+          <Button variant="outline" onClick={handleCreate}>
+            <Plus className="size-4" />
+            创建节点组
+          </Button>
+        }
         toolbar={
           <Button onClick={handleCreate}>
             <Plus className="size-4" />

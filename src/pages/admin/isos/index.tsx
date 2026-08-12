@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Trash2, CheckCircle } from "lucide-react"
+import { Plus, Trash2, CheckCircle, Disc } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -239,6 +239,10 @@ export default function ISOs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Disc}
+        emptyTitle="暂无 ISO 镜像"
+        emptyDescription="创建 ISO 记录并上传镜像文件"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>创建 ISO</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

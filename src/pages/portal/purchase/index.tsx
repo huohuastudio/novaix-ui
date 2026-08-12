@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Check, Cpu, HardDrive, MemoryStick, Globe, Loader2, Tag, RefreshCw, Eye, EyeOff } from 'lucide-react'
+import { Check, Cpu, HardDrive, MemoryStick, Globe, Loader2, Tag, RefreshCw } from 'lucide-react'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { postPortalOrders, postPortalCouponsValidate } from '@/api'
 import { getPortalPlansOptions, getPortalSshKeysOptions } from '@/api/@tanstack/react-query.gen'
-import type { PortalPurchasePlanItem, PortalPurchaseNodeItem, PortalPurchaseImageItem } from '@/api'
+import type { PortalPurchasePlanItem } from '@/api'
 import { useSiteName, useFormatAmount, useSiteSettings } from '@/hooks/use-site-settings'
 import { formatMemory, getErrorMessage, generateHostname, generatePassword } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -54,9 +55,9 @@ export default function PortalPurchase() {
   const [submitting, setSubmitting] = useState(false)
 
   // 用户显式选择（null 表示未选，使用派生默认值）
+  const [userRegion, setUserRegion] = useState<string | null>(null)
   const [userPlanId, setUserPlanId] = useState<number | null>(null)
   const [userCycle, setUserCycle] = useState<BillingCycle | null>(null)
-  const [userNodeId, setUserNodeId] = useState<number | null>(null)
   const [userImageId, setUserImageId] = useState<number | null>(null)
   const [hostname, setHostname] = useState(newHostname)
   const [password, setPassword] = useState(() =>
@@ -75,30 +76,94 @@ export default function PortalPurchase() {
   const sshKeysQuery = useQuery(getPortalSshKeysOptions())
   const sshKeys = sshKeysQuery.data?.data ?? []
 
-  // 套餐列表（节点/镜像可用性随套餐一次性返回，无需链式请求）
+  // 套餐列表（节点/镜像可用性随套餐一次性返回）
   const plansQuery = useQuery(getPortalPlansOptions())
-  const plans = useMemo(() => plansQuery.data?.data?.plans ?? [], [plansQuery.data])
+  const allPlans = useMemo(() => plansQuery.data?.data?.plans ?? [], [plansQuery.data])
   const loading = plansQuery.isPending
 
-  // 派生选中套餐：用户选择 ?? 首个有货套餐 ?? 首个套餐
+  // 按区域聚合节点
+  const regions = useMemo(() => {
+    const map = new Map<string, number[]>()
+    for (const plan of allPlans) {
+      for (const node of plan.nodes ?? []) {
+        if (node.id == null) continue
+        const region = node.region || node.name || String(node.id)
+        if (!map.has(region)) map.set(region, [])
+        const ids = map.get(region)!
+        if (!ids.includes(node.id)) ids.push(node.id)
+      }
+    }
+    return Array.from(map.entries()).map(([name, nodeIds]) => ({ name, nodeIds }))
+  }, [allPlans])
+
+  // 区域可用性：该区域下至少有一个节点有未售罄且 available 的套餐
+  const regionAvailable = useMemo(() => {
+    const availableNodeIds = new Set<number>()
+    for (const p of allPlans) {
+      if (isPlanSoldOut(p)) continue
+      for (const n of p.nodes ?? []) {
+        if (n.id != null && n.available !== false) availableNodeIds.add(n.id)
+      }
+    }
+    const set = new Set<string>()
+    for (const r of regions) {
+      if (r.nodeIds.some(id => availableNodeIds.has(id))) set.add(r.name)
+    }
+    return set
+  }, [allPlans, regions])
+
+  // 派生选中区域
+  const selectedRegion = regions.some(r => r.name === userRegion)
+    ? userRegion
+    : regions.find(r => regionAvailable.has(r.name))?.name ?? regions[0]?.name ?? null
+
+  // 选中区域下的节点 ID 列表
+  const selectedNodeIds = useMemo(() => {
+    if (!selectedRegion) return new Set<number>()
+    const region = regions.find(r => r.name === selectedRegion)
+    return new Set(region?.nodeIds ?? [])
+  }, [regions, selectedRegion])
+
+  // 根据选中区域过滤套餐（套餐的节点列表中包含该区域的任一节点）
+  const plans = useMemo(() => {
+    if (selectedNodeIds.size === 0) return allPlans
+    return allPlans.filter(p =>
+      (p.nodes ?? []).some(n => n.id != null && selectedNodeIds.has(n.id))
+    )
+  }, [allPlans, selectedNodeIds])
+
+  // 套餐在当前区域的可用性（未售罄 + 区域内至少一个节点 available）
+  const planAvailability = useMemo(() => {
+    const map = new Map<number, boolean>()
+    for (const plan of plans) {
+      if (isPlanSoldOut(plan)) { map.set(plan.id!, false); continue }
+      if (selectedNodeIds.size === 0) { map.set(plan.id!, true); continue }
+      const hasAvailableNode = (plan.nodes ?? []).some(n =>
+        n.id != null && selectedNodeIds.has(n.id) && n.available !== false
+      )
+      map.set(plan.id!, hasAvailableNode)
+    }
+    return map
+  }, [plans, selectedNodeIds])
+
+  const isPlanAvailable = (plan: PortalPurchasePlanItem) => planAvailability.get(plan.id!) ?? false
+
+  // 派生选中套餐：用户选择仅在当前节点可用时保留 ?? 首个可用套餐 ?? null
   const selectedPlan = useMemo(() => {
+    const avail = (p: PortalPurchasePlanItem) => planAvailability.get(p.id!) ?? false
     const chosen = plans.find(p => p.id === userPlanId)
-    if (chosen) return chosen
-    return plans.find(p => !isPlanSoldOut(p)) ?? plans[0] ?? null
-  }, [plans, userPlanId])
+    if (chosen && avail(chosen)) return chosen
+    return plans.find(avail) ?? null
+  }, [plans, userPlanId, planAvailability])
   const selectedPlanId = selectedPlan?.id ?? null
 
-  const nodes: PortalPurchaseNodeItem[] = selectedPlan?.nodes ?? []
-  const images: PortalPurchaseImageItem[] = selectedPlan?.images ?? []
+  const images = useMemo(() => selectedPlan?.images ?? [], [selectedPlan])
 
-  // 派生选中项：用户选择有效时优先，否则回落到套餐默认值
+  // 派生选中项
   const allCycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
   const selectedCycle: BillingCycle = userCycle
     ?? (selectedPlan ? allCycles.find(c => isCycleEnabled(selectedPlan, c)) : undefined)
     ?? 'monthly'
-  const selectedNodeId = nodes.some(n => n.id === userNodeId)
-    ? userNodeId
-    : nodes.find(n => n.available !== false)?.id ?? null
   const selectedImageId = images.some(img => img.id === userImageId)
     ? userImageId
     : images[0]?.id ?? null
@@ -106,19 +171,36 @@ export default function PortalPurchase() {
   const selectedImage = useMemo(() => images.find(img => img.id === selectedImageId) ?? null, [images, selectedImageId])
   const isWindows = selectedImage?.os?.toLowerCase().includes('windows') ?? false
 
-  // 切换套餐：清除节点/镜像/周期的用户选择，回到新套餐的默认值
-  const selectPlan = (plan: PortalPurchasePlanItem) => {
-    setUserPlanId(plan.id ?? null)
-    setUserNodeId(null)
+  // 切换区域：清除套餐/镜像/周期的用户选择
+  const selectRegion = (region: string) => {
+    setUserRegion(region)
+    setUserPlanId(null)
     setUserImageId(null)
     setUserCycle(null)
     setCouponDiscount(0)
   }
 
+  // 切换套餐：清除镜像/周期的用户选择
+  const selectPlan = (plan: PortalPurchasePlanItem) => {
+    setUserPlanId(plan.id ?? null)
+    setUserImageId(null)
+    setUserCycle(null)
+    setCouponDiscount(0)
+  }
+
+  // 从选中套餐的节点列表中，自动选取当前区域内可用的节点（下单用）
+  const selectedNodeId = useMemo(() => {
+    if (!selectedPlan || selectedNodeIds.size === 0) return null
+    const node = (selectedPlan.nodes ?? []).find(n =>
+      n.id != null && selectedNodeIds.has(n.id) && n.available !== false
+    )
+    return node?.id ?? null
+  }, [selectedPlan, selectedNodeIds])
+
   const unitPrice = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
   const price = unitPrice * quantity
   const finalPrice = Math.max(0, price - couponDiscount)
-  const selectedPlanSoldOut = selectedPlan ? isPlanSoldOut(selectedPlan) : false
+  const selectedPlanUnavailable = !selectedPlan || !isPlanAvailable(selectedPlan)
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || unitPrice <= 0) return
@@ -148,7 +230,7 @@ export default function PortalPurchase() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedPlanId || !selectedNodeId || !selectedImageId) {
+    if (!selectedPlanId || !selectedNodeId || !selectedImageId || selectedPlanUnavailable) {
       toast.error('请完成所有选项')
       return
     }
@@ -212,7 +294,7 @@ export default function PortalPurchase() {
     )
   }
 
-  if (plans.length === 0) {
+  if (allPlans.length === 0) {
     return (
       <div className="space-y-8">
         {pageHeader}
@@ -229,6 +311,37 @@ export default function PortalPurchase() {
     <div className="space-y-8">
       {pageHeader}
 
+      {/* 选择区域 */}
+      {regions.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择区域</h2>
+          <div className="flex flex-wrap gap-2">
+            {regions.map((region) => {
+              const active = region.name === selectedRegion
+              const unavailable = !regionAvailable.has(region.name)
+              return (
+                <button
+                  key={region.name}
+                  onClick={() => selectRegion(region.name)}
+                  className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
+                    unavailable
+                      ? 'bg-background opacity-50'
+                      : active
+                        ? 'bg-foreground text-background'
+                        : 'bg-background hover:bg-foreground/[.05]'
+                  }`}
+                >
+                  {region.name}
+                  {unavailable && (
+                    <span className="block text-xs font-normal mt-0.5 text-muted-foreground">暂无可用套餐</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 套餐选择 */}
       <div className="space-y-4" data-tour="purchase-plans">
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择套餐</h2>
@@ -236,13 +349,15 @@ export default function PortalPurchase() {
           {plans.map((plan) => {
             const active = plan.id === selectedPlanId
             const soldOut = isPlanSoldOut(plan)
+            const nodeUnavailable = !soldOut && !isPlanAvailable(plan)
+            const disabled = soldOut || nodeUnavailable
             return (
               <button
                 key={plan.id}
-                disabled={soldOut}
+                disabled={disabled}
                 onClick={() => selectPlan(plan)}
                 className={`relative rounded-2xl p-5 text-left transition-colors ${
-                  soldOut
+                  disabled
                     ? 'bg-background opacity-50 cursor-not-allowed'
                     : active
                       ? 'bg-foreground/5 ring-2 ring-foreground/20'
@@ -254,7 +369,12 @@ export default function PortalPurchase() {
                     售罄
                   </span>
                 )}
-                {!soldOut && active && (
+                {nodeUnavailable && (
+                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    资源不足
+                  </span>
+                )}
+                {!disabled && active && (
                   <div className="absolute top-3 right-3 flex size-5 items-center justify-center rounded-full bg-foreground">
                     <Check className="size-3 text-background" />
                   </div>
@@ -317,42 +437,6 @@ export default function PortalPurchase() {
           })}
         </div>
       </div>
-
-      {/* 节点选择 */}
-      {nodes.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择节点</h2>
-          <div className="flex flex-wrap gap-2">
-            {nodes.map((node) => {
-              const active = node.id === selectedNodeId
-              const unavailable = node.available === false
-              return (
-                <button
-                  key={node.id}
-                  disabled={unavailable}
-                  onClick={() => setUserNodeId(node.id ?? null)}
-                  className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
-                    unavailable
-                      ? 'bg-background opacity-50 cursor-not-allowed'
-                      : active
-                        ? 'bg-foreground text-background'
-                        : 'bg-background hover:bg-foreground/[.05]'
-                  }`}
-                >
-                  {node.name}
-                  {unavailable ? (
-                    <span className="block text-xs font-normal mt-0.5 text-muted-foreground">资源不足</span>
-                  ) : node.region ? (
-                    <span className={`block text-xs font-normal mt-0.5 ${active ? 'text-background/70' : 'text-muted-foreground'}`}>
-                      {node.region}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* 系统镜像 */}
       {images.length > 0 && (
@@ -455,34 +539,13 @@ export default function PortalPurchase() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{isWindows ? 'Administrator 密码' : 'root 密码'}</Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="至少 8 个字符"
-                    className="pr-9"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => setPassword(newPassword())}
-                >
-                  <RefreshCw className="size-4" />
-                </Button>
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={setPassword}
+                show={showPassword}
+                onToggleShow={() => setShowPassword(!showPassword)}
+                onGenerate={() => setPassword(newPassword())}
+              />
               {selectedImage && !selectedImage.cloud_init && (
                 <p className="text-xs text-muted-foreground">该镜像不支持自动配置，请在系统安装过程中手动设置密码</p>
               )}
@@ -581,7 +644,7 @@ export default function PortalPurchase() {
           <Button
             size="lg"
             className="px-8"
-            disabled={submitting || !selectedPlanId || !selectedNodeId || !selectedImageId || !hostname || !password || selectedPlanSoldOut}
+            disabled={submitting || !selectedPlanId || !selectedNodeId || !selectedImageId || !hostname || !password || selectedPlanUnavailable}
             onClick={handleSubmit}
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}

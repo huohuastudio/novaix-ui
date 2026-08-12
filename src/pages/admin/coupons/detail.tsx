@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Ticket } from "lucide-react"
 import { getAdminCouponsByIdUsages } from "@/api"
 import type { CouponCouponItem, CouponUsageItem } from "@/api"
 import {
@@ -220,6 +220,9 @@ export default function CouponDetail() {
           onSortingChange={usageTable.setSorting}
           columnFilters={usageTable.columnFilters}
           onColumnFiltersChange={usageTable.setColumnFilters}
+          emptyIcon={Ticket}
+          emptyTitle="暂无使用记录"
+          emptyDescription="用户使用该优惠券后记录将显示在这里"
         />
       </section>
     </div>

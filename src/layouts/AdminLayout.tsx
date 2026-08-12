@@ -13,10 +13,17 @@ import { TaskProvider } from '@/hooks/use-tasks'
 import { HelpDocProvider } from '@/components/help-doc'
 import { TaskTrigger } from '@/components/task-panel'
 import { AdminTourMenu } from '@/components/tour-menu'
+import { BroadcastDialog } from '@/components/broadcast-dialog'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useSiteName, useAdminPath } from '@/hooks/use-site-settings'
 import { requires2FASetup } from '@/lib/auth'
 import { useDocumentTitle } from '@uidotdev/usehooks'
+import { useAdminEvents } from '@/hooks/use-admin-events'
+
+function AdminEventSubscriber() {
+  useAdminEvents()
+  return null
+}
 
 function PageTitle() {
   const siteName = useSiteName()
@@ -32,6 +39,7 @@ export default function AdminLayout() {
   const { pathname, search } = useLocation()
   return (
     <TaskProvider>
+      <AdminEventSubscriber />
       <HelpDocProvider>
       <BreadcrumbProvider>
         <PageTitle />
@@ -47,6 +55,7 @@ export default function AdminLayout() {
               <div className="flex items-center gap-1" data-tour="header-toolbar">
                 <AdminTourMenu />
                 <TaskTrigger />
+                <BroadcastDialog />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" asChild>

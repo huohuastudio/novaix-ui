@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react"
 import { Routes, Route } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, X, FileText, Loader2 } from "lucide-react"
+import { Check, X, FileText, Loader2, Receipt } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -483,6 +483,9 @@ function InvoiceList() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Receipt}
+        emptyTitle="暂无发票申请"
+        emptyDescription="用户提交发票申请后将显示在这里"
       />
 
       {/* 驳回弹窗 */}

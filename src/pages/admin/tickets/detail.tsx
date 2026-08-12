@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Lock, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, Lock, Send, Loader2, MonitorCog } from "lucide-react"
 import { toast } from "sonner"
 import {
   putAdminTicketsById,
@@ -32,6 +32,7 @@ import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { useTicketMeta } from "@/hooks/use-ticket-meta"
 import { getSLAStatus, slaStatusConfig, formatSLARemaining } from "@/lib/ticket-constants"
 import { statusMap, priorityMap } from "./constants"
+import { statusMap as instanceStatusMap } from "@/lib/instance-constants"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -329,6 +330,23 @@ export default function TicketDetail() {
           )}
           {ticket.closed_at && (
             <KV label="关闭时间">{formatDate(ticket.closed_at)}</KV>
+          )}
+          {ticket.instance_id && (
+            <KV label="关联实例">
+              <div className="flex items-center gap-2">
+                <MonitorCog className="size-3.5 text-muted-foreground" />
+                <Link
+                  to={`${adminPath}/instances/${ticket.instance_id}`}
+                  className="text-primary hover:underline"
+                >
+                  {ticket.instance_name || `#${ticket.instance_id}`}
+                </Link>
+                {ticket.instance_status && <Badge variant={instanceStatusMap[ticket.instance_status]?.variant ?? "outline"}>{instanceStatusMap[ticket.instance_status]?.label ?? ticket.instance_status}</Badge>}
+                {ticket.instance_ip && (
+                  <span className="text-xs text-muted-foreground">{ticket.instance_ip}</span>
+                )}
+              </div>
+            </KV>
           )}
         </dl>
       </section>

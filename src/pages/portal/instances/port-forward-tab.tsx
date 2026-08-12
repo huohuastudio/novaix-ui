@@ -75,7 +75,7 @@ export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId
                     </span>
                     <span className="text-[11px] text-muted-foreground">→</span>
                     <span className="text-[12px] text-muted-foreground font-mono">
-                      127.0.0.1:{rule.connect_port}
+                      内网:{rule.connect_port}
                     </span>
                     {rule.enabled === false && (
                       <span className="text-[11px] text-muted-foreground/60">已禁用</span>

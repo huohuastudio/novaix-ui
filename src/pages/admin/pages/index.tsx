@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, FileText } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -170,6 +170,10 @@ export default function Pages() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={FileText}
+        emptyTitle="暂无页面"
+        emptyDescription="创建自定义页面以展示内容"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建页面</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

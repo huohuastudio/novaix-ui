@@ -437,12 +437,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* 资源使用 */}
+        {/* 资源分配 */}
         <div className="lg:col-span-5 rounded-md border p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-medium">资源使用</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">所有在线节点汇总</p>
+              <h3 className="text-sm font-medium">资源分配</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">已分配 / 总量</p>
             </div>
             <Activity className="size-4 text-muted-foreground" />
           </div>

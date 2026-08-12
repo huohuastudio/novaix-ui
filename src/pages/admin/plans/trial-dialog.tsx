@@ -54,8 +54,13 @@ function TrialDialogContent({ onOpenChange, plan }: Omit<TrialDialogProps, 'open
   const images = useMemo(() => {
     const items = imagesQuery.data?.data?.items ?? []
     const imageIds = plan.image_ids?.split(",").map(Number).filter(Boolean)
-    return imageIds?.length ? items.filter(i => imageIds.includes(i.id!)) : items
-  }, [imagesQuery.data, plan.image_ids])
+    const planInstanceType = plan.type === "vm" ? "virtual-machine" : plan.type === "container" ? "container" : ""
+    return items.filter(i => {
+      if (imageIds?.length && !imageIds.includes(i.id!)) return false
+      if (planInstanceType && i.type && i.type !== planInstanceType) return false
+      return true
+    })
+  }, [imagesQuery.data, plan.image_ids, plan.type])
 
   // 默认选中首项：用户选择 ?? 列表首项（派生值，与全站同模式；后台刷新不会覆盖用户选择）
   const selectedNodeId = userNodeId || (nodes[0]?.id != null ? String(nodes[0].id) : "")

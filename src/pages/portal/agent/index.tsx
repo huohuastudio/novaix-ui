@@ -38,9 +38,11 @@ export default function PortalAgent() {
   const stats = statsQuery.data?.code === 0
     ? (statsQuery.data.data as PortalAgentStatsResponse)
     : null
-  const link = linkQuery.data?.code === 0
+  const linkPath = linkQuery.data?.code === 0
     ? ((linkQuery.data.data as { link?: string })?.link ?? "")
     : ""
+  // 拼接完整 URL，避免只显示路径
+  const link = linkPath ? `${window.location.origin}${linkPath}` : ""
 
   // 下级用户
   const usersQuery = useQuery({

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Network } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import {
   Tooltip,
@@ -380,6 +380,15 @@ export default function VPCs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Network}
+        emptyTitle="暂无 VPC"
+        emptyDescription="创建 VPC 来隔离实例间的网络通信"
+        emptyAction={
+          <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            创建 VPC
+          </Button>
+        }
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

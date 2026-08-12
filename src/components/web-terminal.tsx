@@ -136,16 +136,19 @@ export function WebTerminal({ wsUrl, className, autoRetry, onStatusChange }: Web
           updateStatus("closed")
           return
         }
-        if (autoRetry && retryCountRef.current < 5) {
+        const maxRetries = 10
+        if (autoRetry && retryCountRef.current < maxRetries) {
           retryCountRef.current++
-          const delay = retryCountRef.current * 2000
-          term.write(`\r\n\x1b[33m连接失败，${delay / 1000}秒后重试 (${retryCountRef.current}/5)...\x1b[0m\r\n`)
+          const delay = Math.min(retryCountRef.current * 2000, 10000)
+          const hint = retryCountRef.current <= 3 ? "，实例可能正在启动中" : ""
+          term.write(`\r\n\x1b[33m连接失败${hint}，${delay / 1000}秒后重试 (${retryCountRef.current}/${maxRetries})...\x1b[0m\r\n`)
           retryTimer = setTimeout(() => {
             if (!disposedRef.current) {
               setConnectKey(k => k + 1)
             }
           }, delay)
         } else {
+          term.write(`\r\n\x1b[31m连接失败，请检查实例状态后点击左上角重新连接\x1b[0m\r\n`)
           updateStatus("error")
         }
       }
@@ -197,6 +200,7 @@ export function WebTerminal({ wsUrl, className, autoRetry, onStatusChange }: Web
   }, [wsUrl, connectKey, autoRetry, updateStatus])
 
   const handleReconnect = () => {
+    retryCountRef.current = 0
     setConnectKey(k => k + 1)
     setStatus("connecting")
   }
@@ -225,7 +229,10 @@ export function WebTerminal({ wsUrl, className, autoRetry, onStatusChange }: Web
     : status === "error" ? "bg-red-500"
     : "bg-zinc-600"
 
+  const retrying = status === "connecting" && connectKey > 0
+
   const statusText = status === "connected" ? "已连接"
+    : retrying ? "重连中..."
     : status === "connecting" ? "连接中..."
     : status === "error" ? "连接失败"
     : "已断开"

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
+import { Monitor } from "lucide-react"
 import type { InstanceInstanceItem } from "@/api"
 import { getAdminInstances } from "@/api"
 import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -109,6 +110,9 @@ export function InstancesTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={Monitor}
+      emptyTitle="暂无实例"
+      emptyDescription="该用户还没有云服务器"
     />
   )
 }

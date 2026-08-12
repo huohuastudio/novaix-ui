@@ -3,13 +3,14 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Loader2, Check } from "lucide-react"
 import { toast } from "sonner"
-import { postPortalInstancesByIdUpgrade } from "@/api"
+import { postPortalInstancesByIdUpgrade, postPortalCouponsValidate } from "@/api"
 import {
   getPortalInstancesByIdOptions,
   getPortalInstancesByIdUpgradeOptionsOptions,
 } from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem, ServiceUpgradeOption } from "@/api"
 import { formatMemory, formatDisk, getErrorMessage } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
 import { billingCycleMap } from "@/lib/order-constants"
 import { useFormatAmount, useSiteName } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,9 @@ export default function PortalInstanceUpgrade() {
 
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [upgradeCouponCode, setUpgradeCouponCode] = useState("")
+  const [upgradeCouponValidating, setUpgradeCouponValidating] = useState(false)
+  const [upgradeCouponResult, setUpgradeCouponResult] = useState<{ coupon_id?: number; discount_amount?: number } | null>(null)
 
   useDocumentTitle(`升级/降级 - ${siteName}`)
 
@@ -58,13 +62,38 @@ export default function PortalInstanceUpgrade() {
 
   const selected = options.find(o => o.plan_id === selectedPlanId)
 
+  // 验证升级优惠码
+  const handleValidateUpgradeCoupon = async () => {
+    if (!upgradeCouponCode.trim()) return
+    setUpgradeCouponValidating(true)
+    setUpgradeCouponResult(null)
+    try {
+      const { data: res } = await postPortalCouponsValidate({
+        body: { code: upgradeCouponCode.trim(), amount: Math.abs(selected?.price_diff ?? 0), order_type: "upgrade" },
+      })
+      if (res?.code === 0 && res.data) {
+        setUpgradeCouponResult({ coupon_id: res.data.coupon_id, discount_amount: res.data.discount_amount })
+        toast.success("优惠码验证成功")
+      } else {
+        toast.error(res?.message || "优惠码无效")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "验证失败"))
+    } finally {
+      setUpgradeCouponValidating(false)
+    }
+  }
+
   const handleUpgrade = async () => {
     if (!id || !selectedPlanId) return
     setSubmitting(true)
     try {
       const { data: res } = await postPortalInstancesByIdUpgrade({
         path: { id: Number(id) },
-        body: { plan_id: selectedPlanId },
+        body: {
+          plan_id: selectedPlanId,
+          ...(upgradeCouponResult ? { coupon_code: upgradeCouponCode.trim() } : {}),
+        },
       })
       if (res?.code === 0) {
         toast.success("升级订单已创建，请前往支付")
@@ -195,7 +224,7 @@ export default function PortalInstanceUpgrade() {
                       ? "border-foreground bg-background"
                       : "border-transparent bg-background hover:bg-foreground/[.03]"
                   }`}
-                  onClick={() => setSelectedPlanId(opt.plan_id ?? null)}
+                  onClick={() => { setSelectedPlanId(opt.plan_id ?? null); setUpgradeCouponResult(null) }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -228,6 +257,37 @@ export default function PortalInstanceUpgrade() {
           </div>
         )}
       </section>
+
+      {/* 优惠码（仅升级时显示，降级退款不适用） */}
+      {selected && (selected.price_diff ?? 0) > 0 && (
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-3">优惠码（可选）</h2>
+          <div className="rounded-2xl bg-background p-5">
+            <div className="flex gap-2 max-w-md">
+              <Input
+                placeholder="输入优惠码"
+                value={upgradeCouponCode}
+                onChange={(e) => { setUpgradeCouponCode(e.target.value); setUpgradeCouponResult(null) }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                onClick={handleValidateUpgradeCoupon}
+                disabled={upgradeCouponValidating || !upgradeCouponCode.trim()}
+              >
+                {upgradeCouponValidating && <Loader2 className="size-4 animate-spin" />}
+                验证
+              </Button>
+            </div>
+            {upgradeCouponResult && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                优惠 {formatAmount(upgradeCouponResult.discount_amount ?? 0)}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* 操作 */}
       {options.length > 0 && (

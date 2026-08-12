@@ -17,7 +17,7 @@ import type {
   PublicPublicPlanItem,
   PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicDataCenterItem,
 } from '@/api'
-import { useSiteName, useFormatAmount } from '@/hooks/use-site-settings'
+import { useFormatAmount } from '@/hooks/use-site-settings'
 import { useBootstrapData } from '@/hooks/use-bootstrap'
 import { isAuthenticated } from '@/lib/auth'
 import { formatMemory, parseJSON } from '@/lib/utils'
@@ -716,17 +716,12 @@ const featureVisuals: Record<number, React.ReactNode> = {
 }
 
 export default function Home() {
-  const siteName = useSiteName()
   const formatAmount = useFormatAmount()
   const [cycle, setCycle] = useState<string>('monthly')
 
   const { banners, testimonials, dataCenters, faqs, homeReady } = useBootstrapData()
 
   const authed = isAuthenticated()
-
-  useEffect(() => {
-    document.title = siteName
-  }, [siteName])
 
   // 首页设置（区块配置）
   const homepageQuery = useQuery(getSettingsHomepageOptions())

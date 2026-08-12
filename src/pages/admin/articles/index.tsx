@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, FolderTree } from "lucide-react"
+import { Plus, Pencil, Trash2, FolderTree, FileText } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -239,6 +239,10 @@ export default function Articles() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={FileText}
+        emptyTitle="暂无文章"
+        emptyDescription="创建文章以展示内容"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建文章</Button>}
         toolbar={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>

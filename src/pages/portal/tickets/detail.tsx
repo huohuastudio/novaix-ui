@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Send, Loader2 } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RichTextEditor } from '@/components/rich-text-editor'
-import { postPortalTicketsByIdReply } from '@/api'
+import { postPortalTicketsByIdReply, postPortalTicketsByIdClose } from '@/api'
 import {
   getPortalTicketsByIdOptions,
   getPortalTicketsByIdQueryKey,
@@ -59,6 +59,7 @@ export default function PortalTicketDetail() {
 
   const [replyContent, setReplyContent] = useState('')
   const [replying, setReplying] = useState(false)
+  const [closing, setClosing] = useState(false)
 
   const detailQuery = useQuery({
     ...getPortalTicketsByIdOptions({ path: { id: Number(id) } }),
@@ -100,6 +101,20 @@ export default function PortalTicketDetail() {
     }
   }
 
+  const handleClose = async () => {
+    if (!detail?.id) return
+    setClosing(true)
+    try {
+      await postPortalTicketsByIdClose({ path: { id: detail.id } })
+      toast.success('工单已关闭')
+      refreshDetail()
+    } catch (err) {
+      toast.error(getErrorMessage(err, '关闭工单失败'))
+    } finally {
+      setClosing(false)
+    }
+  }
+
   if (detailQuery.isPending) return <DetailSkeleton />
   if (!detail) return null
 
@@ -122,6 +137,7 @@ export default function PortalTicketDetail() {
           <p className="text-[13px] text-muted-foreground mt-0.5">
             #{detail.id}
             {detail.department && <> · {detail.department}</>}
+            {detail.instance_name && <> · 关联实例：{detail.instance_name}</>}
             {' · '}{formatDate(detail.created_at ?? '')} · {priorityLabels[detail.priority ?? 1]}优先级
           </p>
         </div>
@@ -161,7 +177,15 @@ export default function PortalTicketDetail() {
             onChange={setReplyContent}
             className="mb-3"
           />
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={closing || replying}
+              onClick={handleClose}
+            >
+              {closing ? <Loader2 className="size-3.5 animate-spin" /> : <XCircle className="size-3.5" />}
+              关闭工单
+            </Button>
             <Button
               disabled={replying || isHtmlEmpty(replyContent)}
               onClick={handleReply}

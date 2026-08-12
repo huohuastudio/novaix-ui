@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Gauge } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -164,6 +164,10 @@ export default function TrafficPackages() {
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
         enableSorting={false}
+        emptyIcon={Gauge}
+        emptyTitle="暂无流量包"
+        emptyDescription="添加流量包供用户加购"
+        emptyAction={<Button variant="outline" onClick={handleCreate}>添加流量包</Button>}
         toolbar={
           <Button onClick={handleCreate}>
             <Plus className="size-4" />

@@ -58,7 +58,8 @@ function ChannelCard({ descriptor }: { descriptor: ProviderDescriptor }) {
 
   const enabled = fieldValues["enabled"] === "true"
 
-  const handleSave = async () => {
+  // 保存设置，返回是否成功
+  const handleSave = async (): Promise<boolean> => {
     setErrors({})
     if (enabled) {
       const errs: Record<string, string> = {}
@@ -71,7 +72,7 @@ function ChannelCard({ descriptor }: { descriptor: ProviderDescriptor }) {
       }
       if (Object.keys(errs).length > 0) {
         setErrors(errs)
-        return
+        return false
       }
     }
 
@@ -84,9 +85,14 @@ function ChannelCard({ descriptor }: { descriptor: ProviderDescriptor }) {
     }
     await settings.save(items)
     setSaving(false)
+    return true
   }
 
   const handleTest = async () => {
+    // 先保存设置，保存失败则不发送测试
+    const saved = await handleSave()
+    if (!saved) return
+
     setTesting(true)
     try {
       const { data: res } = await postAdminSettingsNotifyByNameTest({ path: { name: descriptor.name ?? "" } })

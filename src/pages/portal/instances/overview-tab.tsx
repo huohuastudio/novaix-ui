@@ -1,10 +1,11 @@
+import { useState, useCallback } from "react"
 import type { PortalPortalInstanceItem } from "@/api"
 import { formatBytes, formatMemory, formatDisk } from "@/lib/utils"
 import { usePortalInstanceState } from "@/hooks/use-portal-instance-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { billingCycleMap } from "@/lib/order-constants"
-import { CopyButton } from "@/components/copy-button"
+import { AccessPanel } from "./access-panel"
 import { ManageSection } from "./manage-section"
 import { NetworkSection } from "./network-section"
 
@@ -42,9 +43,12 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
   const formatDate = useFormatDate()
   const isRunning = instance.status === "running"
   const state = usePortalInstanceState(instance.id, isRunning)
+  const [passwordVersion, setPasswordVersion] = useState(0)
+  const invalidatePassword = useCallback(() => setPasswordVersion(v => v + 1), [])
 
   const memPercent = state?.mem_total ? ((state.mem_used ?? 0) / state.mem_total) * 100 : 0
-  const diskPercent = state?.disk_total ? ((state.disk_used ?? 0) / state.disk_total) * 100 : 0
+  const diskUsed = state?.disk_used ?? 0
+  const diskPercent = state?.disk_total && diskUsed >= 0 ? (diskUsed / state.disk_total) * 100 : 0
   const trafficTotal = (instance.traffic_limit ?? 0) + (instance.traffic_extra ?? 0)
   const trafficPercent = trafficTotal
     ? Math.min(((instance.traffic_used ?? 0) / trafficTotal) * 100, 100)
@@ -52,6 +56,9 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
 
   return (
     <div className="space-y-8">
+      {/* 连接信息 */}
+      <AccessPanel key={`${instance.id}-${instance.active_task_id ?? 0}-${passwordVersion}`} instance={instance} />
+
       {/* 实时监控 */}
       {isRunning && (
         <section>
@@ -78,7 +85,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
                 label="磁盘"
                 value={formatBytes(state.disk_used ?? 0)}
                 unit={`/ ${formatDisk(instance.disk ?? 0)}`}
-                percent={state.disk_total ? diskPercent : undefined}
+                percent={state.disk_total && diskUsed >= 0 ? diskPercent : undefined}
               />
               <MetricTile
                 label="网络"
@@ -139,41 +146,6 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
       {/* 网络 */}
       <NetworkSection instance={instance} onRefresh={onRefresh} />
 
-      {/* NAT 信息 */}
-      {instance.nat_info && (
-        <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">连接信息</h2>
-          <div className="rounded-2xl bg-background divide-y divide-border/50">
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-[13px] text-muted-foreground">连接地址</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[13px] font-medium font-mono">
-                  {instance.nat_info.shared_ip_address}:{instance.nat_info.ssh_port}
-                </span>
-                <CopyButton value={`${instance.nat_info.shared_ip_address}:${instance.nat_info.ssh_port}`} />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-[13px] text-muted-foreground">可用端口</span>
-              <span className="text-[13px] font-medium font-mono">
-                {instance.nat_info.port_start != null && instance.nat_info.port_end != null
-                  ? `${instance.nat_info.port_start + 1} - ${instance.nat_info.port_end}`
-                  : "-"}
-              </span>
-            </div>
-            {instance.nat_info.ssh_command && (
-              <div className="flex items-center justify-between px-5 py-3.5">
-                <span className="text-[13px] text-muted-foreground">SSH 命令</span>
-                <div className="flex items-center gap-1.5">
-                  <code className="text-[12px] font-mono bg-muted px-2 py-0.5 rounded">{instance.nat_info.ssh_command}</code>
-                  <CopyButton value={instance.nat_info.ssh_command} />
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
       {/* 详细信息 */}
       <section>
         <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">详细信息</h2>
@@ -192,7 +164,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
         </div>
       </section>
 
-      <ManageSection instance={instance} onRefresh={onRefresh} />
+      <ManageSection instance={instance} onRefresh={onRefresh} onPasswordChanged={invalidatePassword} />
     </div>
   )
 }

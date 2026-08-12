@@ -5,7 +5,6 @@ import {
   Settings2,
   Camera,
   Terminal,
-  Monitor,
   Play,
   Square,
   RotateCw,
@@ -38,8 +37,7 @@ import { SnapshotsTab, InstanceSnapshotsSkeleton } from "./sections/snapshots-ta
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { WebTerminal } from "@/components/web-terminal"
 import type { ConnectionStatus } from "@/components/web-terminal"
-import { VncConsole } from "@/components/vnc-console"
-import type { VncStatus } from "@/components/vnc-console"
+// SPICE 协议与 noVNC (RFB) 不兼容，控制台功能暂时移除
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,7 +52,7 @@ import { InstanceEditInline } from "./edit-inline"
 import { FirewallSection } from "./sections/firewall"
 import { PortForwardSection } from "./sections/port-forward"
 import { useAdminPath } from "@/hooks/use-site-settings"
-const TABS = ["overview", "config", "firewall", "port-forward", "snapshots", "terminal", "console"] as const
+const TABS = ["overview", "config", "firewall", "port-forward", "snapshots", "terminal"] as const
 type TabValue = (typeof TABS)[number]
 const TAB_LABELS: Record<TabValue, string> = {
   overview: "概览",
@@ -63,7 +61,6 @@ const TAB_LABELS: Record<TabValue, string> = {
   "port-forward": "端口转发",
   snapshots: "快照",
   terminal: "终端",
-  console: "控制台",
 }
 function resolveTab(pathname: string, id: string, adminPath: string): TabValue {
   const base = `${adminPath}/instances/${id}`
@@ -124,14 +121,11 @@ export default function InstanceDetail() {
   const adminPath = useAdminPath()
   const queryClient = useQueryClient()
   const [terminalStatus, setTerminalStatus] = useState<ConnectionStatus>("connecting")
-  const [vncStatus, setVncStatus] = useState<VncStatus>("connecting")
   const [pendingTab, setPendingTab] = useState<string | null>(null)
   const [migrateOpen, setMigrateOpen] = useState(false)
   const activeTab = id ? resolveTab(location.pathname, id, adminPath) : "overview"
-  // 记录访问过的 tab，保持已挂载的 tab 内容不卸载
   const [visitedTabs, setVisitedTabs] = useState<Set<TabValue>>(() => new Set(["overview", activeTab]))
-  const terminalConnected = (activeTab === "terminal" && terminalStatus === "connected") ||
-    (activeTab === "console" && vncStatus === "connected")
+  const terminalConnected = activeTab === "terminal" && terminalStatus === "connected"
 
   const instanceQuery = useQuery({
     ...getAdminInstancesByIdOptions({ path: { id: Number(id) } }),
@@ -197,15 +191,15 @@ export default function InstanceDetail() {
   const isFrozen = instance.status === "frozen"
   const isRescue = instance.status === "rescue"
   const isVM = instance.type === "virtual-machine"
-  const isTerminalTab = activeTab === "terminal" || activeTab === "console"
+  const isTerminalTab = activeTab === "terminal"
   return (
     <>
       <div className={isTerminalTab ? "flex flex-col flex-1 min-h-0 px-6 pt-6 gap-6" : "px-6 pt-6 space-y-6"}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">{instance.name}</h1>
-              <Badge variant={status.variant}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight truncate" title={instance.name}>{instance.name}</h1>
+              <Badge variant={status.variant} className="shrink-0">
                 {(instance.status === "creating" || busy) && <Spinner size="sm" />}
                 {status.label}
               </Badge>
@@ -228,7 +222,7 @@ export default function InstanceDetail() {
                 解冻
               </Button>
             )}
-            {isRunning && (
+            {(isRunning || isRescue) && (
               <>
                 <Button variant="outline" onClick={() => doPower("restart")} disabled={busy}>
                   {busy ? <Spinner /> : <RotateCw className="size-4" />}
@@ -238,10 +232,12 @@ export default function InstanceDetail() {
                   {busy ? <Spinner /> : <Square className="size-4" />}
                   <span className="hidden sm:inline">停止</span>
                 </Button>
-                <Button variant="outline" onClick={() => doPower("freeze")} disabled={busy}>
-                  {busy ? <Spinner /> : <Pause className="size-4" />}
-                  <span className="hidden sm:inline">冻结</span>
-                </Button>
+                {!isRescue && (
+                  <Button variant="outline" onClick={() => doPower("freeze")} disabled={busy}>
+                    {busy ? <Spinner /> : <Pause className="size-4" />}
+                    <span className="hidden sm:inline">冻结</span>
+                  </Button>
+                )}
               </>
             )}
             {(isRunning || isFrozen) && (
@@ -307,12 +303,6 @@ export default function InstanceDetail() {
                 <Terminal className="size-4" />
                 {TAB_LABELS.terminal}
               </TabsTrigger>
-              {isVM && (
-                <TabsTrigger value="console">
-                  <Monitor className="size-4" />
-                  {TAB_LABELS.console}
-                </TabsTrigger>
-              )}
             </TabsList>
           </div>
         </Tabs>
@@ -357,30 +347,6 @@ export default function InstanceDetail() {
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Terminal className="size-10 text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">实例未运行，无法连接终端</p>
-                {(isStopped || isFrozen) && (
-                  <Button
-                    className="mt-4"
-                    onClick={() => doPower("start")}
-                    disabled={busy}
-                  >
-                    <Play className="size-4" />
-                    启动实例
-                  </Button>
-                )}
-              </div>
-            )
-          )}
-          {activeTab === "console" && isVM && (
-            (isRunning || isRescue) ? (
-              <VncConsole
-                wsUrl={`/api/v1/admin/instances/${id}/console`}
-                className="h-full"
-                onStatusChange={setVncStatus}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <Monitor className="size-10 text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">实例未运行，无法连接控制台</p>
                 {(isStopped || isFrozen) && (
                   <Button
                     className="mt-4"

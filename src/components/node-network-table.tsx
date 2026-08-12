@@ -255,6 +255,17 @@ export default function NodeNetworkTable({ nodeId }: Props) {
     return <NetworkTableSkeleton />
   }
 
+  if (query.isError) {
+    const errMsg = incusErrorMessage(query.error, "")
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center space-y-2">
+        <p className="text-sm text-destructive">获取网络列表失败</p>
+        {errMsg && <p className="text-xs text-muted-foreground font-mono">{errMsg}</p>}
+        <p className="text-xs text-muted-foreground">请检查节点是否已完成初始化且服务端口可达</p>
+      </div>
+    )
+  }
+
   if (networks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">

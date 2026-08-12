@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { ArrowUpDown } from "lucide-react"
 import type { OrderTransactionItem } from "@/api"
 import { getAdminTransactions } from "@/api"
 import { getAdminTransactionsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -98,6 +99,9 @@ export function TransactionsTab({ userId }: { userId: number }) {
       onPaginationChange={table.setPagination}
       sorting={table.sorting}
       onSortingChange={table.setSorting}
+      emptyIcon={ArrowUpDown}
+      emptyTitle="暂无交易记录"
+      emptyDescription="该用户还没有任何交易记录"
     />
   )
 }

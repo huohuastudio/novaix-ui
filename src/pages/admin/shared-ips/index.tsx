@@ -5,7 +5,7 @@ import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, Globe } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -55,6 +55,8 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { incus } from "@/lib/incus"
+import type { IncusNetworkDetail } from "@/types/incus"
 
 // ── Schema ──
 
@@ -85,12 +87,17 @@ const formDefaults: SharedIpFormValues = {
 
 // ── 节点分页加载 ──
 
+const nodeHostMap = new Map<string, string>()
+
 const fetchNodeOptions = async (page: number, keyword: string) => {
   const { data: res } = await getAdminNodes({
     query: { page, page_size: 20, status: 1, ...(keyword ? { keyword } : {}) },
   })
   const nodes = res?.data?.items ?? []
   const total = res?.data?.total ?? 0
+  for (const n of nodes) {
+    if (n.id && n.host) nodeHostMap.set(String(n.id), n.host)
+  }
   return {
     items: nodes.map((n) => ({
       id: String(n.id),
@@ -110,6 +117,43 @@ function SharedIpFormFields({
   initialNodeItem?: PaginatedSelectItem
 }) {
   const mode = form.watch("mode")
+  const nodeId = form.watch("node_id")
+
+  // 选中节点后自动加载网桥列表
+  const [networks, setNetworks] = useState<IncusNetworkDetail[]>([])
+  const [loadingNetworks, setLoadingNetworks] = useState(false)
+
+  useEffect(() => {
+    if (!nodeId) {
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      setLoadingNetworks(true)
+      try {
+        const nets = await incus<IncusNetworkDetail[]>(Number(nodeId), "1.0/networks", { params: { recursion: "1" } })
+        if (!cancelled) setNetworks((nets ?? []).filter(n => n.managed))
+      } catch {
+        if (!cancelled) setNetworks([])
+      } finally {
+        if (!cancelled) setLoadingNetworks(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [nodeId])
+
+  // 网桥列表有内容时，自动选中第一个并填充节点公网 IP
+  useEffect(() => {
+    if (networks.length > 0 && !form.getValues("network_name")) {
+      form.setValue("network_name", networks[0].name)
+    }
+    if (nodeId && !form.getValues("address")) {
+      const host = nodeHostMap.get(String(nodeId))
+      if (host) form.setValue("address", host)
+    }
+  }, [networks, form, nodeId])
+
   return (
     <>
       <FormField
@@ -166,7 +210,26 @@ function SharedIpFormFields({
           render={({ field }) => (
             <FormItem>
               <FormLabel required>网络名称</FormLabel>
-              <FormControl><Input placeholder="br0" {...field} /></FormControl>
+              {networks.length > 0 ? (
+                <Select value={field.value} onValueChange={field.onChange} disabled={loadingNetworks}>
+                  <FormControl>
+                    <SelectTrigger>
+                      {loadingNetworks ? (
+                        <span className="flex items-center gap-1.5 text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />加载中...</span>
+                      ) : (
+                        <SelectValue placeholder="选择网桥..." />
+                      )}
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {networks.map(n => (
+                      <SelectItem key={n.name} value={n.name}>{n.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <FormControl><Input placeholder="br0" {...field} /></FormControl>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -550,6 +613,10 @@ export default function SharedIPs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Globe}
+        emptyTitle="暂无共享 IP"
+        emptyDescription="创建共享 IP 以支持 NAT 模式"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>创建共享 IP</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

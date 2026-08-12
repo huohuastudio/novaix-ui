@@ -1,5 +1,6 @@
 "use no memo";
 import { Fragment, useEffect, useRef, useState } from "react"
+import { Inbox } from "lucide-react"
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -82,8 +83,16 @@ interface DataTableProps<TData, TValue> {
   renderExpanded?: (row: TData) => React.ReactNode
   /** 自定义行的唯一标识（用于展开状态）。默认使用 tanstack 行索引 */
   getRowId?: (row: TData) => string
-  /** 数据为空时的自定义展示内容，替代默认的"暂无数据"文字 */
+  /** 数据为空时的自定义展示内容（完全自定义） */
   emptyState?: React.ReactNode
+  /** 空状态图标（与 emptyState 互斥，用于快捷配置） */
+  emptyIcon?: React.ComponentType<{ className?: string }>
+  /** 空状态标题 */
+  emptyTitle?: string
+  /** 空状态描述 */
+  emptyDescription?: string
+  /** 空状态操作按钮 */
+  emptyAction?: React.ReactNode
   /** 新手教程高亮标识 */
   tourId?: string
   /** 启用行多选 */
@@ -152,6 +161,10 @@ export function DataTable<TData, TValue>({
   renderExpanded,
   getRowId,
   emptyState,
+  emptyIcon: EmptyIcon,
+  emptyTitle,
+  emptyDescription,
+  emptyAction,
   tourId,
   enableRowSelection,
   rowSelection,
@@ -346,9 +359,18 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className={emptyState && !hasActiveFilters ? "p-0" : "h-24 text-center text-muted-foreground"}
+                  className={emptyState && !hasActiveFilters ? "p-0" : "py-16 text-center"}
                 >
-                  {hasActiveFilters ? "没有匹配结果" : (emptyState ?? "暂无数据")}
+                  {hasActiveFilters ? (
+                    <span className="text-muted-foreground">没有匹配结果</span>
+                  ) : emptyState ?? (
+                    <div className="flex flex-col items-center gap-2">
+                      {EmptyIcon ? <EmptyIcon className="size-10 text-muted-foreground/25" /> : <Inbox className="size-10 text-muted-foreground/25" />}
+                      <p className="text-sm font-medium">{emptyTitle ?? "暂无数据"}</p>
+                      {emptyDescription && <p className="text-xs text-muted-foreground">{emptyDescription}</p>}
+                      {emptyAction}
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             )}

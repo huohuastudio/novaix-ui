@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FormSheet } from "@/components/form-sheet"
+import { useCurrencySymbol } from "@/hooks/use-site-settings"
 
 const formSchema = z.object({
   code: z.string().min(1, "优惠码不能为空").max(64, "优惠码不能超过 64 个字符"),
@@ -61,6 +62,7 @@ const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
 function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   const couponType = form.watch("type")
+  const currencySymbol = useCurrencySymbol()
 
   return (
     <>
@@ -111,11 +113,11 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
                   min={1}
                   placeholder={couponType === "fixed" ? "单位：分" : "单位：基点（5000=50%）"}
                   {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
                 />
               </FormControl>
               <FormDescription>
-                {couponType === "fixed" ? "单位：分（100 = ¥1.00）" : "单位：基点（5000 = 50%）"}
+                {couponType === "fixed" ? `单位：分（100 = ${currencySymbol}1.00）` : "单位：基点（5000 = 50%）"}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -130,7 +132,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
             <FormItem>
               <FormLabel>最低订单金额</FormLabel>
               <FormControl>
-                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
               <FormDescription>单位：分，0 表示不限</FormDescription>
               <FormMessage />
@@ -144,7 +146,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
             <FormItem>
               <FormLabel>最大折扣金额</FormLabel>
               <FormControl>
-                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
               <FormDescription>单位：分，0 表示不限</FormDescription>
               <FormMessage />
@@ -160,7 +162,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
             <FormItem>
               <FormLabel>总使用次数</FormLabel>
               <FormControl>
-                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -173,7 +175,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
             <FormItem>
               <FormLabel>每人使用次数</FormLabel>
               <FormControl>
-                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
               <FormMessage />
             </FormItem>

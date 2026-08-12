@@ -8,6 +8,7 @@ import {
   CheckCircle2Icon,
   XCircleIcon,
   Trash2,
+  ListTodo,
 } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -153,7 +154,8 @@ export default function Tasks() {
     try {
       const { data: res } = await deleteAdminTasksFinished()
       if (res?.code === 0) {
-        toast.success("已清理 30 天前的已完成任务日志")
+        const cleared = (res.data as { cleared?: number })?.cleared ?? 0
+        toast.success(cleared > 0 ? `已清理 ${cleared} 条任务日志` : "没有需要清理的任务日志（仅清理 30 天前的记录）")
         refresh()
         void refetchStats()
       } else {
@@ -295,6 +297,9 @@ export default function Tasks() {
         enableSorting={false}
         getRowId={(t) => String(t.id)}
         renderExpanded={renderExpanded}
+        emptyIcon={ListTodo}
+        emptyTitle="暂无任务"
+        emptyDescription="系统异步任务会在这里显示"
         toolbar={
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-[calc(50%-0.25rem)] sm:w-[150px]">

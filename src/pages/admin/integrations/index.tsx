@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Plug } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -169,6 +169,10 @@ export default function Integrations() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Plug}
+        emptyTitle="暂无集成方"
+        emptyDescription="新建集成方以接入第三方系统"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建集成方</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

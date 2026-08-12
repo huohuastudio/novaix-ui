@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, FolderTree } from "lucide-react"
+import { Plus, Pencil, Trash2, FolderTree, HelpCircle } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -202,6 +202,10 @@ export default function HelpCenter() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={HelpCircle}
+        emptyTitle="暂无帮助文档"
+        emptyDescription="添加帮助文档以为用户提供使用指引"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>添加文章</Button>}
         toolbar={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>

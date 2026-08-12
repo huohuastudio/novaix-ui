@@ -24,6 +24,17 @@ export function SiteSection() {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="site_tagline">站点副标题</Label>
+        <Input
+          id="site_tagline"
+          value={data.site_tagline ?? ""}
+          onChange={(e) => update("site_tagline", e.target.value)}
+          placeholder="专业云计算服务提供商"
+        />
+        <p className="text-xs text-muted-foreground">显示在浏览器标题中，格式为「站点名称 - 副标题」</p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="site_url">站点 URL</Label>
         <Input
           id="site_url"

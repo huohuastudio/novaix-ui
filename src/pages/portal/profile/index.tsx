@@ -918,7 +918,7 @@ export default function PortalProfile() {
               <Textarea
                 placeholder="ssh-rsa AAAA... 或 ssh-ed25519 AAAA..."
                 rows={5}
-                className="font-mono text-xs"
+                className="font-mono text-xs break-all"
                 value={keyContent}
                 onChange={(e) => setKeyContent(e.target.value)}
               />

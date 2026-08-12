@@ -1,4 +1,4 @@
-import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, RefreshCw } from "lucide-react"
+import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, OctagonX, RefreshCw } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -11,7 +11,7 @@ interface InstanceActionCellProps {
   busy: boolean
   onPowerAction: (inst: InstanceInstanceItem, action: PowerAction) => void
   onEdit: (inst: InstanceInstanceItem) => void
-  onDelete: (inst: InstanceInstanceItem) => void
+  onDelete: (inst: InstanceInstanceItem, force?: boolean) => void
   onRetry?: (inst: InstanceInstanceItem) => void
   onRenew?: (inst: InstanceInstanceItem) => void
 }
@@ -88,6 +88,9 @@ export function InstanceActionCell({
       )}
       <ActionButton label="编辑" icon={Pencil} busy={false} disabled={inTransition} onClick={() => onEdit(inst)} />
       <ActionButton label="删除" icon={Trash2} busy={false} destructive disabled={inst.status === "running" || inTransition || busy} onClick={() => onDelete(inst)} />
+      {!inTransition && (
+        <ActionButton label="强制删除" icon={OctagonX} busy={false} destructive disabled={busy} onClick={() => onDelete(inst, true)} />
+      )}
     </div>
   )
 }

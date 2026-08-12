@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Trash2, Pencil, SlidersHorizontal } from "lucide-react"
+import { Plus, Trash2, Pencil, SlidersHorizontal, Folder } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -146,6 +146,15 @@ export default function AgentGroups() {
         pagination={table.pagination}
         onPaginationChange={table.setPagination}
         enableSorting={false}
+        emptyIcon={Folder}
+        emptyTitle="暂无代理分组"
+        emptyDescription="创建分组后可统一管理代理的返佣与折扣"
+        emptyAction={
+          <Button variant="outline" onClick={openCreate}>
+            <Plus className="size-4" />
+            添加分组
+          </Button>
+        }
         toolbar={
           <Button onClick={openCreate}>
             <Plus className="size-4" />

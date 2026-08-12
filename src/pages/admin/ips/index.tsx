@@ -5,7 +5,7 @@ import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, Zap } from "lucide-react"
+import { Plus, Pencil, Trash2, Zap, Loader2, Import, Globe } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +43,7 @@ import {
   putAdminIpPoolsById,
   deleteAdminIpPoolsById,
   postAdminIpPoolsByIdGenerate,
+  getAdminNodes,
 } from "@/api"
 import type { IppoolIpPoolItem } from "@/api"
 import { getAdminIpPoolsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -51,6 +52,9 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { incus } from "@/lib/incus"
+import { PaginatedSelect } from "@/components/paginated-select"
+import type { IncusNetworkDetail } from "@/types/incus"
 
 // ── Schema ──
 
@@ -88,11 +92,125 @@ const generateSchema = z.object({
 
 type GenerateFormValues = z.infer<typeof generateSchema>
 
+// ── 从节点导入网桥配置 ──
+
+const fetchNodeOptions = async (page: number, keyword: string) => {
+  const { data: res } = await getAdminNodes({ query: { page, page_size: 20, status: 1, ...(keyword ? { keyword } : {}) } })
+  const nodes = res?.data?.items ?? []
+  const total = res?.data?.total ?? 0
+  return {
+    items: nodes.map(n => ({ id: String(n.id), label: n.name ?? `节点 ${n.id}` })),
+    hasMore: page * 20 < total,
+  }
+}
+
+function useNodeNetworks() {
+  const [selectedNodeId, setSelectedNodeId] = useState<string>("")
+  const [networks, setNetworks] = useState<IncusNetworkDetail[]>([])
+  const [loadingNetworks, setLoadingNetworks] = useState(false)
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("")
+
+  const selectNode = async (nodeId: string) => {
+    setSelectedNodeId(nodeId)
+    setSelectedNetwork("")
+    if (!nodeId) {
+      setNetworks([])
+      return
+    }
+    setLoadingNetworks(true)
+    try {
+      const nets = await incus<IncusNetworkDetail[]>(Number(nodeId), "1.0/networks", { params: { recursion: "1" } })
+      setNetworks((nets ?? []).filter(n => n.managed))
+    } catch {
+      setNetworks([])
+      toast.error("获取节点网桥列表失败")
+    } finally {
+      setLoadingNetworks(false)
+    }
+  }
+
+  const reset = () => {
+    setSelectedNodeId("")
+    setSelectedNetwork("")
+    setNetworks([])
+  }
+
+  return { selectedNodeId, selectNode, networks, loadingNetworks, selectedNetwork, setSelectedNetwork, reset }
+}
+
 // ── Shared form fields ──
 
 function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormInput, unknown, PoolFormValues>; typeDisabled?: boolean }) {
+  const nodeHelper = useNodeNetworks()
+
+  const handleSelectNetwork = (networkName: string) => {
+    nodeHelper.setSelectedNetwork(networkName)
+    const net = nodeHelper.networks.find(n => n.name === networkName)
+    if (!net) return
+    form.setValue("network_name", net.name)
+    const ipv4Addr = net.config?.["ipv4.address"]
+    if (ipv4Addr && ipv4Addr !== "none" && ipv4Addr !== "auto") {
+      const [gateway] = ipv4Addr.split("/")
+      form.setValue("gateway", gateway ?? "")
+      const prefix = ipv4Addr.split("/")[1]
+      if (gateway && prefix) {
+        const parts = gateway.split(".").map(Number)
+        const mask = ~((1 << (32 - Number(prefix))) - 1) >>> 0
+        const netAddr = [(parts[0] & (mask >>> 24)), (parts[1] & ((mask >>> 16) & 255)), (parts[2] & ((mask >>> 8) & 255)), (parts[3] & (mask & 255))]
+        form.setValue("cidr", `${netAddr.join(".")}/${prefix}`)
+      }
+    }
+    toast.success(`已填充网桥「${net.name}」的配置`)
+  }
+
   return (
     <>
+      {/* 从节点导入网桥配置 */}
+      {!typeDisabled && (
+        <div className="rounded-md border border-dashed p-3 space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Import className="size-4" />
+            <span>从节点导入</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <PaginatedSelect
+              value={nodeHelper.selectedNodeId}
+              onChange={nodeHelper.selectNode}
+              fetchFn={fetchNodeOptions}
+              placeholder="选择节点"
+              searchPlaceholder="搜索节点..."
+              emptyText="无匹配节点"
+            />
+            <Select
+              value={nodeHelper.selectedNetwork}
+              onValueChange={handleSelectNetwork}
+              disabled={!nodeHelper.selectedNodeId || nodeHelper.loadingNetworks}
+            >
+              <SelectTrigger>
+                {nodeHelper.loadingNetworks ? (
+                  <span className="flex items-center gap-1.5 text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />加载中...</span>
+                ) : (
+                  <SelectValue placeholder="选择网桥..." />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                {nodeHelper.networks.map(n => (
+                  <SelectItem key={n.name} value={n.name}>
+                    {n.name}
+                    {n.config?.["ipv4.address"] && n.config["ipv4.address"] !== "none" && (
+                      <span className="ml-1.5 text-muted-foreground">({n.config["ipv4.address"]})</span>
+                    )}
+                  </SelectItem>
+                ))}
+                {!nodeHelper.loadingNetworks && nodeHelper.selectedNodeId && nodeHelper.networks.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">无可用网桥</div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
@@ -348,17 +466,52 @@ function PoolEditDialog({
   )
 }
 
+// ── 根据 CIDR 和网关计算默认起止 IP ──
+
+function computeDefaultIpRange(cidr: string, gateway: string): { start: string; end: string } {
+  const [networkStr, prefixStr] = cidr.split("/")
+  if (!networkStr || !prefixStr) return { start: "", end: "" }
+
+  const prefix = parseInt(prefixStr)
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) return { start: "", end: "" }
+
+  const parts = networkStr.split(".").map(Number)
+  if (parts.length !== 4 || parts.some(isNaN)) return { start: "", end: "" }
+
+  const networkNum = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0
+  const hostBits = 32 - prefix
+  const totalHosts = (1 << hostBits) >>> 0
+
+  // 解析网关地址
+  const gatewayParts = gateway.split(".").map(Number)
+  const gatewayNum = gatewayParts.length === 4
+    ? ((gatewayParts[0] << 24) | (gatewayParts[1] << 16) | (gatewayParts[2] << 8) | gatewayParts[3]) >>> 0
+    : networkNum + 1
+
+  // 起始：取 网络地址+100 和 网关+1 中较大的
+  const startNum = Math.max(networkNum + 100, gatewayNum + 1)
+  // 结束：起始+100 和 广播地址-1 中较小的
+  const broadcastNum = networkNum + totalHosts - 1
+  const endNum = Math.min(startNum + 100, broadcastNum - 1)
+
+  if (startNum >= broadcastNum) return { start: "", end: "" }
+
+  const numToIp = (n: number) => `${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`
+
+  return { start: numToIp(startNum), end: numToIp(endNum) }
+}
+
 // ── Generate IPs Dialog ──
 
 function GenerateIPsDialog({
   open,
   onOpenChange,
-  poolId,
+  pool,
   onSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  poolId: number
+  pool: IppoolIpPoolItem
   onSuccess: () => void
 }) {
   const form = useForm<GenerateFormValues>({
@@ -367,13 +520,16 @@ function GenerateIPsDialog({
   })
 
   useEffect(() => {
-    if (open) form.reset({ start_ip: "", end_ip: "" })
-  }, [open, form])
+    if (open) {
+      const defaults = computeDefaultIpRange(pool.cidr ?? "", pool.gateway ?? "")
+      form.reset({ start_ip: defaults.start, end_ip: defaults.end })
+    }
+  }, [open, form, pool.cidr, pool.gateway])
 
   const onSubmit = async (values: GenerateFormValues) => {
     try {
       const { data: res } = await postAdminIpPoolsByIdGenerate({
-        path: { id: poolId },
+        path: { id: pool.id! },
         body: values,
       })
       if (res?.code !== 0) {
@@ -640,6 +796,10 @@ export default function IPs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Globe}
+        emptyTitle="暂无 IP 池"
+        emptyDescription="创建 IP 池并添加 IP 地址"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>创建 IP 池</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
@@ -667,7 +827,7 @@ export default function IPs() {
         <GenerateIPsDialog
           open={!!generatePool}
           onOpenChange={(open) => { if (!open) setGeneratePool(null) }}
-          poolId={generatePool.id!}
+          pool={generatePool}
           onSuccess={() => {
             setGeneratePool(null)
             table.refresh()

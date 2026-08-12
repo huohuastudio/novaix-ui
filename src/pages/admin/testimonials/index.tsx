@@ -196,6 +196,10 @@ export default function Testimonials() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        emptyIcon={Star}
+        emptyTitle="暂无用户评价"
+        emptyDescription="添加用户评价以展示口碑"
+        emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>添加评价</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

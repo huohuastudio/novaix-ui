@@ -7,6 +7,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { useFeatureAllowed } from "@/hooks/use-edition"
 import { ActivationDialog } from "@/components/activation-dialog"
@@ -31,6 +32,7 @@ function NavItemButton({
   isActive: boolean
 }) {
   const navigate = useNavigate()
+  const { isMobile, setOpenMobile } = useSidebar()
   const featureAllowed = useFeatureAllowed(item.featureKey ?? "")
   const allowed = item.featureKey ? featureAllowed : true
   const [showActivation, setShowActivation] = useState(false)
@@ -43,6 +45,7 @@ function NavItemButton({
         onClick={() => {
           if (allowed) {
             navigate(item.url)
+            if (isMobile) setOpenMobile(false)
           } else {
             setShowActivation(true)
           }

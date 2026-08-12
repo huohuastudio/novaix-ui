@@ -167,8 +167,7 @@ function InstanceEditForm({
       return
     }
     toast.success("实例配置已保存")
-    // 失效实例详情缓存，避免再次打开编辑抽屉时表单回填保存前的旧值
-    void queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       queryKey: getAdminInstancesByIdQueryKey({ path: { id: instanceId } }),
     })
     onSuccess()
