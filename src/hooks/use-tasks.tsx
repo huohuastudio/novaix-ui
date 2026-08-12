@@ -118,15 +118,25 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const connectWs = useCallback(async (taskId: number) => {
-    if (wsRefs.current.has(taskId)) return
+  const connectingRef = useRef(new Set<number>())
 
-    const ticket = await getWSTicket()
+  const connectWs = useCallback(async (taskId: number) => {
+    if (wsRefs.current.has(taskId) || connectingRef.current.has(taskId)) return
+    connectingRef.current.add(taskId)
+
+    let ticket: string
+    try {
+      ticket = await getWSTicket()
+    } catch {
+      connectingRef.current.delete(taskId)
+      return
+    }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
     const wsUrl = `${protocol}//${window.location.host}/api/v1/admin/tasks/${taskId}/logs?token=${encodeURIComponent(ticket)}`
 
     const ws = new WebSocket(wsUrl)
     wsRefs.current.set(taskId, ws)
+    connectingRef.current.delete(taskId)
 
     setTasks((prev) =>
       prev.map((t) =>
@@ -137,7 +147,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     ws.onopen = () => {
       setTasks((prev) =>
         prev.map((t) =>
-          t.id === taskId ? updateTaskEntry(t, { wsStatus: "connected" }) : t,
+          t.id === taskId ? updateTaskEntry(t, { wsStatus: "connected", logs: [] }) : t,
         ),
       )
     }
@@ -173,14 +183,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [fetchActiveTasks])
 
   useEffect(() => {
-    for (const t of tasks) {
-      if (
-        (t.status === "pending" || t.status === "running") &&
-        t.wsStatus === "idle"
-      ) {
-        void connectWs(t.id)
-      }
-    }
+    const ids = tasks
+      .filter((t) => (t.status === "pending" || t.status === "running") && t.wsStatus === "idle")
+      .map((t) => t.id)
+    if (ids.length === 0) return
+    queueMicrotask(() => ids.forEach((id) => void connectWs(id)))
   }, [tasks, connectWs])
 
   // SSE 事件直接更新任务状态
