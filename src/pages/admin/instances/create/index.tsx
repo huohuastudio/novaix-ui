@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { getAdminPlans, postAdminInstances } from "@/api"
 import type { NodeNodeItem, ProductPlanItem } from "@/api"
-import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
+import { handleCatchError, handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
 import { instanceFormSchema, defaultValues, buildCreateBody, fieldNames } from "../schema"
 import { asIncusConfigForm } from "@/types/incus-config"
@@ -92,22 +92,29 @@ export default function CreateInstance() {
   }
 
   const onSubmit = async (values: InstanceFormValues) => {
-    const body = buildCreateBody(values)
-    const result = await postAdminInstances({ body })
-    const res = unwrapResponse(result)
-    if (res?.code !== 0) {
-      handleServerErrors(res, {
+    try {
+      const body = buildCreateBody(values)
+      const result = await postAdminInstances({ body })
+      const res = unwrapResponse(result)
+      if (res?.code !== 0) {
+        handleServerErrors(res, {
+          setError: form.setError,
+          fieldNames,
+        })
+        return
+      }
+      const taskId = (res?.data as Record<string, unknown> | undefined)?.create_task_id as number | undefined
+      if (taskId) {
+        addTask(taskId, "create_instance")
+        toast.success("实例创建任务已提交", { description: `任务 #${taskId} 正在后台执行` })
+      }
+      navigate(`${adminPath}/instances`)
+    } catch (err) {
+      handleCatchError(err, "创建实例失败", {
         setError: form.setError,
         fieldNames,
       })
-      return
     }
-    const taskId = (res?.data as Record<string, unknown> | undefined)?.create_task_id as number | undefined
-    if (taskId) {
-      addTask(taskId, "create_instance")
-      toast.success("实例创建任务已提交", { description: `任务 #${taskId} 正在后台执行` })
-    }
-    navigate(`${adminPath}/instances`)
   }
 
   return (
