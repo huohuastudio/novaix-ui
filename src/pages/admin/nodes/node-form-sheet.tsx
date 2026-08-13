@@ -50,9 +50,9 @@ const baseFields = {
   ssh_auth_method: z.enum(["password", "key"]).default("password"),
   ssh_password: z.string().max(256).optional().default(""),
   ssh_key: z.string().optional().default(""),
-  cpu_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
-  mem_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
-  disk_overcommit: z.coerce.number<number | string>().min(1, "最小为 1").max(100, "最大为 100").optional().default(1),
+  cpu_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
+  mem_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
+  disk_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
   mem_ballooning_mode: z.boolean().optional().default(false),
 }
 
@@ -90,9 +90,9 @@ const defaultValues: EditFormValues = {
   cluster_member_name: "",
   network_name: "",
   storage_pool: "",
-  cpu_overcommit: 1,
-  mem_overcommit: 1,
-  disk_overcommit: 1,
+  cpu_overcommit: 0,
+  mem_overcommit: 0,
+  disk_overcommit: 0,
   mem_ballooning_mode: false,
 }
 
@@ -263,15 +263,15 @@ function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown
         <p className="text-sm font-medium">资源超开</p>
         <HelpLink path="/novaix/node#overcommit" />
       </div>
-      <p className="text-xs text-muted-foreground -mt-2">可分配量 = 物理总量 × 比率，设为 1 表示不超开，范围 1~100</p>
+      <p className="text-xs text-muted-foreground -mt-2">0% 表示不超开，100% 表示可多卖一倍。超开过高可能导致宿主机 OOM</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <FormField
           control={form.control}
           name="cpu_overcommit"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>CPU</FormLabel>
-              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 2~8" {...field} /></FormControl>
+              <FormLabel>CPU (%)</FormLabel>
+              <FormControl><Input type="number" step="10" min="0" max="9900" placeholder="建议 100~700" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -281,8 +281,8 @@ function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown
           name="mem_overcommit"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>内存</FormLabel>
-              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 1~2" {...field} /></FormControl>
+              <FormLabel>内存 (%)</FormLabel>
+              <FormControl><Input type="number" step="10" min="0" max="9900" placeholder="建议 0~100" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -292,8 +292,8 @@ function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown
           name="disk_overcommit"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>磁盘</FormLabel>
-              <FormControl><Input type="number" step="0.1" min="1" max="100" placeholder="建议 1~1.5" {...field} /></FormControl>
+              <FormLabel>磁盘 (%)</FormLabel>
+              <FormControl><Input type="number" step="10" min="0" max="9900" placeholder="建议 0~50" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -366,9 +366,9 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
     cluster_member_name: values.cluster_member_name ?? values.name,
     network_name: values.network_name || undefined,
     storage_pool: values.storage_pool || undefined,
-    cpu_overcommit: values.cpu_overcommit,
-    mem_overcommit: values.mem_overcommit,
-    disk_overcommit: values.disk_overcommit,
+    cpu_overcommit: 1 + values.cpu_overcommit / 100,
+    mem_overcommit: 1 + values.mem_overcommit / 100,
+    disk_overcommit: 1 + values.disk_overcommit / 100,
     mem_ballooning_mode: values.mem_ballooning_mode,
   }
 }
@@ -549,9 +549,9 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
         cluster_member_name: node.cluster_member_name ?? "",
         network_name: node.network_name ?? "",
         storage_pool: node.storage_pool ?? "",
-        cpu_overcommit: node.cpu_overcommit ?? 1,
-        mem_overcommit: node.mem_overcommit ?? 1,
-        disk_overcommit: node.disk_overcommit ?? 1,
+        cpu_overcommit: Math.round(((node.cpu_overcommit ?? 1) - 1) * 100),
+        mem_overcommit: Math.round(((node.mem_overcommit ?? 1) - 1) * 100),
+        disk_overcommit: Math.round(((node.disk_overcommit ?? 1) - 1) * 100),
         mem_ballooning_mode: node.mem_ballooning_mode ?? false,
       })
     }

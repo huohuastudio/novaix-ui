@@ -29,6 +29,7 @@ import type { NodeNodeItem } from "@/api"
 import { getAdminNodesQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
+import { useConfirmChoice } from "@/hooks/use-confirm-choice"
 import { useTasks } from "@/hooks/use-tasks"
 import { NODE_STATUS, statusMap, statusFilterOptions } from "@/lib/node-constants"
 import NodeFormSheet from "./node-form-sheet"
@@ -45,6 +46,7 @@ function NodeList() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingNode, setEditingNode] = useState<NodeNodeItem | undefined>()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { confirmChoice, ConfirmChoiceDialog } = useConfirmChoice()
   const { addTask } = useTasks()
 
   const fetchNodes = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
@@ -134,16 +136,30 @@ function NodeList() {
   }, [])
 
   const handleDelete = useCallback(async (node: NodeNodeItem) => {
-    const ok = await confirm({
+    const choice = await confirmChoice({
       title: "删除节点",
       description: `确定要删除节点「${node.name}」吗？此操作不可撤销。`,
       confirmText: "删除",
-      destructive: true,
+      forceText: "强制删除",
+      forceDescription: "强制删除将级联清理该节点下所有实例和共享 IP 的数据库记录，远端资源不会被清理。",
     })
-    if (!ok) return
-    await deleteAdminNodesById({ path: { id: node.id! } })
-    table.refresh()
-  }, [table, confirm])
+    if (!choice) return
+    const force = choice === "force"
+    try {
+      const { data: res } = await deleteAdminNodesById({
+        path: { id: node.id! },
+        ...(force ? { query: { force: true } } : {}),
+      })
+      if (res?.code !== 0) {
+        toast.error(res?.message ?? "删除失败")
+        return
+      }
+      toast.success(force ? "节点已强制删除" : "节点已删除")
+      table.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "删除失败"))
+    }
+  }, [table, confirmChoice])
 
   const handleMaintenance = useCallback(async (node: NodeNodeItem) => {
     const ok = await confirm({
@@ -422,6 +438,7 @@ function NodeList() {
         onSuccess={handleFormSuccess}
       />
       {ConfirmDialog}
+      {ConfirmChoiceDialog}
     </>
   )
 }

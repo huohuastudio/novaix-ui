@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useConfirm } from "@/hooks/use-confirm"
+import { useConfirmChoice } from "@/hooks/use-confirm-choice"
 import { useAdminPath } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
@@ -78,6 +79,7 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
   const navigate = useNavigate()
   const adminPath = useAdminPath()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { confirmChoice, ConfirmChoiceDialog } = useConfirmChoice()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -144,20 +146,25 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
   }
 
   const handleDelete = async () => {
-    const ok = await confirm({
+    const choice = await confirmChoice({
       title: "删除节点",
-      description: `确定要删除节点「${node.name}」吗？此操作不可撤销。如果节点上有实例，需要先删除所有实例。`,
+      description: `确定要删除节点「${node.name}」吗？此操作不可撤销。`,
       confirmText: "删除",
-      destructive: true,
+      forceText: "强制删除",
+      forceDescription: "强制删除将级联清理该节点下所有实例和共享 IP 的数据库记录，远端资源不会被清理。",
     })
-    if (!ok) return
+    if (!choice) return
+    const force = choice === "force"
     try {
-      const { data: res } = await deleteAdminNodesById({ path: { id: node.id! } })
+      const { data: res } = await deleteAdminNodesById({
+        path: { id: node.id! },
+        ...(force ? { query: { force: true } } : {}),
+      })
       if (res?.code !== 0) {
         toast.error(res?.message ?? "删除失败")
         return
       }
-      toast.success("节点已删除")
+      toast.success(force ? "节点已强制删除" : "节点已删除")
       navigate(`${adminPath}/nodes`, { replace: true })
     } catch (err) {
       toast.error(getErrorMessage(err, "请求失败"))
@@ -319,6 +326,7 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
       </section>
 
       {ConfirmDialog}
+      {ConfirmChoiceDialog}
     </>
   )
 }

@@ -82,7 +82,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
     filterKeys: ["name", "status", "type"],
   })
 
-  const { handleDelete, handlePowerAction, loadingId, ConfirmDialog } = useInstanceActions(table.refresh)
+  const { handleDelete, handlePowerAction, loadingId, ConfirmDialog, ConfirmChoiceDialog } = useInstanceActions(table.refresh)
 
   const { refresh } = table
   const onBatchSuccess = useCallback(() => {
@@ -325,6 +325,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         }
       />
       {ConfirmDialog}
+      {ConfirmChoiceDialog}
       {BatchConfirmDialog}
       {RenewConfirmDialog}
       <Dialog open={batchDeleteOpen} onOpenChange={(open) => { if (!open) { setBatchDeleteOpen(false); setForceDelete(false) } }}>

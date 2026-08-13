@@ -12,6 +12,7 @@ import {
 } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
 import { useConfirm } from "@/hooks/use-confirm"
+import { useConfirmChoice } from "@/hooks/use-confirm-choice"
 import { useTasks } from "@/hooks/use-tasks"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
@@ -95,19 +96,20 @@ const actionConfig: Record<PowerAction, {
 
 export function useInstanceActions(onRefresh: () => void) {
   const { confirm, ConfirmDialog } = useConfirm()
+  const { confirmChoice, ConfirmChoiceDialog } = useConfirmChoice()
   const { addTask } = useTasks()
   const [loadingId, setLoadingId] = useState<number | null>(null)
 
-  const handleDelete = useCallback(async (instance: InstanceInstanceItem, force?: boolean): Promise<boolean> => {
-    const ok = await confirm({
-      title: force ? "强制删除实例" : "删除实例",
-      description: force
-        ? `确定要强制删除实例「${instance.name}」吗？将跳过运行状态检查，节点不可达时仅清理数据库记录。此操作不可撤销。`
-        : `确定要删除实例「${instance.name}」吗？此操作不可撤销。`,
-      confirmText: force ? "强制删除" : "删除",
-      destructive: true,
+  const handleDelete = useCallback(async (instance: InstanceInstanceItem): Promise<boolean> => {
+    const choice = await confirmChoice({
+      title: "删除实例",
+      description: `确定要删除实例「${instance.name}」吗？此操作不可撤销。`,
+      confirmText: "删除",
+      forceText: "强制删除",
+      forceDescription: "强制删除将跳过运行状态检查，节点不可达时仅清理数据库记录。",
     })
-    if (!ok) return false
+    if (!choice) return false
+    const force = choice === "force"
     try {
       const { data: res } = await deleteAdminInstancesById({
         path: { id: instance.id! },
@@ -127,7 +129,7 @@ export function useInstanceActions(onRefresh: () => void) {
       toast.error(getErrorMessage(err, "请求失败"))
       return false
     }
-  }, [onRefresh, confirm])
+  }, [onRefresh, confirmChoice])
 
   const handlePowerAction = useCallback(async (
     instance: InstanceInstanceItem,
@@ -165,5 +167,5 @@ export function useInstanceActions(onRefresh: () => void) {
     }
   }, [onRefresh, confirm, addTask])
 
-  return { handleDelete, handlePowerAction, loadingId, ConfirmDialog }
+  return { handleDelete, handlePowerAction, loadingId, ConfirmDialog, ConfirmChoiceDialog }
 }

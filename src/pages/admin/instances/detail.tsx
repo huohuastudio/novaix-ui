@@ -149,7 +149,7 @@ export default function InstanceDetail() {
     queryClient.invalidateQueries({ queryKey: getAdminInstancesByIdQueryKey({ path: { id: Number(id) } }) })
     queryClient.invalidateQueries({ queryKey: getAdminInstancesQueryKey() })
   }, [queryClient, id])
-  const { handleDelete: handleDeleteAction, handlePowerAction, loadingId, ConfirmDialog } = useInstanceActions(refreshInstance)
+  const { handleDelete: handleDeleteAction, handlePowerAction, loadingId, ConfirmDialog, ConfirmChoiceDialog } = useInstanceActions(refreshInstance)
   const busy = loadingId === Number(id)
   useBreadcrumb([
     { label: "实例管理", href: `${adminPath}/instances` },
@@ -267,7 +267,7 @@ export default function InstanceDetail() {
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive"
-              disabled={isRunning || busy}
+              disabled={busy}
               onClick={doDelete}
             >
               <Trash2 className="size-4" />
@@ -363,6 +363,7 @@ export default function InstanceDetail() {
         </div>
       </div>
       {ConfirmDialog}
+      {ConfirmChoiceDialog}
       <MigrateDialog
         open={migrateOpen}
         onOpenChange={setMigrateOpen}

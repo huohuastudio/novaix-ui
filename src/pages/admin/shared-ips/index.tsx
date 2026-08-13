@@ -51,7 +51,7 @@ import {
 import type { ServiceSharedIpItem } from "@/api"
 import { getAdminSharedIpsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
-import { useConfirm } from "@/hooks/use-confirm"
+import { useConfirmChoice } from "@/hooks/use-confirm-choice"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
@@ -439,7 +439,7 @@ export default function SharedIPs() {
   const formatDate = useFormatDate()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ServiceSharedIpItem | null>(null)
-  const { confirm, ConfirmDialog } = useConfirm()
+  const { confirmChoice, ConfirmChoiceDialog } = useConfirmChoice()
 
   const fetchSharedIps = useCallback(async ({ page, pageSize }: FetchParams) => {
     const { data: res } = await getAdminSharedIps({
@@ -465,25 +465,30 @@ export default function SharedIPs() {
   })
 
   const handleDelete = useCallback(async (item: ServiceSharedIpItem) => {
-    const ok = await confirm({
+    const choice = await confirmChoice({
       title: "删除共享 IP",
       description: `确定要删除共享 IP「${item.address}」吗？已分配的端口映射将失效。`,
       confirmText: "删除",
-      destructive: true,
+      forceText: "强制删除",
+      forceDescription: "强制删除将跳过端口分配检查，忽略远端清理失败，直接删除数据库记录。",
     })
-    if (!ok) return
+    if (!choice) return
+    const force = choice === "force"
     try {
-      const { data: res } = await deleteAdminSharedIpsById({ path: { id: item.id! } })
+      const { data: res } = await deleteAdminSharedIpsById({
+        path: { id: item.id! },
+        ...(force ? { query: { force: true } } : {}),
+      })
       if (res?.code !== 0) {
         toast.error(res?.message ?? "删除失败")
         return
       }
-      toast.success("共享 IP 已删除")
+      toast.success(force ? "共享 IP 已强制删除" : "共享 IP 已删除")
       table.refresh()
     } catch (err) {
       toast.error(getErrorMessage(err, "请求失败"))
     }
-  }, [confirm, table])
+  }, [confirmChoice, table])
 
   const columns: ColumnDef<ServiceSharedIpItem>[] = useMemo(() => [
     {
@@ -640,7 +645,7 @@ export default function SharedIPs() {
         />
       )}
 
-      {ConfirmDialog}
+      {ConfirmChoiceDialog}
     </div>
   )
 }
