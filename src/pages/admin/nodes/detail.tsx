@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import {
   FileSliders,
@@ -28,6 +28,7 @@ import {
 } from "@/api/@tanstack/react-query.gen"
 import { formatBytes, getErrorMessage} from "@/lib/utils"
 import { incus } from "@/lib/incus"
+import { queryKeys } from "@/lib/query-keys"
 import type { IncusStoragePoolDetail } from "@/types/incus"
 import { useTasks } from "@/hooks/use-tasks"
 import { MetricBar } from "@/components/metric-bar"
@@ -117,7 +118,7 @@ function useInstanceStats(nodeId: number): InstanceStats {
 }
 
 function useLatestMetrics(nodeId: number, monitorEnabled: boolean) {
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     ...getAdminNodesByIdMetricsOptions({ path: { id: nodeId }, query: { range: "1h" } }),
     enabled: monitorEnabled,
     select: (res) => {
@@ -125,7 +126,31 @@ function useLatestMetrics(nodeId: number, monitorEnabled: boolean) {
       return points.length > 0 ? points[points.length - 1] : null
     },
   })
-  return data ?? null
+  return { metric: data ?? null, isLoading: monitorEnabled && isLoading }
+}
+
+interface ResourceFallback {
+  cpuCores: number
+  memTotal: number
+  memUsed: number
+}
+
+function useResourceFallback(nodeId: number, nodeStatus: number | undefined, hasMetric: boolean, metricsLoading: boolean): ResourceFallback | null {
+  const enabled = !hasMetric && !metricsLoading && nodeStatus === NODE_STATUS.ONLINE
+  const { data } = useQuery({
+    queryKey: queryKeys.nodeHardware(nodeId),
+    queryFn: async () => {
+      const res = await incus<{ cpu?: { total: number }; memory?: { total: number; used: number } }>(nodeId, "1.0/resources")
+      return {
+        cpuCores: res?.cpu?.total ?? 0,
+        memTotal: res?.memory?.total ?? 0,
+        memUsed: res?.memory?.used ?? 0,
+      }
+    },
+    enabled,
+    retry: false,
+  })
+  return enabled ? (data ?? null) : null
 }
 
 interface PoolUsage {
@@ -135,48 +160,48 @@ interface PoolUsage {
   total: number
 }
 
-function useStoragePoolUsage(nodeId: number, nodeStatus: number | undefined) {
-  const [pools, setPools] = useState<PoolUsage[]>([])
-
-  useEffect(() => {
-    if (nodeStatus !== NODE_STATUS.ONLINE) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const poolList = await incus<IncusStoragePoolDetail[]>(nodeId, "1.0/storage-pools", { params: { recursion: "1" } })
-        const usages = await Promise.all(
-          (poolList ?? []).map(async (pool) => {
-            const res = await incus<{ space?: { used: number; total: number } }>(nodeId, `1.0/storage-pools/${pool.name}/resources`).catch(() => null)
-            return { name: pool.name, driver: pool.driver, used: res?.space?.used ?? 0, total: res?.space?.total ?? 0 }
-          }),
-        )
-        if (!cancelled) setPools(usages.filter((p) => p.total > 0))
-      } catch { /* ignore */ }
-    })()
-    return () => { cancelled = true }
-  }, [nodeId, nodeStatus])
-
-  return pools
+function useStoragePoolUsage(nodeId: number, nodeStatus: number | undefined): PoolUsage[] {
+  const enabled = nodeStatus === NODE_STATUS.ONLINE
+  const { data } = useQuery({
+    queryKey: queryKeys.nodeStoragePoolUsage(nodeId),
+    queryFn: async () => {
+      const poolList = await incus<IncusStoragePoolDetail[]>(nodeId, "1.0/storage-pools", { params: { recursion: "1" } })
+      const usages = await Promise.all(
+        (poolList ?? []).map(async (pool) => {
+          const res = await incus<{ space?: { used: number; total: number } }>(nodeId, `1.0/storage-pools/${pool.name}/resources`).catch(() => null)
+          return { name: pool.name, driver: pool.driver, used: res?.space?.used ?? 0, total: res?.space?.total ?? 0 }
+        }),
+      )
+      return usages.filter((p) => p.total > 0)
+    },
+    enabled,
+    retry: false,
+  })
+  return enabled ? (data ?? []) : []
 }
 
 function OverviewTab({ node }: { node: NodeNodeItem }) {
   const formatDate = useFormatDate()
   const status = getStatus(node)
   const instStats = useInstanceStats(node.id!)
-  const latestMetric = useLatestMetrics(node.id!, node.monitor_enabled ?? false)
+  const { metric: latestMetric, isLoading: metricsLoading } = useLatestMetrics(node.id!, node.monitor_enabled ?? false)
   const poolUsage = useStoragePoolUsage(node.id!, node.status)
 
   const hasMetric = !!latestMetric
-  const noMonitor = !node.monitor_enabled
-  const metricHint = noMonitor ? "监控未启用" : "等待数据"
+  const fallback = useResourceFallback(node.id!, node.status, hasMetric, metricsLoading)
+  const poolDisk = useMemo(() => poolUsage.reduce((acc, p) => ({ total: acc.total + p.total, used: acc.used + p.used }), { total: 0, used: 0 }), [poolUsage])
+
+  const hasCpuMem = hasMetric || !!fallback
+  const hasDisk = hasMetric || poolDisk.total > 0
 
   const cpuPercent = latestMetric?.cpu_usage ?? 0
-  const memPercent = latestMetric?.mem_total
-    ? ((latestMetric.mem_used ?? 0) / latestMetric.mem_total) * 100
-    : 0
-  const diskPercent = latestMetric?.disk_total
-    ? ((latestMetric.disk_used ?? 0) / latestMetric.disk_total) * 100
-    : 0
+  const cpuCores = latestMetric?.cpu_cores ?? fallback?.cpuCores ?? 0
+  const memTotal = latestMetric?.mem_total ?? fallback?.memTotal ?? 0
+  const memUsed = latestMetric?.mem_used ?? fallback?.memUsed ?? 0
+  const memPercent = memTotal ? (memUsed / memTotal) * 100 : 0
+  const diskTotal = latestMetric?.disk_total ?? poolDisk.total
+  const diskUsed = latestMetric?.disk_used ?? poolDisk.used
+  const diskPercent = diskTotal ? (diskUsed / diskTotal) * 100 : 0
 
   return (
     <div className="space-y-0">
@@ -193,36 +218,19 @@ function OverviewTab({ node }: { node: NodeNodeItem }) {
               <div className="text-xs text-muted-foreground">{instStats.running} 运行中</div>
             )}
           </div>
-          {hasMetric ? (
-            <>
-              <MetricBar
-                label="CPU"
-                percent={cpuPercent}
-                value={`${cpuPercent.toFixed(1)}%`}
-                sub={latestMetric.cpu_cores ? `${latestMetric.cpu_cores} 核` : undefined}
-              />
-              <MetricBar
-                label="内存"
-                percent={memPercent}
-                value={`${formatBytes(latestMetric.mem_used ?? 0)} / ${formatBytes(latestMetric.mem_total ?? 0)}`}
-                sub={`${Math.round(memPercent)}% 使用率`}
-              />
-              <MetricBar
-                label="磁盘"
-                percent={diskPercent}
-                value={`${formatBytes(latestMetric.disk_used ?? 0)} / ${formatBytes(latestMetric.disk_total ?? 0)}`}
-                sub={`${Math.round(diskPercent)}% 使用率`}
-              />
-            </>
+          {[
+            { label: "CPU", has: hasCpuMem, percent: cpuPercent, value: hasMetric ? `${cpuPercent.toFixed(1)}%` : "-", sub: cpuCores ? `${cpuCores} 核` : undefined },
+            { label: "内存", has: hasCpuMem, percent: memPercent, value: `${formatBytes(memUsed)} / ${formatBytes(memTotal)}`, sub: `${Math.round(memPercent)}% 使用率` },
+            { label: "磁盘", has: hasDisk, percent: diskPercent, value: `${formatBytes(diskUsed)} / ${formatBytes(diskTotal)}`, sub: `${Math.round(diskPercent)}% 使用率` },
+          ].map(m => m.has ? (
+            <MetricBar key={m.label} label={m.label} percent={m.percent} value={m.value} sub={m.sub} />
           ) : (
-            ["CPU", "内存", "磁盘"].map(label => (
-              <div key={label} className="space-y-1">
-                <div className="text-sm text-muted-foreground">{label}</div>
-                <div className="text-2xl font-bold">-</div>
-                <div className="text-xs text-muted-foreground">{metricHint}</div>
-              </div>
-            ))
-          )}
+            <div key={m.label} className="space-y-1">
+              <div className="text-sm text-muted-foreground">{m.label}</div>
+              <div className="text-2xl font-bold">-</div>
+              <div className="text-xs text-muted-foreground">等待数据</div>
+            </div>
+          ))}
         </div>
       </section>
 

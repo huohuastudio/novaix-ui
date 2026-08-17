@@ -1,8 +1,14 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Lock } from "lucide-react"
+import { ChevronRight, Lock } from "lucide-react"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
@@ -15,6 +21,7 @@ import type { LucideIcon } from "lucide-react"
 
 export type NavGroup = {
   label?: string
+  defaultOpen?: boolean
   items: {
     title: string
     url: string
@@ -62,26 +69,87 @@ function NavItemButton({
   )
 }
 
+function isItemActive(item: NavGroup["items"][number], pathname: string) {
+  return item.exact
+    ? pathname === item.url
+    : pathname === item.url || pathname.startsWith(item.url + "/")
+}
+
+function CollapsibleNavGroup({
+  group,
+  pathname,
+}: {
+  group: NavGroup
+  pathname: string
+}) {
+  const hasActiveItem = group.items.some((item) =>
+    isItemActive(item, pathname),
+  )
+  const [userToggled, setUserToggled] = useState<boolean | null>(null)
+  const open = hasActiveItem || (userToggled ?? group.defaultOpen !== false)
+
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setUserToggled}
+      className="group/collapsible"
+    >
+      <SidebarGroup>
+        <SidebarGroupLabel
+          className="group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          asChild
+        >
+          <CollapsibleTrigger>
+            {group.label}
+            <ChevronRight className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <NavItemButton
+                    item={item}
+                    isActive={isItemActive(item, pathname)}
+                  />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  )
+}
+
 export function NavMain({ groups }: { groups: NavGroup[] }) {
   const location = useLocation()
 
   return (
     <>
-      {groups.map((group, i) => (
-        <SidebarGroup key={group.label ?? i}>
-          {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
-          <SidebarMenu>
-            {group.items.map((item) => (
-              <SidebarMenuItem key={item.url}>
-                <NavItemButton
-                  item={item}
-                  isActive={item.exact ? location.pathname === item.url : location.pathname === item.url || location.pathname.startsWith(item.url + "/")}
-                />
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-      ))}
+      {groups.map((group, i) =>
+        group.label ? (
+          <CollapsibleNavGroup
+            key={group.label}
+            group={group}
+            pathname={location.pathname}
+          />
+        ) : (
+          <SidebarGroup key={i}>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <NavItemButton
+                    item={item}
+                    isActive={isItemActive(item, location.pathname)}
+                  />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        ),
+      )}
     </>
   )
 }

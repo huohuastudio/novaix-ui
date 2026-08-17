@@ -101,7 +101,7 @@ export function IntegrationCreateSheet({
         open={open}
         onOpenChange={onOpenChange}
         title="新建集成方"
-        description="集成方是第三方系统的稳定身份，API 密钥可关联到此身份"
+        description="集成方是外部系统的稳定身份，API 密钥可关联到此身份"
         footer={
           <Button form="integration-create-form" type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "创建中..." : "创建"}
@@ -279,7 +279,7 @@ function IntegrationBaseFields({
           <FormItem>
             <FormLabel required>名称</FormLabel>
             <FormControl>
-              <Input placeholder="如 魔方主站 / WHMCS 主站" {...field} />
+              <Input placeholder="如 主站财务系统" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>

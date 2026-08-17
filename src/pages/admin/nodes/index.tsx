@@ -101,6 +101,7 @@ function NodeList() {
             <li>初始化运行环境并配置远程 API</li>
             <li>生成 TLS 客户端证书用于安全通信</li>
             <li>配置安全策略（AppArmor，如适用）</li>
+            <li>安装并启动监控采集程序</li>
           </ul>
           <p className="mt-2">初始化期间节点将暂时不可用，整个过程可能需要几分钟。</p>
         </>

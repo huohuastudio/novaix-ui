@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection } from "@/api"
+import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort } from "@/api"
 import type { NodeNodeItem, ServiceTestConnectionResponse } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { HelpLink } from "@/components/help-doc"
@@ -10,7 +10,7 @@ import { getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, CheckCircle2, XCircle, Info } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Info, CircleDot } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -37,12 +37,15 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 // ── Schema ──
 
 const baseFields = {
   name: z.string().min(1, "请输入名称").max(128, "名称不能超过 128 个字符"),
   region: z.string().max(64, "区域不能超过 64 个字符").optional().default(""),
+  latitude: z.coerce.number<number | string>().min(-90).max(90).optional().default(0),
+  longitude: z.coerce.number<number | string>().min(-180).max(180).optional().default(0),
   host: z.string().min(1, "请输入主机地址").max(255, "主机地址不能超过 255 个字符"),
   port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(8443),
   ssh_port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(22),
@@ -50,6 +53,7 @@ const baseFields = {
   ssh_auth_method: z.enum(["password", "key"]).default("password"),
   ssh_password: z.string().max(256).optional().default(""),
   ssh_key: z.string().optional().default(""),
+  monitor_port: z.coerce.number<number | string>().int().min(1024, "端口范围 1024-65535").max(65535, "端口范围 1024-65535").optional().default(9100),
   cpu_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
   mem_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
   disk_overcommit: z.coerce.number<number | string>().min(0, "最小为 0%").max(9900, "最大为 9900%").optional().default(0),
@@ -80,6 +84,8 @@ type EditFormValues = z.output<typeof editSchema>
 const defaultValues: EditFormValues = {
   name: "",
   region: "",
+  latitude: 0,
+  longitude: 0,
   host: "",
   port: 8443,
   ssh_port: 22,
@@ -90,6 +96,7 @@ const defaultValues: EditFormValues = {
   cluster_member_name: "",
   network_name: "",
   storage_pool: "",
+  monitor_port: 9100,
   cpu_overcommit: 0,
   mem_overcommit: 0,
   disk_overcommit: 0,
@@ -132,6 +139,35 @@ function RegionField({ form }: { form: UseFormReturn<NodeFormInput, unknown, Nod
   )
 }
 
+function CoordinateFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> | UseFormReturn<EditFormInput, unknown, EditFormValues> }) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <FormField
+        control={form.control}
+        name="latitude"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>纬度</FormLabel>
+            <FormControl><Input type="number" step="any" placeholder="22.3193" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="longitude"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>经度</FormLabel>
+            <FormControl><Input type="number" step="any" placeholder="114.1694" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  )
+}
+
 function HostField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
   return (
     <FormField
@@ -148,27 +184,79 @@ function HostField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeF
   )
 }
 
-function PortFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
+function PortCheckButton({ host, port }: { host: string; port: number }) {
+  const [state, setState] = useState<{ status: "idle" | "checking" | "ok" | "fail"; host: string; port: number }>({ status: "idle", host: "", port: 0 })
+
+  const valid = !!host && port >= 1 && port <= 65535
+  const current = state.host === host && state.port === port ? state.status : "idle"
+
+  const check = async () => {
+    if (!valid) return
+    setState({ status: "checking", host, port })
+    try {
+      const { data: res } = await postAdminNodesCheckPort({ body: { host, port } })
+      setState({ status: res?.data?.success ? "ok" : "fail", host, port })
+    } catch {
+      setState({ status: "fail", host, port })
+    }
+  }
+
+  const icons = { idle: CircleDot, checking: Loader2, ok: CheckCircle2, fail: XCircle }
+  const colors = { idle: "text-muted-foreground", checking: "text-muted-foreground animate-spin", ok: "text-green-600 dark:text-green-400", fail: "text-destructive" }
+  const Icon = icons[current]
+
+  const tip = current === "ok" ? "端口可达，点击重新检测" : current === "fail" ? "端口不可达，点击重新检测" : "检测端口是否可达"
+
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" onClick={check} disabled={!valid || current === "checking"} className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+          <Icon className={`size-4 ${colors[current]}`} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{tip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+const PORT_HINT_FIREWALL = "需在防火墙和安全组放行"
+
+function PortFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
+  const host = form.watch("host")
+
+  const checkablePorts: { name: "port" | "ssh_port"; label: string; placeholder: string }[] = [
+    { name: "port", label: "服务端口", placeholder: "8443" },
+    { name: "ssh_port", label: "SSH 端口", placeholder: "22" },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {checkablePorts.map(({ name, label, placeholder }) => (
+        <FormField
+          key={name}
+          control={form.control}
+          name={name}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{label}</FormLabel>
+              <div className="flex items-center gap-2">
+                <FormControl><Input type="number" placeholder={placeholder} {...field} /></FormControl>
+                <PortCheckButton host={host} port={Number(field.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">{PORT_HINT_FIREWALL}</p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ))}
       <FormField
         control={form.control}
-        name="port"
+        name="monitor_port"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>服务端口</FormLabel>
-            <FormControl><Input type="number" placeholder="8443" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="ssh_port"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>SSH 端口</FormLabel>
-            <FormControl><Input type="number" placeholder="22" {...field} /></FormControl>
+            <FormLabel>监控端口</FormLabel>
+            <FormControl><Input type="number" placeholder="9100" {...field} /></FormControl>
+            <p className="text-xs text-muted-foreground">仅本机访问，无需放行</p>
             <FormMessage />
           </FormItem>
         )}
@@ -330,19 +418,19 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
   ]
 
   return (
-    <div className="space-y-1.5">
+    <div className="flex items-center gap-4 min-w-0">
       {items.map(({ label, data }) => (
-        <div key={label} className="flex items-start gap-2 text-sm">
+        <div key={label} className="flex items-center gap-1.5 text-sm min-w-0">
           {data?.success ? (
-            <CheckCircle2 className="size-4 mt-0.5 text-green-600 dark:text-green-400 shrink-0" />
+            <CheckCircle2 className="size-4 text-green-600 dark:text-green-400 shrink-0" />
           ) : (
-            <XCircle className="size-4 mt-0.5 text-destructive shrink-0" />
+            <XCircle className="size-4 text-destructive shrink-0" />
           )}
           <span className="font-medium shrink-0">{label}</span>
           {data?.success ? (
             <span className="text-muted-foreground">{data.latency}ms</span>
           ) : (
-            <span className="text-destructive text-xs min-w-0 break-words">{data?.message}</span>
+            <span className="text-destructive text-xs truncate max-w-48">{data?.message}</span>
           )}
         </div>
       ))}
@@ -356,6 +444,8 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
   return {
     name: values.name,
     region: values.region || undefined,
+    latitude: values.latitude,
+    longitude: values.longitude,
     host: values.host,
     port: values.port,
     ssh_port: values.ssh_port,
@@ -366,6 +456,7 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
     cluster_member_name: values.cluster_member_name ?? values.name,
     network_name: values.network_name || undefined,
     storage_pool: values.storage_pool || undefined,
+    monitor_port: values.monitor_port,
     cpu_overcommit: 1 + values.cpu_overcommit / 100,
     mem_overcommit: 1 + values.mem_overcommit / 100,
     disk_overcommit: 1 + values.disk_overcommit / 100,
@@ -458,6 +549,7 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
                 <NameField form={form} />
                 <RegionField form={form} />
               </div>
+              <CoordinateFields form={form} />
               <div data-tour="node-form-host">
                 <HostField form={form} />
               </div>
@@ -468,19 +560,21 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
                 <SSHAuthFields form={form} />
               </div>
               <OvercommitFields form={form} />
-              {testResult && <ConnectionTestResults result={testResult} />}
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
             </form>
           </Form>
         </div>
-        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-end gap-3">
-          <Button type="button" variant="outline" disabled={testing || !form.watch("host")} onClick={handleTestConnection}>
-            {testing && <Loader2 className="size-4 animate-spin" />}
-            测试连接
-          </Button>
-          <Button type="submit" form="create-node-form" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "提交中..." : "创建"}
-          </Button>
+        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-between gap-3">
+          <div className="flex-1 min-w-0 overflow-hidden">{testResult && <ConnectionTestResults result={testResult} />}</div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button type="button" variant="outline" disabled={testing || !form.watch("host")} onClick={handleTestConnection}>
+              {testing && <Loader2 className="size-4 animate-spin" />}
+              测试连接
+            </Button>
+            <Button type="submit" form="create-node-form" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "提交中..." : "创建"}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -539,6 +633,8 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
       form.reset({
         name: node.name ?? "",
         region: node.region ?? "",
+        latitude: node.latitude ?? 0,
+        longitude: node.longitude ?? 0,
         host: node.host ?? "",
         port: node.port ?? 8443,
         ssh_port: node.ssh_port ?? 22,
@@ -549,6 +645,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
         cluster_member_name: node.cluster_member_name ?? "",
         network_name: node.network_name ?? "",
         storage_pool: node.storage_pool ?? "",
+        monitor_port: node.monitor_port ?? 9100,
         cpu_overcommit: Math.round(((node.cpu_overcommit ?? 1) - 1) * 100),
         mem_overcommit: Math.round(((node.mem_overcommit ?? 1) - 1) * 100),
         disk_overcommit: Math.round(((node.disk_overcommit ?? 1) - 1) * 100),
@@ -585,6 +682,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
                 <NameField form={form} />
                 <RegionField form={form} />
               </div>
+              <CoordinateFields form={form} />
               <HostField form={form} />
               <PortFields form={form} />
               <SSHAuthFields form={form} optional />
@@ -627,19 +725,21 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
                 />
               </div>
               <OvercommitFields form={form} />
-              {testResult && <ConnectionTestResults result={testResult} />}
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
             </form>
           </Form>
         </div>
-        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-end gap-3">
-          <Button type="button" variant="outline" disabled={testing} onClick={handleTestConnection}>
-            {testing && <Loader2 className="size-4 animate-spin" />}
-            测试连接
-          </Button>
-          <Button type="submit" form="edit-node-form" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "保存中..." : "保存"}
-          </Button>
+        <SheetFooter className="shrink-0 border-t px-4 py-3 flex-row items-center justify-between gap-3">
+          <div className="flex-1 min-w-0 overflow-hidden">{testResult && <ConnectionTestResults result={testResult} />}</div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button type="button" variant="outline" disabled={testing} onClick={handleTestConnection}>
+              {testing && <Loader2 className="size-4 animate-spin" />}
+              测试连接
+            </Button>
+            <Button type="submit" form="edit-node-form" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "保存中..." : "保存"}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

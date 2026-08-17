@@ -1,28 +1,23 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import {
   Area,
   AreaChart,
   CartesianGrid,
-  Cell,
-  Label,
-  Pie,
-  PieChart,
   XAxis,
   YAxis,
 } from "recharts"
 import {
   Server,
   MonitorCog,
-  Users,
-  Banknote,
-  MessageSquareText,
   ShoppingCart,
+  MessageSquareText,
   Clock,
   TrendingUp,
-  Activity,
-  Check,
+  TrendingDown,
+  MoreHorizontal,
+  ArrowRight,
 } from "lucide-react"
 import type { DashboardStatsResponse, DashboardRecentResponse } from "@/api"
 import {
@@ -51,36 +46,26 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { StatCard } from "@/components/stat-card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { SetupGuide } from "@/components/setup-guide"
+import { NodeMap } from "@/components/node-map"
 
-const INSTANCE_STATUS_COLORS: Record<string, string> = {
-  running: "hsl(142, 71%, 45%)",
-  stopped: "hsl(215, 14%, 60%)",
-  error: "hsl(0, 84%, 60%)",
-  creating: "hsl(47, 96%, 53%)",
-}
-
-const INSTANCE_STATUS_LABELS: Record<string, string> = {
-  running: "运行中",
-  stopped: "已停止",
-  error: "异常",
-  creating: "创建中",
-}
-
-const instanceChartConfig: ChartConfig = {
-  running: { label: "运行中", color: INSTANCE_STATUS_COLORS.running },
-  stopped: { label: "已停止", color: INSTANCE_STATUS_COLORS.stopped },
-  error: { label: "异常", color: INSTANCE_STATUS_COLORS.error },
-  creating: { label: "创建中", color: INSTANCE_STATUS_COLORS.creating },
+const STATUS_META: Record<string, { label: string; tw: string }> = {
+  running: { label: "运行中", tw: "bg-emerald-500" },
+  stopped: { label: "已停止", tw: "bg-muted-foreground/40" },
+  error: { label: "异常", tw: "bg-destructive" },
+  creating: { label: "创建中", tw: "bg-amber-500" },
 }
 
 const revenueChartConfig: ChartConfig = {
-  amount: { label: "收入", color: "var(--chart-1)" },
+  amount: { label: "收入", color: "var(--color-foreground)" },
 }
-
-const RING_RADIUS = 36
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
 function fmtDate(d: string) {
   return d.slice(5)
@@ -94,129 +79,30 @@ function daysUntil(dateStr: string) {
   return `${days} 天后`
 }
 
-function ResourceRing({ label, used, total, formatFn, color }: {
-  label: string
-  used: number
-  total: number
-  formatFn: (v: number) => string
-  color: string
-}) {
-  const pct = total > 0 ? (used / total) * 100 : 0
-  const offset = RING_CIRCUMFERENCE - (Math.min(pct, 100) / 100) * RING_CIRCUMFERENCE
-  const ringColor = pct > 80 ? "stroke-destructive" : pct > 60 ? "stroke-amber-500" : color
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative size-24">
-        <svg className="size-full -rotate-90" viewBox="0 0 80 80">
-          <circle cx="40" cy="40" r={RING_RADIUS} fill="none" className="stroke-muted" strokeWidth="6" />
-          <circle
-            cx="40" cy="40" r={RING_RADIUS} fill="none"
-            className={`${ringColor} transition-all duration-700`}
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={RING_CIRCUMFERENCE}
-            strokeDashoffset={offset}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-bold tabular-nums">{pct.toFixed(0)}%</span>
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-xs font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground tabular-nums">{formatFn(used)} / {formatFn(total)}</p>
-      </div>
-    </div>
-  )
-}
-
-function NodeBar({ name, cpu, mem, disk, nodeId }: {
-  name: string
-  cpu: number
-  mem: number
-  disk: number
-  nodeId?: number
-}) {
-  const adminPath = useAdminPath()
-  const barColor = (v: number) =>
-    v > 80 ? "bg-destructive" : v > 60 ? "bg-amber-500" : "bg-blue-500"
-
-  const items = [
-    { label: "CPU", value: cpu },
-    { label: "内存", value: mem },
-    { label: "磁盘", value: disk },
-  ]
-
-  return (
-    <div className="rounded-md border px-4 py-3">
-      <div className="mb-2.5">
-        {nodeId ? (
-          <Link to={`${adminPath}/nodes/${nodeId}`} className="text-sm font-medium hover:underline">
-            {name}
-          </Link>
-        ) : (
-          <span className="text-sm font-medium">{name}</span>
-        )}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {items.map((item) => (
-          <div key={item.label} className="space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{item.label}</span>
-              <span className="tabular-nums font-medium">{formatPercent(item.value)}</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full ${barColor(item.value)} transition-all duration-500`}
-                style={{ width: `${Math.min(item.value, 100)}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function DashboardSkeleton() {
   return (
-    <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8">
+    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-8 space-y-6">
       <div>
-        <Skeleton className="h-7 w-20" />
+        <Skeleton className="h-8 w-24" />
         <Skeleton className="mt-2 h-4 w-48" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-[120px] w-full rounded-lg" />
+          </div>
+        ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-md border p-5 space-y-3">
-            <div className="flex items-center gap-3">
-              <Skeleton className="size-10 rounded-lg" />
-              <div className="space-y-1.5 flex-1">
-                <Skeleton className="h-3 w-12" />
-                <Skeleton className="h-7 w-16" />
-              </div>
-            </div>
-            <Skeleton className="h-3 w-32" />
+          <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-16 w-full" />
           </div>
         ))}
-      </div>
-      <div className="rounded-md border p-5 space-y-3">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-[280px] w-full" />
-      </div>
-      <div className="grid gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-3 space-y-3">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-[260px] w-full rounded-md" />
-        </div>
-        <div className="lg:col-span-5 space-y-3">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-[260px] w-full rounded-md" />
-        </div>
-        <div className="lg:col-span-4 space-y-3">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-[260px] w-full rounded-md" />
-        </div>
       </div>
     </div>
   )
@@ -226,7 +112,6 @@ export default function Dashboard() {
   useBreadcrumb([{ label: "仪表盘" }])
   const siteName = useSiteName()
   const adminPath = useAdminPath()
-  // 统计与最近动态各自一个 query，并发请求
   const statsQuery = useQuery(getAdminDashboardStatsOptions())
   const recentQuery = useQuery(getAdminDashboardRecentOptions())
   const stats: DashboardStatsResponse | null =
@@ -239,17 +124,25 @@ export default function Dashboard() {
       : null
   const loading = statsQuery.isPending || recentQuery.isPending
 
-  const instancePieData = useMemo(() => {
+  const instanceStatusData = useMemo(() => {
     if (!stats?.instances) return []
     return [
-      { key: "running", value: stats.instances.running ?? 0, fill: INSTANCE_STATUS_COLORS.running },
-      { key: "stopped", value: stats.instances.stopped ?? 0, fill: INSTANCE_STATUS_COLORS.stopped },
-      { key: "error", value: stats.instances.error ?? 0, fill: INSTANCE_STATUS_COLORS.error },
-      { key: "creating", value: stats.instances.creating ?? 0, fill: INSTANCE_STATUS_COLORS.creating },
+      { key: "running", value: stats.instances.running ?? 0 },
+      { key: "stopped", value: stats.instances.stopped ?? 0 },
+      { key: "error", value: stats.instances.error ?? 0 },
+      { key: "creating", value: stats.instances.creating ?? 0 },
     ].filter(d => d.value > 0)
   }, [stats])
 
-  const revenueAreaData = useMemo(() => {
+  const [revenueDays, setRevenueDays] = useState<"7" | "14" | "30">("30")
+  const [nodeSortKey, setNodeSortKey] = useState<"cpu" | "mem" | "disk">("cpu")
+
+  const instanceTotal = useMemo(
+    () => instanceStatusData.reduce((s, d) => s + d.value, 0),
+    [instanceStatusData],
+  )
+
+  const revenueAreaDataFull = useMemo(() => {
     if (!stats?.revenue_trend) return []
     return (stats.revenue_trend as Array<{ date?: string; amount?: number }>).map(d => ({
       date: fmtDate(d.date ?? ""),
@@ -257,9 +150,26 @@ export default function Dashboard() {
     }))
   }, [stats])
 
+  const revenueAreaData = useMemo(
+    () => revenueAreaDataFull.slice(-Number(revenueDays)),
+    [revenueAreaDataFull, revenueDays],
+  )
+
   const sortedNodeRanking = useMemo(() => {
     if (!stats?.node_ranking?.length) return []
-    return [...stats.node_ranking].sort((a, b) => (b.cpu_usage ?? 0) - (a.cpu_usage ?? 0))
+    return [...stats.node_ranking].sort((a, b) => {
+      const av = nodeSortKey === "cpu" ? a.cpu_usage : nodeSortKey === "mem" ? a.mem_usage : a.disk_usage
+      const bv = nodeSortKey === "cpu" ? b.cpu_usage : nodeSortKey === "mem" ? b.mem_usage : b.disk_usage
+      return (bv ?? 0) - (av ?? 0)
+    })
+  }, [stats, nodeSortKey])
+
+  const revenueGrowth = useMemo(() => {
+    if (!stats?.orders) return null
+    const last = stats.orders.revenue_last_month
+    if (!last || last === 0) return null
+    const current = stats.orders.revenue_month ?? 0
+    return ((current - last) / last) * 100
   }, [stats])
 
   if (loading) return <DashboardSkeleton />
@@ -272,384 +182,505 @@ export default function Dashboard() {
     )
   }
 
+  const pendingItems = [
+    { count: stats.orders?.pending ?? 0, href: `${adminPath}/orders?status=pending`, icon: ShoppingCart, label: "待支付订单" },
+    { count: stats.tickets?.open ?? 0, href: `${adminPath}/tickets`, icon: MessageSquareText, label: "待处理工单" },
+    { count: stats.instances?.error ?? 0, href: `${adminPath}/instances?status=error`, icon: MonitorCog, label: "异常实例" },
+    { count: stats.nodes?.error ?? 0, href: `${adminPath}/nodes?status=3`, icon: Server, label: "异常节点" },
+  ].filter(item => item.count > 0)
+
+  const resources = [
+    { label: "CPU", used: stats.resources?.cpu_used ?? 0, total: stats.resources?.cpu_total ?? 0, format: (v: number) => `${v} 核` },
+    { label: "内存", used: stats.resources?.mem_used ?? 0, total: stats.resources?.mem_total ?? 0, format: formatMemory },
+    { label: "磁盘", used: stats.resources?.disk_used ?? 0, total: stats.resources?.disk_total ?? 0, format: formatDisk },
+  ]
+
   return (
-    <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 pb-8">
-      {/* 标题 */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">仪表盘</h1>
-        <p className="mt-1 text-sm text-muted-foreground">欢迎使用 {siteName} 管理后台</p>
+    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-8 space-y-6">
+      {/* 标题 + 待处理 */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">仪表盘</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            欢迎使用 {siteName} 管理后台
+          </p>
+        </div>
+        {pendingItems.length > 0 && (
+          <div className="flex flex-wrap gap-2" data-tour="pending-items">
+            {pendingItems.map(item => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors hover:bg-muted/60"
+              >
+                <item.icon className="size-3 text-muted-foreground" />
+                <span>{item.label}</span>
+                <Badge
+                  variant={item.label.includes("异常") ? "destructive" : "secondary"}
+                  className="ml-0.5 text-[10px] px-1.5 py-0"
+                >
+                  {item.count}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 新手引导 */}
       <div data-tour="setup-guide">
         <SetupGuide />
       </div>
 
-      {/* 统计卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stat-cards">
-        <StatCard
-          icon={Server}
-          label="节点"
-          value={stats.nodes?.total ?? 0}
-          sub={`在线 ${stats.nodes?.online ?? 0} · 异常 ${stats.nodes?.error ?? 0}`}
-          href={`${adminPath}/nodes`}
-          styleIndex={0}
-        />
-        <StatCard
-          icon={MonitorCog}
-          label="实例"
-          value={stats.instances?.total ?? 0}
-          sub={`运行 ${stats.instances?.running ?? 0} · 停止 ${stats.instances?.stopped ?? 0}`}
-          href={`${adminPath}/instances`}
-          styleIndex={1}
-        />
-        <StatCard
-          icon={Users}
-          label="用户"
-          value={stats.users?.total ?? 0}
-          sub={`活跃 ${stats.users?.active ?? 0}`}
-          href={`${adminPath}/users`}
-          styleIndex={2}
-        />
-        <StatCard
-          icon={Banknote}
-          label="本月收入"
-          value={formatAmount(stats.orders?.revenue_month ?? 0)}
-          sub={`今日 ${formatAmount(stats.orders?.revenue_today ?? 0)}`}
-          href={`${adminPath}/orders`}
-          styleIndex={3}
-        />
+      {/* ═══ 第一行：收入卡片（大）═══ */}
+      <div className="grid gap-4 lg:grid-cols-2" data-tour="revenue-trend">
+        {/* 本月收入 — 大卡片，内嵌趋势图 */}
+        <div className="rounded-xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">本月收入</p>
+            <CardMenu
+              value={revenueDays}
+              onValueChange={v => setRevenueDays(v as "7" | "14" | "30")}
+              options={[
+                { value: "7", label: "近 7 天" },
+                { value: "14", label: "近 14 天" },
+                { value: "30", label: "近 30 天" },
+              ]}
+            />
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tabular-nums tracking-tight">
+              {formatAmount(stats.orders?.revenue_month ?? 0)}
+            </span>
+            {revenueGrowth !== null && (
+              <span className={`inline-flex items-center gap-0.5 text-sm ${
+                revenueGrowth >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-destructive"
+              }`}>
+                {revenueGrowth >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
+                <span className="font-medium">{Math.abs(revenueGrowth).toFixed(1)}%</span>
+                <span className="text-muted-foreground text-xs ml-0.5">较上月</span>
+              </span>
+            )}
+          </div>
+          {/* 内嵌 sparkline */}
+          <div className="mt-4">
+            {revenueAreaData.length > 0 ? (
+              <ChartContainer config={revenueChartConfig} className="h-[120px] w-full">
+                <AreaChart data={revenueAreaData} accessibilityLayer>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-amount)" stopOpacity={0.08} />
+                      <stop offset="100%" stopColor="var(--color-amount)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} className="stroke-border/30" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={4}
+                    interval="preserveStartEnd"
+                    minTickGap={60}
+                    style={{ fontSize: 10 }}
+                    className="fill-muted-foreground"
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={4}
+                    tickFormatter={(v) => `¥${v}`}
+                    width={48}
+                    style={{ fontSize: 10 }}
+                    className="fill-muted-foreground"
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) => [`¥${Number(value).toFixed(2)}`, "收入"]}
+                      />
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="var(--color-amount)"
+                    strokeWidth={1.5}
+                    fill="url(#revenueGradient)"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex h-[120px] items-center justify-center text-xs text-muted-foreground">
+                暂无数据
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 今日收入 — 大卡片 */}
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-xs text-muted-foreground">今日收入</p>
+          <div className="mt-1">
+            <span className="text-3xl font-bold tabular-nums tracking-tight">
+              {formatAmount(stats.orders?.revenue_today ?? 0)}
+            </span>
+          </div>
+          <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
+            <span>订单总数</span>
+            <span className="font-medium text-foreground tabular-nums">{stats.orders?.total ?? 0}</span>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>已支付</span>
+            <span className="font-medium text-foreground tabular-nums">{stats.orders?.paid_total ?? 0}</span>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>待支付</span>
+            <span className="font-medium text-foreground tabular-nums">{stats.orders?.pending ?? 0}</span>
+          </div>
+          <div className="mt-4">
+            <Link
+              to={`${adminPath}/orders`}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              查看全部订单 <ArrowRight className="inline size-3" />
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {/* 收入趋势 - 独占一行 */}
-      <div className="rounded-md border p-5" data-tour="revenue-trend">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="size-4 text-muted-foreground" />
-            <div>
-              <h3 className="text-sm font-medium">收入趋势</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">近 30 天每日收入</p>
+      {/* ═══ 第二行：指标卡片（小）═══ */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stat-cards">
+        {/* 节点 */}
+        <Link to={`${adminPath}/nodes`} className="group rounded-xl border bg-card p-5 transition-colors hover:bg-accent/50">
+          <p className="text-xs text-muted-foreground">节点</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+            {stats.nodes?.total ?? 0}
+          </p>
+          <div className="mt-4 space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">在线</span>
+              <span className="font-medium tabular-nums">{stats.nodes?.online ?? 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">异常</span>
+              <span className={`font-medium tabular-nums ${(stats.nodes?.error ?? 0) > 0 ? "text-destructive" : ""}`}>
+                {stats.nodes?.error ?? 0}
+              </span>
             </div>
           </div>
-          <Link to={`${adminPath}/orders`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-            查看订单 →
-          </Link>
-        </div>
-        {revenueAreaData.length > 0 ? (
-          <ChartContainer config={revenueChartConfig} className="h-[280px] w-full">
-            <AreaChart data={revenueAreaData} accessibilityLayer>
-              <defs>
-                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-amount)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="var(--color-amount)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                interval="preserveStartEnd"
-                minTickGap={50}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tickFormatter={(v) => `¥${v}`}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value) => [`¥${Number(value).toFixed(2)}`, "收入"]}
-                  />
-                }
-              />
-              <Area
-                type="monotone"
-                dataKey="amount"
-                stroke="var(--color-amount)"
-                strokeWidth={2}
-                fill="url(#revenueGradient)"
-              />
-            </AreaChart>
-          </ChartContainer>
-        ) : (
-          <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">暂无收入数据</div>
-        )}
-      </div>
+        </Link>
 
-      {/* 实例分布 + 资源使用 + 待处理 */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* 实例状态分布 */}
-        <div className="lg:col-span-3 rounded-md border p-5">
-          <h3 className="text-sm font-medium">实例状态</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">当前状态分布</p>
-          {instancePieData.length > 0 ? (
-            <>
-              <ChartContainer config={instanceChartConfig} className="mx-auto h-[180px] mt-2">
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="key" hideLabel />} />
-                  <Pie
-                    data={instancePieData}
-                    dataKey="value"
-                    nameKey="key"
-                    innerRadius={50}
-                    outerRadius={72}
-                    strokeWidth={2}
-                    stroke="hsl(var(--background))"
-                  >
-                    {instancePieData.map((entry) => (
-                      <Cell key={entry.key} fill={entry.fill} />
-                    ))}
-                    <Label
-                      content={({ viewBox }) => {
-                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                          return (
-                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                              <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 8} className="fill-foreground text-2xl font-bold">
-                                {stats.instances?.total ?? 0}
-                              </tspan>
-                              <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 14} className="fill-muted-foreground text-xs">
-                                总实例
-                              </tspan>
-                            </text>
-                          )
-                        }
-                      }}
-                    />
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {instancePieData.map((d) => (
-                  <div key={d.key} className="flex items-center gap-1.5 text-xs">
-                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
-                    <span className="text-muted-foreground">{INSTANCE_STATUS_LABELS[d.key]}</span>
+        {/* 实例 — 内嵌状态条 */}
+        <Link to={`${adminPath}/instances`} className="group rounded-xl border bg-card p-5 transition-colors hover:bg-accent/50">
+          <p className="text-xs text-muted-foreground">实例</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+            {stats.instances?.total ?? 0}
+          </p>
+          {instanceStatusData.length > 0 && (
+            <div className="mt-4 space-y-2.5">
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                {instanceStatusData.map(d => (
+                  <div
+                    key={d.key}
+                    className={`${STATUS_META[d.key].tw} first:rounded-l-full last:rounded-r-full`}
+                    style={{ width: `${(d.value / instanceTotal) * 100}%` }}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {instanceStatusData.map(d => (
+                  <div key={d.key} className="flex items-center gap-1 text-[11px]">
+                    <span className={`size-1.5 rounded-full ${STATUS_META[d.key].tw}`} />
+                    <span className="text-muted-foreground">{STATUS_META[d.key].label}</span>
                     <span className="font-medium tabular-nums">{d.value}</span>
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">暂无实例</div>
-          )}
-        </div>
-
-        {/* 资源分配 */}
-        <div className="lg:col-span-5 rounded-md border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">资源分配</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">已分配 / 总量</p>
             </div>
-            <Activity className="size-4 text-muted-foreground" />
-          </div>
-          <div className="flex items-center justify-around mt-6">
-            <ResourceRing
-              label="CPU"
-              used={stats.resources?.cpu_used ?? 0}
-              total={stats.resources?.cpu_total ?? 0}
-              formatFn={(v) => `${v} 核`}
-              color="stroke-blue-500"
-            />
-            <ResourceRing
-              label="内存"
-              used={stats.resources?.mem_used ?? 0}
-              total={stats.resources?.mem_total ?? 0}
-              formatFn={formatMemory}
-              color="stroke-emerald-500"
-            />
-            <ResourceRing
-              label="磁盘"
-              used={stats.resources?.disk_used ?? 0}
-              total={stats.resources?.disk_total ?? 0}
-              formatFn={formatDisk}
-              color="stroke-violet-500"
-            />
-          </div>
-        </div>
+          )}
+        </Link>
 
-        {/* 待处理事项 */}
-        <div className="lg:col-span-4 rounded-md border p-5" data-tour="pending-items">
-          <h3 className="text-sm font-medium mb-4">待处理事项</h3>
-          <div className="space-y-2">
-            {(() => {
-              const items = [
-                { count: stats.orders?.pending ?? 0, href: `${adminPath}/orders?status=pending`, icon: ShoppingCart, label: "待支付订单", badgeVariant: "secondary" as const, bg: "bg-amber-50 dark:bg-amber-950/40", iconClass: "text-amber-600 dark:text-amber-400" },
-                { count: stats.tickets?.open ?? 0, href: `${adminPath}/tickets`, icon: MessageSquareText, label: "待处理工单", badgeVariant: "secondary" as const, bg: "bg-blue-50 dark:bg-blue-950/40", iconClass: "text-blue-600 dark:text-blue-400" },
-                { count: stats.instances?.error ?? 0, href: `${adminPath}/instances?status=error`, icon: MonitorCog, label: "异常实例", badgeVariant: "destructive" as const, bg: "bg-red-50 dark:bg-red-950/40", iconClass: "text-destructive" },
-                { count: stats.nodes?.error ?? 0, href: `${adminPath}/nodes?status=3`, icon: Server, label: "异常节点", badgeVariant: "destructive" as const, bg: "bg-red-50 dark:bg-red-950/40", iconClass: "text-destructive" },
-              ]
-              const visible = items.filter(item => item.count > 0)
-              if (visible.length === 0) {
-                return (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 mb-2">
-                      <Check className="size-5 text-emerald-500" />
-                    </div>
-                    <p className="text-sm">一切正常</p>
+        {/* 用户 */}
+        <Link to={`${adminPath}/users`} className="group rounded-xl border bg-card p-5 transition-colors hover:bg-accent/50">
+          <p className="text-xs text-muted-foreground">用户</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+            {stats.users?.total ?? 0}
+          </p>
+          <div className="mt-4 space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">活跃</span>
+              <span className="font-medium tabular-nums">{stats.users?.active ?? 0}</span>
+            </div>
+          </div>
+        </Link>
+
+        {/* 资源分配 — 内嵌进度条 */}
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-xs text-muted-foreground">资源分配</p>
+          <div className="mt-4 space-y-3">
+            {resources.map(r => {
+              const pct = r.total > 0 ? Math.min((r.used / r.total) * 100, 100) : 0
+              const barColor =
+                pct > 80 ? "bg-destructive" : pct > 60 ? "bg-amber-500" : "bg-foreground/60"
+              return (
+                <div key={r.label} className="space-y-1">
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">{r.label}</span>
+                    <span className="tabular-nums font-medium">{pct.toFixed(0)}%</span>
                   </div>
-                )
-              }
-              return visible.map(item => (
-                <Link key={item.href} to={item.href} className="flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <div className={`flex size-7 items-center justify-center rounded-md ${item.bg}`}>
-                      <item.icon className={`size-3.5 ${item.iconClass}`} />
-                    </div>
-                    <span>{item.label}</span>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${barColor} transition-all duration-700`}
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
-                  <Badge variant={item.badgeVariant}>{item.count}</Badge>
-                </Link>
-              ))
-            })()}
+                  <p className="text-[10px] text-muted-foreground tabular-nums">
+                    {r.format(r.used)} / {r.format(r.total)}
+                  </p>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
 
-      {/* 节点资源排行 */}
-      {sortedNodeRanking.length > 0 && (
-        <div className="rounded-md border p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-medium">节点资源排行</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">在线节点按 CPU 使用率排序</p>
+      {/* ═══ 节点：地图 + 资源排行并排 ═══ */}
+      {((stats.node_locations?.length ?? 0) > 0 || sortedNodeRanking.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+          {/* 左：地图 */}
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <p className="text-xs text-muted-foreground">节点分布</p>
+              <Link
+                to={`${adminPath}/nodes`}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                查看全部 <ArrowRight className="inline size-3" />
+              </Link>
             </div>
-            <Link to={`${adminPath}/nodes`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">查看全部 →</Link>
+            <div className="px-5 pb-4">
+              <NodeMap nodes={stats.node_locations as Array<Record<string, unknown>>} />
+            </div>
           </div>
-          <div className="space-y-4">
-            {sortedNodeRanking.map((node) => (
-              <NodeBar
-                key={node.id}
-                name={node.name ?? ""}
-                cpu={node.cpu_usage ?? 0}
-                mem={node.mem_usage ?? 0}
-                disk={node.disk_usage ?? 0}
-                nodeId={node.id}
-              />
-            ))}
+
+          {/* 右：资源排行 */}
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <p className="text-xs text-muted-foreground">节点资源</p>
+              {sortedNodeRanking.length > 0 && (
+                <CardMenu
+                  value={nodeSortKey}
+                  onValueChange={v => setNodeSortKey(v as "cpu" | "mem" | "disk")}
+                  options={[
+                    { value: "cpu", label: "按 CPU 排序" },
+                    { value: "mem", label: "按内存排序" },
+                    { value: "disk", label: "按磁盘排序" },
+                  ]}
+                />
+              )}
+            </div>
+            {sortedNodeRanking.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[140px]">节点</TableHead>
+                  <TableHead>CPU</TableHead>
+                  <TableHead>内存</TableHead>
+                  <TableHead>磁盘</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedNodeRanking.map(node => (
+                  <TableRow key={node.id}>
+                    <TableCell>
+                      <Link
+                        to={`${adminPath}/nodes/${node.id}`}
+                        className="text-sm font-medium hover:underline"
+                      >
+                        {node.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell><MiniBar value={node.cpu_usage ?? 0} /></TableCell>
+                    <TableCell><MiniBar value={node.mem_usage ?? 0} /></TableCell>
+                    <TableCell><MiniBar value={node.disk_usage ?? 0} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            ) : (
+              <p className="px-5 pb-5 text-sm text-muted-foreground">暂无在线节点</p>
+            )}
           </div>
         </div>
       )}
 
       <Separator />
 
-      {/* 最近订单 + 即将到期 */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* ═══ 最近动态：三列 ═══ */}
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* 最近订单 */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">最近订单</h3>
-            <Link to={`${adminPath}/orders`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">查看全部 →</Link>
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+            <p className="text-xs text-muted-foreground">最近订单</p>
+            <Link to={`${adminPath}/orders`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              查看全部 <ArrowRight className="inline size-3" />
+            </Link>
           </div>
-          <div className="mt-3 rounded-md border overflow-x-auto">
-            {recent?.orders && recent.orders.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>订单号</TableHead>
-                    <TableHead>用户</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead className="text-right">金额</TableHead>
-                    <TableHead>状态</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-mono text-xs">{order.order_no}</TableCell>
-                      <TableCell className="text-sm">{order.username}</TableCell>
-                      <TableCell className="text-sm">{orderTypeMap[order.type ?? ""] ?? order.type}</TableCell>
-                      <TableCell className="text-right text-sm tabular-nums font-medium">{formatAmount(order.amount ?? 0)}</TableCell>
-                      <TableCell>
-                        <Badge variant={orderStatusMap[order.status ?? ""]?.variant ?? "secondary"}>
-                          {orderStatusMap[order.status ?? ""]?.label ?? order.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">暂无订单</p>
-            )}
-          </div>
-        </div>
-
-        {/* 即将到期实例 */}
-        <div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium">即将到期</h3>
-              <Clock className="size-3.5 text-muted-foreground" />
-            </div>
-            <Link to={`${adminPath}/instances`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">查看全部 →</Link>
-          </div>
-          <div className="mt-3 rounded-md border overflow-x-auto">
-            {recent?.expiring && recent.expiring.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>实例</TableHead>
-                    <TableHead>用户</TableHead>
-                    <TableHead>到期时间</TableHead>
-                    <TableHead>自动续费</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.expiring.map((inst) => (
-                    <TableRow key={inst.id}>
-                      <TableCell>
-                        <Link to={`${adminPath}/instances/${inst.id}`} className="text-sm font-medium hover:underline">
-                          {inst.name}
-                        </Link>
-                        {inst.ip_address && (
-                          <span className="ml-1.5 text-xs text-muted-foreground">{inst.ip_address}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">{inst.username}</TableCell>
-                      <TableCell>
-                        <span className="text-sm">{daysUntil(inst.expire_at ?? "")}</span>
-                        <span className="ml-1.5 text-xs text-muted-foreground">{(inst.expire_at ?? "").slice(0, 10)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={inst.auto_renew ? "default" : "outline"}>
-                          {inst.auto_renew ? "已开启" : "未开启"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">暂无即将到期的实例</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 最近操作日志 */}
-      {recent?.events && recent.events.length > 0 && (
-        <>
-          <Separator />
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">最近操作</h3>
-              <Link to={`${adminPath}/logs`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">查看全部 →</Link>
-            </div>
-            <div className="mt-3 space-y-1">
-              {recent.events.map((event) => (
-                <div key={event.id} className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/30 transition-colors">
-                  <span className="text-sm truncate">{event.detail}</span>
-                  <span className="text-xs text-muted-foreground shrink-0 ml-4">{event.username} · {event.created_at}</span>
+          {recent?.orders && recent.orders.length > 0 ? (
+            <div className="divide-y">
+              {recent.orders.map(order => (
+                <div key={order.id} className="flex items-center justify-between px-5 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium tabular-nums">
+                      {formatAmount(order.amount ?? 0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {order.username} · {orderTypeMap[order.type ?? ""] ?? order.type}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={orderStatusMap[order.status ?? ""]?.variant ?? "secondary"}
+                    className="shrink-0 ml-3 text-[10px] px-1.5 py-0"
+                  >
+                    {orderStatusMap[order.status ?? ""]?.label ?? order.status}
+                  </Badge>
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="px-5 pb-5 text-sm text-muted-foreground">暂无订单</p>
+          )}
+        </div>
+
+        {/* 即将到期 */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-muted-foreground">即将到期</p>
+              <Clock className="size-3 text-muted-foreground" />
+            </div>
+            <Link to={`${adminPath}/instances`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              查看全部 <ArrowRight className="inline size-3" />
+            </Link>
           </div>
-        </>
-      )}
+          {recent?.expiring && recent.expiring.length > 0 ? (
+            <div className="divide-y">
+              {recent.expiring.map(inst => (
+                <Link
+                  key={inst.id}
+                  to={`${adminPath}/instances/${inst.id}`}
+                  className="flex items-center justify-between px-5 py-2.5 transition-colors hover:bg-muted/30"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{inst.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {inst.username}
+                      {inst.ip_address && ` · ${inst.ip_address}`}
+                    </p>
+                  </div>
+                  <div className="shrink-0 ml-3 text-right">
+                    <p className="text-xs font-medium tabular-nums">{daysUntil(inst.expire_at ?? "")}</p>
+                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                      {(inst.expire_at ?? "").slice(5, 10)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="px-5 pb-5 text-sm text-muted-foreground">暂无即将到期的实例</p>
+          )}
+        </div>
+
+        {/* 最近操作 — 时间线 */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+            <p className="text-xs text-muted-foreground">最近操作</p>
+            <Link to={`${adminPath}/logs`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              查看全部 <ArrowRight className="inline size-3" />
+            </Link>
+          </div>
+          {recent?.events && recent.events.length > 0 ? (
+            <div className="px-5 pb-4">
+              <div className="space-y-0">
+                {recent.events.map((event, idx, arr) => (
+                  <div key={event.id} className="flex gap-3">
+                    {/* 左侧：圆点 + 连线 */}
+                    <div className="flex flex-col items-center">
+                      <div className={`mt-1.5 size-2 shrink-0 rounded-full ${getActionColor(event.action ?? "")}`} />
+                      {idx < arr.length - 1 && (
+                        <div className="w-px flex-1 bg-border" />
+                      )}
+                    </div>
+                    {/* 右侧：内容 */}
+                    <div className="pb-4 min-w-0">
+                      <p className="text-sm leading-snug truncate">{event.detail}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {event.username} · {(event.created_at ?? "").slice(5, 16)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="px-5 pb-5 text-sm text-muted-foreground">暂无操作记录</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CardMenu({ value, onValueChange, options }: {
+  value: string
+  onValueChange: (v: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <MoreHorizontal className="size-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[140px]">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map(opt => (
+            <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function getActionColor(action: string) {
+  if (action.includes("delete") || action.includes("force")) return "bg-destructive"
+  if (action.includes("create") || action.includes("init") || action.includes("pay")) return "bg-emerald-500"
+  if (action.includes("update") || action.includes("adjust")) return "bg-amber-500"
+  return "bg-muted-foreground/60"
+}
+
+function MiniBar({ value }: { value: number }) {
+  const pct = Math.min(value, 100)
+  const color = pct > 80 ? "bg-destructive" : pct > 60 ? "bg-amber-500" : "bg-foreground/60"
+  return (
+    <div className="flex items-center gap-2.5 min-w-[120px]">
+      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full rounded-full ${color} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs tabular-nums text-muted-foreground w-10 text-right">
+        {formatPercent(value)}
+      </span>
     </div>
   )
 }

@@ -86,7 +86,7 @@ const API_KEY_MODULES = [
   { key: 'api-keys', label: 'API 密钥' },
   { key: 'dashboard', label: '仪表盘' },
   { key: 'isos', label: 'ISO 镜像' },
-  { key: 'provision', label: '第三方集成（provision）', adminOnly: true },
+  { key: 'provision', label: '开放接口（provision）', adminOnly: true },
 ] as const
 
 const MODULE_LABEL_MAP = Object.fromEntries(API_KEY_MODULES.map((m) => [m.key, m.label]))

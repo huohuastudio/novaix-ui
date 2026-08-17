@@ -153,7 +153,7 @@ export default function Integrations() {
           <HelpLink path="/novaix/integration" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          集成方是第三方系统（魔方、WHMCS 等）的稳定身份，API 密钥关联到集成方，可独立轮换而不影响业务连续性。
+          集成方是外部系统的稳定身份，API 密钥关联到集成方，可独立轮换而不影响业务连续性。
         </p>
       </div>
 
@@ -171,7 +171,7 @@ export default function Integrations() {
         onColumnFiltersChange={table.setColumnFilters}
         emptyIcon={Plug}
         emptyTitle="暂无集成方"
-        emptyDescription="新建集成方以接入第三方系统"
+        emptyDescription="新建集成方以接入外部系统"
         emptyAction={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建集成方</Button>}
         toolbar={
           <Button onClick={() => setCreateOpen(true)}>

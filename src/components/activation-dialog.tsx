@@ -14,10 +14,19 @@ import { TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { useEdition, useFeatures } from "@/hooks/use-edition"
+import { useEdition, useFeatures, type FeatureInfo } from "@/hooks/use-edition"
 import { postAdminSystemActivate } from "@/api"
 import { getUser } from "@/lib/auth"
 import { getErrorMessage } from "@/lib/utils"
+
+const defaultFeatures: FeatureInfo[] = [
+  { key: "vpc", label: "VPC 网络", free: false, paid: true },
+  { key: "firewall", label: "防火墙", free: true, paid: true },
+  { key: "snapshot", label: "快照备份", free: true, paid: true },
+  { key: "api", label: "API 接口", free: false, paid: true },
+  { key: "webhook", label: "Webhook", free: false, paid: true },
+  { key: "agent", label: "代理分销", free: false, paid: true },
+]
 
 export function ActivationDialog({
   open,
@@ -57,7 +66,7 @@ export function ActivationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>系统版本</DialogTitle>
           <DialogDescription>
@@ -89,7 +98,7 @@ export function ActivationDialog({
                 <td className="text-center py-2 px-3 text-muted-foreground">≤ 2</td>
                 <td className="text-center py-2 px-3 text-green-600 dark:text-green-400">不限</td>
               </tr>
-              {features.map((f) => (
+              {(features.length > 0 ? features : defaultFeatures).map((f) => (
                 <tr key={f.key} className="border-b last:border-b-0">
                   <td className="py-2 px-3">{f.label}</td>
                   <td className="text-center py-2 px-3">

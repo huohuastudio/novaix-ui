@@ -26,4 +26,8 @@ export const queryKeys = {
   nodeProfiles: (nodeId: number | undefined) => ["node-profiles", nodeId] as const,
   /** 节点资源聚合（存储池/网络/配置模板三个 proxy 调用，供创建/编辑表单选项使用） */
   nodeResources: (nodeId: number | undefined) => ["node-resources", nodeId] as const,
+  /** 节点硬件概况（CPU/内存，走 1.0/resources proxy，概览页兜底使用） */
+  nodeHardware: (nodeId: number) => ["node-hardware", nodeId] as const,
+  /** 节点存储池容量用量聚合（概览页使用） */
+  nodeStoragePoolUsage: (nodeId: number) => ["node-storage-pool-usage", nodeId] as const,
 }
