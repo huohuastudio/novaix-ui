@@ -73,6 +73,7 @@ const schema = z.object({
   extra_ip_price: z.coerce.number<number | string>().int().min(0).default(0),
   max_extra_ips: z.coerce.number<number | string>().int().min(0).default(0),
   nat_mode: z.boolean().default(false),
+  ipv6_enabled: z.boolean().default(false),
   port_count: z.coerce.number<number | string>().int().min(1).default(20),
   cpu_allowance: z.coerce.number<number | string>().int().min(0).max(100).default(0),
   stock: z.coerce.number<number | string>().int().default(-1),
@@ -108,6 +109,7 @@ const defaultValues: FormValues = {
   extra_ip_price: 0,
   max_extra_ips: 0,
   nat_mode: false,
+  ipv6_enabled: false,
   port_count: 20,
   cpu_allowance: 0,
   stock: -1,
@@ -209,11 +211,11 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
     defaultValues,
   })
   const natMode = useWatch({ control: form.control, name: "nat_mode" })
+  const ipv6Enabled = useWatch({ control: form.control, name: "ipv6_enabled" })
 
   useEffect(() => {
     if (!open) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setServerError("")
 
     if (plan) {
@@ -240,6 +242,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         extra_ip_price: (plan as Record<string, unknown>).extra_ip_price as number ?? 0,
         max_extra_ips: (plan as Record<string, unknown>).max_extra_ips as number ?? 0,
         nat_mode: (plan as Record<string, unknown>).nat_mode as boolean ?? false,
+        ipv6_enabled: (plan as Record<string, unknown>).ipv6_enabled as boolean ?? false,
         port_count: (plan as Record<string, unknown>).port_count as number ?? 20,
         cpu_allowance: (plan as Record<string, unknown>).cpu_allowance as number ?? 0,
         stock: plan.stock ?? -1,
@@ -279,6 +282,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
         extra_ip_price: values.extra_ip_price,
         max_extra_ips: values.max_extra_ips,
         nat_mode: values.nat_mode,
+        ipv6_enabled: values.ipv6_enabled,
         port_count: values.port_count,
         cpu_allowance: values.cpu_allowance,
         stock: values.stock,
@@ -455,17 +459,29 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                 </div>
               </div>
               {natMode && (
-                <FormField
-                  control={form.control}
-                  name="port_count"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>端口数量</FormLabel>
-                      <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <>
+                  <FormField
+                    control={form.control}
+                    name="port_count"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>端口数量</FormLabel>
+                        <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex items-center gap-3 py-2">
+                    <Switch
+                      checked={ipv6Enabled}
+                      onCheckedChange={(v) => form.setValue("ipv6_enabled", v)}
+                    />
+                    <div>
+                      <Label>分配独立 IPv6</Label>
+                      <p className="text-xs text-muted-foreground">每个实例分配独立的公网 IPv6 地址，需要在同一网络下创建 IPv6 地址池</p>
+                    </div>
+                  </div>
+                </>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <FormField

@@ -85,7 +85,6 @@ export function buildNavGroups(basePath: string): NavGroup[] {
     },
     {
       label: "系统",
-      defaultOpen: false,
       items: [
         { title: "插件", url: `${basePath}/plugins`, icon: Blocks, featureKey: "plugins" },
         { title: "集成方", url: `${basePath}/integrations`, icon: Plug, featureKey: "integrations" },

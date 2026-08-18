@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, Send, Loader2, Download, AlertCircle, FolderTree, EyeOff, ImageIcon } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatBytes } from "@/lib/utils"
 import { getAdminImages, deleteAdminImagesById } from "@/api"
@@ -19,6 +20,7 @@ import { HelpLink } from "@/components/help-doc"
 import { EmptyState } from "@/components/empty-state"
 import ImageFormSheet from "./image-form-sheet"
 import DistributeDialog from "./distribute-dialog"
+import BatchDistributeDialog from "./batch-distribute-dialog"
 import ImageGroupDialog from "./image-group-dialog"
 import { useQuery } from "@tanstack/react-query"
 import { getAdminImageGroupsOptions } from "@/api/@tanstack/react-query.gen"
@@ -47,6 +49,8 @@ export default function Images() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingImage, setEditingImage] = useState<ImageImageItem | undefined>()
   const [distributeImage, setDistributeImage] = useState<ImageImageItem | null>(null)
+  const [batchDistributeOpen, setBatchDistributeOpen] = useState(false)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -90,6 +94,9 @@ export default function Images() {
     filterKeys: ["name", "status", "group_id"],
   })
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 分页/筛选/排序变化时清空行选择
+  useEffect(() => { setRowSelection({}) }, [table.pagination, table.columnFilters, table.sorting])
+
   const handleCreate = () => {
     setEditingImage(undefined)
     setSheetOpen(true)
@@ -121,7 +128,36 @@ export default function Images() {
     table.refresh()
   }
 
+  const selectedImages = useMemo(() => {
+    const ids = new Set(Object.keys(rowSelection).map(Number))
+    return (table.data?.items ?? []).filter(img => ids.has(img.id!))
+  }, [rowSelection, table.data])
+
+  const distributableImages = useMemo(
+    () => selectedImages.filter(img => !img.download_status || img.download_status === "completed"),
+    [selectedImages],
+  )
+
   const columns: ColumnDef<ImageImageItem>[] = useMemo(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="全选"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="选择行"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+    },
     {
       accessorKey: "id",
       header: "ID",
@@ -287,17 +323,38 @@ export default function Images() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        getRowId={(row) => String(row.id)}
+        enableRowSelection
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
         toolbar={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setGroupDialogOpen(true)}>
-              <FolderTree className="size-4" />
-              分组管理
-            </Button>
-            <Button onClick={handleCreate}>
-              <Plus className="size-4" />
-              添加镜像
-            </Button>
-          </div>
+          selectedImages.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                已选 {selectedImages.length} 项
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={distributableImages.length === 0}
+                onClick={() => setBatchDistributeOpen(true)}
+              >
+                <Send className="size-4" />
+                批量分发{distributableImages.length < selectedImages.length ? `（${distributableImages.length} 个可分发）` : ""}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setGroupDialogOpen(true)}>
+                <FolderTree className="size-4" />
+                分组管理
+              </Button>
+              <Button onClick={handleCreate}>
+                <Plus className="size-4" />
+                添加镜像
+              </Button>
+            </div>
+          )
         }
         emptyState={
           <EmptyState
@@ -319,6 +376,12 @@ export default function Images() {
         open={!!distributeImage}
         onOpenChange={(open) => { if (!open) setDistributeImage(null) }}
         image={distributeImage}
+      />
+      <BatchDistributeDialog
+        open={batchDistributeOpen}
+        onOpenChange={setBatchDistributeOpen}
+        images={distributableImages}
+        onSuccess={() => setRowSelection({})}
       />
       <ImageGroupDialog
         open={groupDialogOpen}

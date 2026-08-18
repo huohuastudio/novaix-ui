@@ -4,12 +4,14 @@ import { BookOpen, ExternalLink, Globe } from "lucide-react"
 import { SiGithub } from "@icons-pack/react-simple-icons"
 import Markdown from "react-markdown"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { UpdateSection } from "./update-section"
 import { getAdminSystemUpdateCheck } from "@/api"
+import type { ChangelogEntry } from "@/api"
 import {
   getAdminChangelogOptions,
   getAdminSystemLicenseOptions,
@@ -37,6 +39,8 @@ const links = [
   },
 ]
 
+const CHANGELOG_PAGE_SIZE = 10
+
 function formatExpiry(expiresAt: number | undefined | null): string {
   if (expiresAt == null) return "永久"
   return new Date(expiresAt * 1000).toLocaleDateString("zh-CN", {
@@ -54,12 +58,14 @@ export default function About() {
   const [bypassKey, setBypassKey] = useState('')
   const [activeTab, setActiveTab] = useState("overview")
 
-  // 更新日志：切到「系统更新」标签页时才请求
+  const [changelogLimit, setChangelogLimit] = useState(CHANGELOG_PAGE_SIZE)
   const changelogQuery = useQuery({
-    ...getAdminChangelogOptions(),
+    ...getAdminChangelogOptions({ query: { limit: changelogLimit } }),
     enabled: activeTab === "update",
   })
-  const changelog = changelogQuery.data ?? ""
+  const changelogData = changelogQuery.data?.data
+  const entries: ChangelogEntry[] = changelogData?.items ?? []
+  const hasMore = changelogData?.has_more ?? false
 
   const licenseQuery = useQuery(getAdminSystemLicenseOptions())
   const licenseInfo =
@@ -204,9 +210,25 @@ export default function About() {
               </div>
             ) : changelogQuery.isError ? (
               <p className="mt-4 text-sm text-destructive">加载更新日志失败，请稍后重试</p>
-            ) : changelog ? (
+            ) : entries.length > 0 ? (
               <div className="mt-4 max-h-[32rem] overflow-y-auto rounded-md border p-4 text-sm markdown-body">
-                <Markdown>{changelog}</Markdown>
+                {entries.map((entry) => (
+                  <div key={entry.version}>
+                    <h2>[{entry.version}]{entry.date ? ` - ${entry.date}` : ""}</h2>
+                    <Markdown>{entry.content}</Markdown>
+                  </div>
+                ))}
+                {hasMore && (
+                  <div className="mt-4 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setChangelogLimit((prev) => prev + CHANGELOG_PAGE_SIZE)}
+                    >
+                      加载更多
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">暂无更新日志</p>
