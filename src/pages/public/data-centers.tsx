@@ -3,7 +3,7 @@ import { MapPin } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { CopyButton } from "@/components/copy-button"
-import { getPublicCmsDataCentersOptions } from "@/api/@tanstack/react-query.gen"
+import { getPublicCmsRegionsOptions } from "@/api/@tanstack/react-query.gen"
 import { useSiteName } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from "@uidotdev/usehooks"
 
@@ -11,7 +11,7 @@ export default function DataCenters() {
   const siteName = useSiteName()
   useDocumentTitle(`数据中心 - ${siteName}`)
 
-  const { data: res, isPending: loading } = useQuery(getPublicCmsDataCentersOptions())
+  const { data: res, isPending: loading } = useQuery(getPublicCmsRegionsOptions())
   const dataCenters = res?.data ?? []
 
   return (
@@ -42,7 +42,7 @@ export default function DataCenters() {
             <div key={dc.id} className="rounded-xl border bg-card overflow-hidden">
               {dc.image ? (
                 <div className="aspect-[16/9] bg-muted">
-                  <img src={dc.image} alt={dc.name} className="w-full h-full object-cover" />
+                  <img src={dc.image} alt={dc.display_name} className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="aspect-[16/9] bg-muted flex items-center justify-center">
@@ -50,14 +50,14 @@ export default function DataCenters() {
                 </div>
               )}
               <div className="p-5">
-                <h3 className="text-base font-semibold text-foreground">{dc.name}</h3>
+                <h3 className="text-base font-semibold text-foreground">{dc.flag} {dc.display_name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{[dc.city, dc.country].filter(Boolean).join(", ")}</p>
                 {dc.description && (
                   <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{dc.description}</p>
                 )}
                 {(dc.features?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
-                    {dc.features!.map((f) => (
+                    {dc.features!.map((f: string) => (
                       <Badge key={f} variant="secondary" className="text-xs">{f}</Badge>
                     ))}
                   </div>

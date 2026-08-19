@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { postPortalOrders, postPortalCouponsValidate } from '@/api'
 import { getPortalPlansOptions, getPortalSshKeysOptions } from '@/api/@tanstack/react-query.gen'
-import type { PortalPurchasePlanItem } from '@/api'
+import type { PortalPurchasePlanItem, PortalPurchaseRegionItem } from '@/api'
 import { useSiteName, useFormatAmount, useSiteSettings } from '@/hooks/use-site-settings'
 import { formatMemory, getErrorMessage, generateHostname, generatePassword } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -54,8 +54,7 @@ export default function PortalPurchase() {
 
   const [submitting, setSubmitting] = useState(false)
 
-  // 用户显式选择（null 表示未选，使用派生默认值）
-  const [userRegion, setUserRegion] = useState<string | null>(null)
+  const [userRegionId, setUserRegionId] = useState<number | null>(null)
   const [userPlanId, setUserPlanId] = useState<number | null>(null)
   const [userCycle, setUserCycle] = useState<BillingCycle | null>(null)
   const [userImageId, setUserImageId] = useState<number | null>(null)
@@ -72,83 +71,65 @@ export default function PortalPurchase() {
 
   const maxQuantity = Math.min(Number(settings.instance_batch_max_quantity) || 10, 100)
 
-  // SSH 密钥列表
   const sshKeysQuery = useQuery(getPortalSshKeysOptions())
   const sshKeys = sshKeysQuery.data?.data ?? []
 
-  // 套餐列表（节点/镜像可用性随套餐一次性返回）
   const plansQuery = useQuery(getPortalPlansOptions())
   const allPlans = useMemo(() => plansQuery.data?.data?.plans ?? [], [plansQuery.data])
   const loading = plansQuery.isPending
 
-  // 按区域聚合节点
+  // 从所有套餐中提取去重的区域列表
   const regions = useMemo(() => {
-    const map = new Map<string, number[]>()
+    const map = new Map<number, PortalPurchaseRegionItem>()
     for (const plan of allPlans) {
-      for (const node of plan.nodes ?? []) {
-        if (node.id == null) continue
-        const region = node.region || node.name || String(node.id)
-        if (!map.has(region)) map.set(region, [])
-        const ids = map.get(region)!
-        if (!ids.includes(node.id)) ids.push(node.id)
+      for (const region of plan.regions ?? []) {
+        if (region.id != null && !map.has(region.id)) {
+          map.set(region.id, region)
+        }
       }
     }
-    return Array.from(map.entries()).map(([name, nodeIds]) => ({ name, nodeIds }))
+    return Array.from(map.values())
   }, [allPlans])
 
-  // 区域可用性：该区域下至少有一个节点有未售罄且 available 的套餐
+  // 区域可用性：该区域在至少一个未售罄套餐中 available
   const regionAvailable = useMemo(() => {
-    const availableNodeIds = new Set<number>()
-    for (const p of allPlans) {
-      if (isPlanSoldOut(p)) continue
-      for (const n of p.nodes ?? []) {
-        if (n.id != null && n.available !== false) availableNodeIds.add(n.id)
+    const set = new Set<number>()
+    for (const plan of allPlans) {
+      if (isPlanSoldOut(plan)) continue
+      for (const r of plan.regions ?? []) {
+        if (r.id != null && r.available) set.add(r.id)
       }
     }
-    const set = new Set<string>()
-    for (const r of regions) {
-      if (r.nodeIds.some(id => availableNodeIds.has(id))) set.add(r.name)
-    }
     return set
-  }, [allPlans, regions])
+  }, [allPlans])
 
   // 派生选中区域
-  const selectedRegion = regions.some(r => r.name === userRegion)
-    ? userRegion
-    : regions.find(r => regionAvailable.has(r.name))?.name ?? regions[0]?.name ?? null
+  const selectedRegionId = regions.some(r => r.id === userRegionId)
+    ? userRegionId
+    : regions.find(r => r.id != null && regionAvailable.has(r.id))?.id ?? regions[0]?.id ?? null
 
-  // 选中区域下的节点 ID 列表
-  const selectedNodeIds = useMemo(() => {
-    if (!selectedRegion) return new Set<number>()
-    const region = regions.find(r => r.name === selectedRegion)
-    return new Set(region?.nodeIds ?? [])
-  }, [regions, selectedRegion])
-
-  // 根据选中区域过滤套餐（套餐的节点列表中包含该区域的任一节点）
+  // 根据选中区域过滤套餐
   const plans = useMemo(() => {
-    if (selectedNodeIds.size === 0) return allPlans
+    if (selectedRegionId == null) return allPlans
     return allPlans.filter(p =>
-      (p.nodes ?? []).some(n => n.id != null && selectedNodeIds.has(n.id))
+      (p.regions ?? []).some(r => r.id === selectedRegionId)
     )
-  }, [allPlans, selectedNodeIds])
+  }, [allPlans, selectedRegionId])
 
-  // 套餐在当前区域的可用性（未售罄 + 区域内至少一个节点 available）
+  // 套餐在当前区域的可用性
   const planAvailability = useMemo(() => {
     const map = new Map<number, boolean>()
     for (const plan of plans) {
       if (isPlanSoldOut(plan)) { map.set(plan.id!, false); continue }
-      if (selectedNodeIds.size === 0) { map.set(plan.id!, true); continue }
-      const hasAvailableNode = (plan.nodes ?? []).some(n =>
-        n.id != null && selectedNodeIds.has(n.id) && n.available !== false
-      )
-      map.set(plan.id!, hasAvailableNode)
+      if (selectedRegionId == null) { map.set(plan.id!, true); continue }
+      const regionEntry = (plan.regions ?? []).find(r => r.id === selectedRegionId)
+      map.set(plan.id!, regionEntry?.available ?? false)
     }
     return map
-  }, [plans, selectedNodeIds])
+  }, [plans, selectedRegionId])
 
   const isPlanAvailable = (plan: PortalPurchasePlanItem) => planAvailability.get(plan.id!) ?? false
 
-  // 派生选中套餐：用户选择仅在当前节点可用时保留 ?? 首个可用套餐 ?? null
   const selectedPlan = useMemo(() => {
     const avail = (p: PortalPurchasePlanItem) => planAvailability.get(p.id!) ?? false
     const chosen = plans.find(p => p.id === userPlanId)
@@ -159,7 +140,6 @@ export default function PortalPurchase() {
 
   const images = useMemo(() => selectedPlan?.images ?? [], [selectedPlan])
 
-  // 派生选中项
   const allCycles: BillingCycle[] = ['hourly', 'monthly', 'quarterly', 'yearly']
   const selectedCycle: BillingCycle = userCycle
     ?? (selectedPlan ? allCycles.find(c => isCycleEnabled(selectedPlan, c)) : undefined)
@@ -171,31 +151,20 @@ export default function PortalPurchase() {
   const selectedImage = useMemo(() => images.find(img => img.id === selectedImageId) ?? null, [images, selectedImageId])
   const isWindows = selectedImage?.os?.toLowerCase().includes('windows') ?? false
 
-  // 切换区域：清除套餐/镜像/周期的用户选择
-  const selectRegion = (region: string) => {
-    setUserRegion(region)
+  const selectRegion = (regionId: number) => {
+    setUserRegionId(regionId)
     setUserPlanId(null)
     setUserImageId(null)
     setUserCycle(null)
     setCouponDiscount(0)
   }
 
-  // 切换套餐：清除镜像/周期的用户选择
   const selectPlan = (plan: PortalPurchasePlanItem) => {
     setUserPlanId(plan.id ?? null)
     setUserImageId(null)
     setUserCycle(null)
     setCouponDiscount(0)
   }
-
-  // 从选中套餐的节点列表中，自动选取当前区域内可用的节点（下单用）
-  const selectedNodeId = useMemo(() => {
-    if (!selectedPlan || selectedNodeIds.size === 0) return null
-    const node = (selectedPlan.nodes ?? []).find(n =>
-      n.id != null && selectedNodeIds.has(n.id) && n.available !== false
-    )
-    return node?.id ?? null
-  }, [selectedPlan, selectedNodeIds])
 
   const unitPrice = selectedPlan ? getPlanPrice(selectedPlan, selectedCycle) : 0
   const price = unitPrice * quantity
@@ -230,7 +199,7 @@ export default function PortalPurchase() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedPlanId || !selectedNodeId || !selectedImageId || selectedPlanUnavailable) {
+    if (!selectedPlanId || !selectedRegionId || !selectedImageId || selectedPlanUnavailable) {
       toast.error('请完成所有选项')
       return
     }
@@ -247,7 +216,7 @@ export default function PortalPurchase() {
       const { data: res } = await postPortalOrders({
         body: {
           plan_id: selectedPlanId,
-          node_id: selectedNodeId,
+          region_id: selectedRegionId,
           image_id: selectedImageId,
           billing_cycle: selectedCycle,
           hostname: hostname.trim(),
@@ -317,12 +286,12 @@ export default function PortalPurchase() {
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择区域</h2>
           <div className="flex flex-wrap gap-2">
             {regions.map((region) => {
-              const active = region.name === selectedRegion
-              const unavailable = !regionAvailable.has(region.name)
+              const active = region.id === selectedRegionId
+              const unavailable = region.id == null || !regionAvailable.has(region.id)
               return (
                 <button
-                  key={region.name}
-                  onClick={() => selectRegion(region.name)}
+                  key={region.id}
+                  onClick={() => region.id != null && selectRegion(region.id)}
                   className={`rounded-xl px-5 py-3 text-sm font-medium transition-colors ${
                     unavailable
                       ? 'bg-background opacity-50'
@@ -331,7 +300,8 @@ export default function PortalPurchase() {
                         : 'bg-background hover:bg-foreground/[.05]'
                   }`}
                 >
-                  {region.name}
+                  {region.flag && <span className="mr-1">{region.flag}</span>}
+                  {region.display_name}
                   {unavailable && (
                     <span className="block text-xs font-normal mt-0.5 text-muted-foreground">暂无可用套餐</span>
                   )}
@@ -371,7 +341,7 @@ export default function PortalPurchase() {
                 )}
                 {nodeUnavailable && (
                   <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    资源不足
+                    售罄
                   </span>
                 )}
                 {!disabled && active && (
@@ -644,7 +614,7 @@ export default function PortalPurchase() {
           <Button
             size="lg"
             className="px-8"
-            disabled={submitting || !selectedPlanId || !selectedNodeId || !selectedImageId || !hostname || !password || selectedPlanUnavailable}
+            disabled={submitting || !selectedPlanId || !selectedRegionId || !selectedImageId || !hostname || !password || selectedPlanUnavailable}
             onClick={handleSubmit}
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}

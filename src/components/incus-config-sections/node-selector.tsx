@@ -137,7 +137,7 @@ export function NodeSelector({ form, onNodeSwitch }: NodeSelectorProps) {
                   <div className="flex items-center gap-2 truncate">
                     <Server className="size-4 shrink-0 text-muted-foreground" />
                     {selectedNode
-                      ? `${selectedNode.name}${selectedNode.host && selectedNode.host !== selectedNode.name ? ` (${selectedNode.host})` : ""}${selectedNode.region ? ` - ${selectedNode.region}` : ""}`
+                      ? `${selectedNode.name}${selectedNode.host && selectedNode.host !== selectedNode.name ? ` (${selectedNode.host})` : ""}${selectedNode.region_display_name ? ` - ${selectedNode.region_display_name}` : ""}`
                       : "选择要部署到的宿主机节点"}
                   </div>
                   <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
@@ -169,7 +169,7 @@ export function NodeSelector({ form, onNodeSwitch }: NodeSelectorProps) {
                         <Server className="size-4 text-muted-foreground" />
                         <span>
                           {node.name}{node.host && node.host !== node.name ? ` (${node.host})` : ""}
-                          {node.region && ` - ${node.region}`}
+                          {node.region_display_name && ` - ${node.region_display_name}`}
                         </span>
                       </CommandItem>
                     ))}
@@ -226,7 +226,7 @@ export function NodeReadonly({ nodeId, description }: NodeReadonlyProps) {
         <Server className="size-4 text-muted-foreground" />
         <span className="font-medium">
           {node
-            ? `${node.name}${node.host && node.host !== node.name ? ` (${node.host})` : ""}${node.region ? ` - ${node.region}` : ""}`
+            ? `${node.name}${node.host && node.host !== node.name ? ` (${node.host})` : ""}${node.region_display_name ? ` - ${node.region_display_name}` : ""}`
             : `节点 #${nodeId}`}
         </span>
       </div>

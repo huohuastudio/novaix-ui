@@ -131,7 +131,7 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{node.name}</p>
-                  <p className="text-xs text-muted-foreground">{node.region || "未设置区域"}</p>
+                  <p className="text-xs text-muted-foreground">{node.region_display_name || "未设置区域"}</p>
                 </div>
               </label>
             ))

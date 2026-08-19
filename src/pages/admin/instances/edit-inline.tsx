@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { putAdminInstancesById } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
 import { handleServerErrors, unwrapResponse } from "@/lib/form-utils"
-import { instanceFormSchema, fieldNames, buildUpdateBody, instanceToFormValues } from "@/pages/admin/instances/schema"
+import { instanceUpdateSchema, fieldNames, buildUpdateBody, instanceToFormValues } from "@/pages/admin/instances/schema"
 import type { InstanceFormValues } from "@/pages/admin/instances/schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +36,7 @@ interface InstanceEditInlineProps {
 
 export function InstanceEditInline({ instanceId, instance, onSuccess }: InstanceEditInlineProps) {
   const form = useForm<InstanceFormValues>({
-    resolver: zodResolver(instanceFormSchema),
+    resolver: zodResolver(instanceUpdateSchema),
     defaultValues: instanceToFormValues(instance),
   })
 

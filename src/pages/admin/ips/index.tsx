@@ -45,7 +45,7 @@ import {
   postAdminIpPoolsByIdGenerate,
   getAdminNodes,
 } from "@/api"
-import type { IppoolIpPoolItem } from "@/api"
+import type { IppoolIpPoolItem, IncusIPv6ConfigResult } from "@/api"
 import { getAdminIpPoolsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
@@ -364,7 +364,22 @@ function PoolCreateDialog({
         toast.error(res?.message ?? "创建失败")
         return
       }
-      toast.success("IP 池已创建")
+      // IPv6 池创建后显示节点网桥配置结果
+      const configResults = (res?.data as Record<string, unknown>)?.ipv6_config_results as IncusIPv6ConfigResult[] | undefined
+      if (configResults && configResults.length > 0) {
+        const failed = configResults.filter(r => r.status === "failed")
+        const skipped = configResults.filter(r => r.status === "skipped")
+        const formatResult = (r: IncusIPv6ConfigResult) => r.node_name ? `${r.node_name}（${r.message}）` : (r.message ?? "")
+        if (failed.length > 0) {
+          toast.warning(`IP 池已创建，但以下节点 IPv6 配置失败：${failed.map(formatResult).join("、")}`)
+        } else if (skipped.length > 0) {
+          toast.info(`IP 池已创建。${skipped.map(r => r.message ?? "").join("；")}`)
+        } else {
+          toast.success("IP 池已创建，节点网桥 IPv6 已自动配置")
+        }
+      } else {
+        toast.success("IP 池已创建")
+      }
       onOpenChange(false)
       onSuccess()
     } catch (err) {

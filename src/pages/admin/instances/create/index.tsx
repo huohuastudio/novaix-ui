@@ -8,7 +8,7 @@ import { getAdminPlans, postAdminInstances } from "@/api"
 import type { NodeNodeItem, ProductPlanItem } from "@/api"
 import { handleCatchError, handleServerErrors, unwrapResponse } from "@/lib/form-utils"
 import { useTasks } from "@/hooks/use-tasks"
-import { instanceFormSchema, defaultValues, buildCreateBody, fieldNames } from "../schema"
+import { instanceCreateSchema, defaultValues, buildCreateBody, fieldNames } from "../schema"
 import { asIncusConfigForm } from "@/types/incus-config"
 import type { InstanceFormValues } from "../schema"
 import { Form } from "@/components/ui/form"
@@ -51,7 +51,7 @@ export default function CreateInstance() {
   const presetNodeId = searchParams.get("node_id") ? Number(searchParams.get("node_id")) : undefined
 
   const form = useForm<InstanceFormValues>({
-    resolver: zodResolver(instanceFormSchema),
+    resolver: zodResolver(instanceCreateSchema),
     defaultValues: presetNodeId ? { ...defaultValues, node_id: presetNodeId } : defaultValues,
   })
 

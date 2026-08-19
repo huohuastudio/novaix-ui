@@ -15,7 +15,7 @@ import { FaqItem } from '@/components/faq-item'
 import { getPlansPublicOptions, getSettingsHomepageOptions } from '@/api/@tanstack/react-query.gen'
 import type {
   PublicPublicPlanItem,
-  PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicDataCenterItem,
+  PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicRegionItem,
 } from '@/api'
 import { useFormatAmount } from '@/hooks/use-site-settings'
 import { useBootstrapData } from '@/hooks/use-bootstrap'
@@ -667,29 +667,29 @@ function TestimonialSection({ testimonials }: { testimonials: PublicPublicTestim
    CMS Section: 数据中心
    ================================================================ */
 
-function DataCenterSection({ dataCenters }: { dataCenters: PublicPublicDataCenterItem[] }) {
+function DataCenterSection({ regions }: { regions: PublicPublicRegionItem[] }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {dataCenters.slice(0, 6).map((dc, i) => (
+      {regions.slice(0, 6).map((dc, i) => (
         <Reveal key={dc.id} delay={i * 0.06}>
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
             {dc.image && (
               <div className="aspect-[16/9] bg-muted">
-                <img src={dc.image} alt={dc.name} className="w-full h-full object-cover" />
+                <img src={dc.image} alt={dc.display_name} className="w-full h-full object-cover" />
               </div>
             )}
             <div className="p-5">
               <div className="flex items-start gap-2">
                 <MapPin className="size-4 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground">{dc.name}</h4>
+                  <h4 className="text-sm font-semibold text-foreground">{dc.flag} {dc.display_name}</h4>
                   <p className="text-xs text-muted-foreground">{[dc.city, dc.country].filter(Boolean).join(', ')}</p>
                 </div>
               </div>
               {dc.description && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{dc.description}</p>}
               {(dc.features?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-3">
-                  {dc.features!.map((f) => (
+                  {dc.features!.map((f: string) => (
                     <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
                   ))}
                 </div>
@@ -719,7 +719,7 @@ export default function Home() {
   const formatAmount = useFormatAmount()
   const [cycle, setCycle] = useState<string>('monthly')
 
-  const { banners, testimonials, dataCenters, faqs, homeReady } = useBootstrapData()
+  const { banners, testimonials, regions, faqs, homeReady } = useBootstrapData()
 
   const authed = isAuthenticated()
 
@@ -873,7 +873,7 @@ export default function Home() {
       </section>}
 
       {/* ═══ 数据中心 ═══ */}
-      {dataCenters.length > 0 && (
+      {regions.length > 0 && (
         <section className="border-t border-dashed border-border/60">
           <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
             <Reveal>
@@ -881,9 +881,9 @@ export default function Home() {
               <p className="mt-4 text-lg text-muted-foreground text-center tracking-tight">多地域部署，低延迟覆盖全球</p>
             </Reveal>
             <div className="mt-14">
-              <DataCenterSection dataCenters={dataCenters} />
+              <DataCenterSection regions={regions} />
             </div>
-            {dataCenters.length > 6 && (
+            {regions.length > 6 && (
               <div className="mt-8 text-center">
                 <Button variant="outline" asChild>
                   <Link to="/data-centers">查看全部数据中心</Link>

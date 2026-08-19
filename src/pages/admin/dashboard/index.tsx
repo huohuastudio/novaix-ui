@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SetupGuide } from "@/components/setup-guide"
-import { NodeMap } from "@/components/node-map"
+import { RegionMap } from "@/components/node-map"
 
 const STATUS_META: Record<string, { label: string; tw: string }> = {
   running: { label: "运行中", tw: "bg-emerald-500" },
@@ -448,7 +448,7 @@ export default function Dashboard() {
       </div>
 
       {/* ═══ 节点：地图 + 资源排行并排 ═══ */}
-      {((stats.node_locations?.length ?? 0) > 0 || sortedNodeRanking.length > 0) && (
+      {((stats.region_locations?.length ?? 0) > 0 || sortedNodeRanking.length > 0) && (
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           {/* 左：地图 */}
           <div className="rounded-xl border bg-card overflow-hidden">
@@ -462,7 +462,7 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="px-5 pb-4">
-              <NodeMap nodes={stats.node_locations as Array<Record<string, unknown>>} />
+              <RegionMap regions={stats.region_locations ?? []} />
             </div>
           </div>
 

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Trash2, Network } from "lucide-react"
+import { Plus, Trash2, Network, User } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import {
   Tooltip,
@@ -16,6 +16,7 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PaginatedCombobox } from "@/components/paginated-combobox"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/select"
 import {
   getAdminVpcs,
+  getAdminUsers,
   postAdminVpcs,
   deleteAdminVpcsById,
 } from "@/api"
@@ -49,14 +51,16 @@ import { useQuery } from "@tanstack/react-query"
 import { getAdminVpcNodeGroupsOptions, getAdminVpcsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
-import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
+import { useFormatDate, useAdminPath, useFormatAmount } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+
+const PAGE_SIZE = 20
 
 // ── Schema ──
 
 const vpcSchema = z.object({
-  user_id: z.coerce.number<number | string>().int().min(1, "请输入用户 ID"),
+  user_id: z.coerce.number<number>().int().min(1, "请选择用户"),
   name: z.string().min(1, "请输入名称").max(64),
   node_group_id: z.coerce.number<number | string>().int().min(1, "请选择节点组"),
   cidr: z.string().min(1, "请输入网段").max(64),
@@ -109,6 +113,21 @@ function VpcCreateDialog({
     defaultValues: formDefaults,
   })
 
+  const formatAmount = useFormatAmount()
+
+  const fetchUsers = useCallback(async (page: number, keyword: string) => {
+    const { data: res } = await getAdminUsers({
+      query: { page, page_size: PAGE_SIZE, keyword: keyword || undefined },
+    })
+    const items = (res?.data?.items ?? []).map((u) => ({
+      id: u.id!,
+      label: `${u.username} (${u.email})`,
+      description: `余额: ${formatAmount(u.balance ?? 0)}`,
+    }))
+    return { items, hasMore: items.length >= PAGE_SIZE }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 可用节点组字典（弹窗打开时取数）
   const nodeGroupsQuery = useQuery({ ...getAdminVpcNodeGroupsOptions(), enabled: open })
   const nodeGroups = useMemo(
@@ -150,8 +169,18 @@ function VpcCreateDialog({
               name="user_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>用户 ID</FormLabel>
-                  <FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl>
+                  <FormLabel required>用户</FormLabel>
+                  <FormControl>
+                    <PaginatedCombobox
+                      value={field.value || undefined}
+                      onChange={(v) => field.onChange(v ?? 0)}
+                      fetchFn={fetchUsers}
+                      placeholder="选择用户"
+                      searchPlaceholder="搜索用户名/邮箱..."
+                      emptyText="未找到匹配用户"
+                      icon={User}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

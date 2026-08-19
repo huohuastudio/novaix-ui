@@ -56,6 +56,7 @@ interface IncusConfigFormLayoutProps {
   nodeId?: number
   mainSection: React.ReactNode
   actions?: React.ReactNode
+  mode?: "instance" | "profile"
 }
 
 export function IncusConfigFormLayout({
@@ -64,6 +65,7 @@ export function IncusConfigFormLayout({
   nodeId,
   mainSection,
   actions,
+  mode = "instance",
 }: IncusConfigFormLayoutProps) {
   return (
     <FormNavLayout
@@ -77,12 +79,12 @@ export function IncusConfigFormLayout({
         "gpu": <GpuDeviceSection form={form} />,
         "proxy": <ProxyDeviceSection form={form} />,
         "other-devices": <OtherDeviceSection form={form} />,
-        "resource-limits": <ResourceLimitsSection form={form} />,
+        "resource-limits": <ResourceLimitsSection form={form} mode={mode} />,
         "security": <SecurityPoliciesSection form={form} />,
         "snapshots": <SnapshotsSection form={form} />,
         "migration": <MigrationSection form={form} />,
         "boot": <BootSection form={form} />,
-        "advanced": <AdvancedSection form={form} />,
+        "advanced": <AdvancedSection form={form} mode={mode} />,
         "cloud-init": <CloudInitSection form={form} />,
       }}
     />

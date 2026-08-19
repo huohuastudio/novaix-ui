@@ -8,8 +8,11 @@ import {
   putAdminNodesById,
   postAdminNodesByIdInit,
   deleteAdminNodesById,
+  getAdminRegionsAll,
 } from "@/api"
-import type { NodeNodeItem } from "@/api"
+import type { NodeNodeItem, RegionRegionItem } from "@/api"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminRegionsAllQueryKey } from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +41,7 @@ import { getErrorMessage } from "@/lib/utils"
 
 const editSchema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
-  region: z.string().max(64).optional().default(""),
+  region_id: z.coerce.number<number | string>().int().optional(),
   host: z.string().min(1, "请输入主机地址").max(255),
   port: z.coerce.number<number | string>().int().min(1).max(65535).default(8443),
   ssh_port: z.coerce.number<number | string>().int().min(1).max(65535).default(22),
@@ -52,7 +55,7 @@ type FormInput = z.input<typeof editSchema>
 type FormValues = z.output<typeof editSchema>
 
 const fieldNames = [
-  "name", "region", "host", "port", "ssh_port",
+  "name", "region_id", "host", "port", "ssh_port",
   "ssh_user", "ssh_auth_method", "ssh_password", "ssh_key",
 ]
 
@@ -64,7 +67,7 @@ interface NodeSettingsProps {
 function toFormValues(node: NodeNodeItem): FormValues {
   return {
     name: node.name ?? "",
-    region: node.region ?? "",
+    region_id: node.region_id ?? undefined,
     host: node.host ?? "",
     port: node.port ?? 8443,
     ssh_port: node.ssh_port ?? 22,
@@ -78,6 +81,13 @@ function toFormValues(node: NodeNodeItem): FormValues {
 export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) {
   const navigate = useNavigate()
   const adminPath = useAdminPath()
+  const { data: regions = [] } = useQuery({
+    queryKey: getAdminRegionsAllQueryKey(),
+    queryFn: async () => {
+      const { data: res } = await getAdminRegionsAll()
+      return (res?.data ?? []) as RegionRegionItem[]
+    },
+  })
   const { confirm, ConfirmDialog } = useConfirm()
   const { confirmChoice, ConfirmChoiceDialog } = useConfirmChoice()
   const [serverError, setServerError] = useState("")
@@ -98,7 +108,7 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
     try {
       const body = {
         name: values.name,
-        region: values.region || undefined,
+        region_id: values.region_id || undefined,
         host: values.host,
         port: values.port,
         ssh_port: values.ssh_port,
@@ -190,10 +200,21 @@ export default function NodeSettings({ node, onNodeChange }: NodeSettingsProps) 
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="region" render={({ field }) => (
+              <FormField control={form.control} name="region_id" render={({ field }) => (
                 <FormItem>
                   <FormLabel>区域</FormLabel>
-                  <FormControl><Input placeholder="hk" {...field} /></FormControl>
+                  <Select onValueChange={(v) => field.onChange(v ? Number(v) : undefined)} value={field.value ? String(field.value) : ""}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue placeholder="选择区域" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {regions.map((r) => (
+                        <SelectItem key={r.id} value={String(r.id)}>
+                          {r.flag ? `${r.flag} ` : ""}{r.display_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />

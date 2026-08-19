@@ -17,6 +17,7 @@ const AdminLayout = lazy(() => import('@/layouts/AdminLayout'))
 const PortalLayout = lazy(() => import('@/layouts/PortalLayout'))
 const AdminLogin = lazy(() => import('@/pages/admin/login'))
 const Dashboard = lazy(() => import('@/pages/admin/dashboard'))
+const Regions = lazy(() => import('@/pages/admin/regions'))
 const Nodes = lazy(() => import('@/pages/admin/nodes'))
 const NodeDetail = lazy(() => import('@/pages/admin/nodes/detail'))
 const IPs = lazy(() => import('@/pages/admin/ips'))
@@ -136,6 +137,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="regions" element={<Regions />} />
         <Route path="nodes" element={<Nodes />} />
         <Route path="nodes/:id/*" element={<NodeDetail />} />
         <Route path="ips/*" element={<IPs />} />

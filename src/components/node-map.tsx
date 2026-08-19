@@ -5,38 +5,20 @@ import type { Topology, GeometryCollection } from "topojson-specification"
 import { Plus, Minus, LocateFixed } from "lucide-react"
 import worldData from "@/assets/world-110m.json"
 
-interface NodePoint {
-  id?: number
-  name?: string
-  region?: string
+interface RegionPoint {
+  region_id?: number
+  display_name?: string
   latitude?: number
   longitude?: number
-  status?: number
+  node_count?: number
+  online_count?: number
   cpu_usage?: number
   mem_usage?: number
   disk_usage?: number
 }
 
-interface NodeMapProps {
-  nodes: NodePoint[]
-}
-
-const STATUS_COLORS: Record<number, string> = {
-  0: "var(--color-muted-foreground)",
-  1: "#22c55e",
-  2: "#3b82f6",
-  3: "var(--color-destructive)",
-  4: "var(--color-destructive)",
-  5: "#f59e0b",
-}
-
-const STATUS_LABELS: Record<number, string> = {
-  0: "离线",
-  1: "在线",
-  2: "部署中",
-  3: "异常",
-  4: "不可达",
-  5: "维护中",
+interface RegionMapProps {
+  regions: RegionPoint[]
 }
 
 const REGION_LABELS: Array<{ name: string; lat: number; lng: number; sea?: boolean }> = [
@@ -70,14 +52,14 @@ const MAX_SCALE = 600
 const VB_W = 960
 const VB_H = 480
 
-export function NodeMap({ nodes }: NodeMapProps) {
-  const [hoveredNode, setHoveredNode] = useState<NodePoint | null>(null)
+export function RegionMap({ regions }: RegionMapProps) {
+  const [hoveredRegion, setHoveredRegion] = useState<RegionPoint | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [scale, setScale] = useState(INITIAL_SCALE)
   const [translate, setTranslate] = useState<[number, number]>([VB_W / 2, VB_H / 1.7])
   const dragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null)
   const translateRef = useRef(translate)
-  translateRef.current = translate
+  useEffect(() => { translateRef.current = translate }, [translate])
   const svgRef = useRef<SVGSVGElement>(null)
 
   const countries = useMemo(() => {
@@ -90,9 +72,9 @@ export function NodeMap({ nodes }: NodeMapProps) {
     return { projection: proj, pathGenerator: geoPath(proj) }
   }, [scale, translate])
 
-  const validNodes = useMemo(
-    () => nodes.filter(n => n.latitude != null && n.longitude != null && !(n.latitude === 0 && n.longitude === 0)),
-    [nodes],
+  const validRegions = useMemo(
+    () => regions.filter(r => r.latitude != null && r.longitude != null && !(r.latitude === 0 && r.longitude === 0)),
+    [regions],
   )
 
   useEffect(() => {
@@ -188,14 +170,14 @@ export function NodeMap({ nodes }: NodeMapProps) {
           )
         })}
 
-        {validNodes.map(node => {
-          const coords = projection([node.longitude!, node.latitude!])
+        {validRegions.map(region => {
+          const coords = projection([region.longitude!, region.latitude!])
           if (!coords) return null
-          const color = STATUS_COLORS[node.status ?? 0] ?? STATUS_COLORS[0]
-          const isOnline = node.status === 1
+          const hasOnline = (region.online_count ?? 0) > 0
+          const color = hasOnline ? "#22c55e" : "var(--color-muted-foreground)"
           return (
-            <g key={node.id ?? `${node.latitude}-${node.longitude}`} data-node-dot>
-              {isOnline && (
+            <g key={region.region_id ?? `${region.latitude}-${region.longitude}`} data-node-dot>
+              {hasOnline && (
                 <circle
                   cx={coords[0]}
                   cy={coords[1]}
@@ -214,13 +196,13 @@ export function NodeMap({ nodes }: NodeMapProps) {
                 onMouseEnter={(e) => {
                   if (!svgRef.current) return
                   const svgRect = svgRef.current.getBoundingClientRect()
-                  setHoveredNode(node)
+                  setHoveredRegion(region)
                   setTooltipPos({
                     x: e.clientX - svgRect.left,
                     y: e.clientY - svgRect.top,
                   })
                 }}
-                onMouseLeave={() => setHoveredNode(null)}
+                onMouseLeave={() => setHoveredRegion(null)}
               />
             </g>
           )
@@ -244,7 +226,7 @@ export function NodeMap({ nodes }: NodeMapProps) {
         ))}
       </div>
 
-      {hoveredNode && (
+      {hoveredRegion && (
         <div
           className="absolute z-10 pointer-events-none rounded-lg border bg-popover px-3 py-2 text-xs shadow-md"
           style={{
@@ -253,18 +235,17 @@ export function NodeMap({ nodes }: NodeMapProps) {
             transform: "translate(-50%, -100%)",
           }}
         >
-          <p className="font-medium">{hoveredNode.name}</p>
-          <p className="text-muted-foreground">{hoveredNode.region}</p>
+          <p className="font-medium">{hoveredRegion.display_name}</p>
           <div className="mt-1 flex items-center gap-1.5">
             <span
               className="size-2 rounded-full"
-              style={{ backgroundColor: STATUS_COLORS[hoveredNode.status ?? 0] }}
+              style={{ backgroundColor: (hoveredRegion.online_count ?? 0) > 0 ? "#22c55e" : "var(--color-muted-foreground)" }}
             />
-            <span>{STATUS_LABELS[hoveredNode.status ?? 0]}</span>
+            <span>节点 {hoveredRegion.online_count ?? 0}/{hoveredRegion.node_count ?? 0} 在线</span>
           </div>
-          {hoveredNode.status === 1 && hoveredNode.cpu_usage !== undefined && (
+          {(hoveredRegion.online_count ?? 0) > 0 && hoveredRegion.cpu_usage !== undefined && (
             <div className="mt-1 text-muted-foreground tabular-nums">
-              CPU {hoveredNode.cpu_usage.toFixed(0)}% · 内存 {hoveredNode.mem_usage?.toFixed(0)}%
+              CPU {hoveredRegion.cpu_usage.toFixed(0)}% · 内存 {hoveredRegion.mem_usage?.toFixed(0)}%
             </div>
           )}
         </div>

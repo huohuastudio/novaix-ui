@@ -26,10 +26,10 @@ export const instanceFormSchema = incusConfigSchema.extend({
   profiles: z.string().optional(),
   description: z.string().optional(),
 
-  // 资源配置
-  cpu: z.coerce.number<number>().int().min(1, "至少 1 核").max(128, "最多 128 核"),
-  memory: z.coerce.number<number>().int().min(64, "至少 64 MB").max(524288, "最多 512 GB"),
-  disk: z.coerce.number<number>().int().min(1, "至少 1 GB").max(10240, "最多 10 TB"),
+  // 资源配置（0 表示不由业务字段托管，保留 raw config 中的值）
+  cpu: z.coerce.number<number>().min(0).max(128, "最多 128 核"),
+  memory: z.coerce.number<number>().int().min(0).max(524288, "最多 512 GB"),
+  disk: z.coerce.number<number>().int().min(0).max(10240, "最多 10 TB"),
   bandwidth: z.coerce.number<number>().int().min(0).optional(),
   traffic_limit: z.coerce.number<number>().int().min(0).optional(),
 
@@ -45,6 +45,25 @@ export const instanceFormSchema = incusConfigSchema.extend({
 })
 
 export type InstanceFormValues = z.infer<typeof instanceFormSchema>
+
+export const instanceUpdateSchema = instanceFormSchema.refine(
+  (v) => {
+    if (v.cpu === 0) return true
+    return v.type === "virtual-machine" ? v.cpu >= 1 && v.cpu === Math.floor(v.cpu) : v.cpu >= 0.5
+  },
+  { message: "VM 要求 0 或整数 >=1，容器要求 0 或 >=0.5", path: ["cpu"] },
+)
+
+export const instanceCreateSchema = instanceFormSchema.refine(
+  (v) => v.type === "virtual-machine" ? v.cpu >= 1 && v.cpu === Math.floor(v.cpu) : v.cpu >= 0.5,
+  { message: "VM 至少 1 核且为整数，容器至少 0.5 核", path: ["cpu"] },
+).refine(
+  (v) => v.memory >= 64,
+  { message: "至少 64 MB", path: ["memory"] },
+).refine(
+  (v) => v.disk >= 1,
+  { message: "至少 1 GB", path: ["disk"] },
+)
 
 export const fieldNames = Object.keys(instanceFormSchema.shape) as Array<keyof InstanceFormValues>
 

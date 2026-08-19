@@ -50,7 +50,7 @@ export function NodePopover({ nodeId, label }: NodePopoverProps) {
               <span>ID</span>
               <span className="text-foreground font-mono text-xs">{node.id}</span>
               <span>地区</span>
-              <span className="text-foreground">{node.region || "-"}</span>
+              <span className="text-foreground">{node.region_display_name || "-"}</span>
               <span>架构</span>
               <span className="text-foreground">{node.arch || "-"}</span>
               <span>CPU</span>

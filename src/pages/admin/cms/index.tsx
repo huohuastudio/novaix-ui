@@ -10,7 +10,6 @@ import {
   Image,
   Handshake,
   MessageSquareQuote,
-  MapPin,
   Link as LinkIcon,
   History,
   UsersRound,
@@ -30,7 +29,6 @@ const NavMenus = lazy(() => import("@/pages/admin/nav-menus"))
 const Banners = lazy(() => import("@/pages/admin/banners"))
 const Partners = lazy(() => import("@/pages/admin/partners"))
 const Testimonials = lazy(() => import("@/pages/admin/testimonials"))
-const DataCenters = lazy(() => import("@/pages/admin/data-centers"))
 const Links = lazy(() => import("@/pages/admin/links"))
 const Changelogs = lazy(() => import("@/pages/admin/changelogs"))
 const TeamMembers = lazy(() => import("@/pages/admin/team-members"))
@@ -72,8 +70,7 @@ const cmsGroups: CMSGroup[] = [
       { id: "banners", label: "轮播图", description: "首页及各位置的轮播横幅", icon: Image, component: Banners },
       { id: "partners", label: "合作伙伴", description: "合作伙伴 Logo 与信息", icon: Handshake, component: Partners },
       { id: "testimonials", label: "客户评价", description: "客户推荐与评价展示", icon: MessageSquareQuote, component: Testimonials },
-      { id: "data-centers", label: "数据中心", description: "数据中心信息与测试 IP", icon: MapPin, component: DataCenters },
-      { id: "links", label: "友情链接", description: "友情链接和外部链接", icon: LinkIcon, component: Links },
+{ id: "links", label: "友情链接", description: "友情链接和外部链接", icon: LinkIcon, component: Links },
     ],
   },
   {

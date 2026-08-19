@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal } from "lucide-react"
+import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal, ArrowUpFromDot, ArrowDownToDot } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 import {
   getAdminPlans,
   deleteAdminPlansById,
+  putAdminPlansById,
 } from "@/api"
 import type { ProductPlanItem, ProductPlanGroupItem } from "@/api"
 import { getAdminPlansQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -102,6 +103,12 @@ export default function Plans() {
     setEditingPlan(plan)
     setDialogOpen(true)
   }, [])
+
+  const handleToggleStatus = useCallback(async (plan: ProductPlanItem) => {
+    const newStatus = plan.status === 1 ? 0 : 1
+    await putAdminPlansById({ path: { id: plan.id! }, body: { status: newStatus } })
+    table.refresh()
+  }, [table])
 
   const handleDelete = useCallback(async (plan: ProductPlanItem) => {
     const ok = await confirm({
@@ -241,6 +248,12 @@ export default function Plans() {
                   <FlaskConical className="size-4 mr-2" />
                   试建实例
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleStatus(plan)}>
+                  {plan.status === 1
+                    ? <><ArrowDownToDot className="size-4 mr-2" />下架</>
+                    : <><ArrowUpFromDot className="size-4 mr-2" />上架</>
+                  }
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(plan)}>
                   <Trash2 className="size-4 mr-2" />
@@ -252,7 +265,7 @@ export default function Plans() {
         )
       },
     },
-  ], [handleEdit, handleDelete, handleTrial, formatPrice, groups, groupNameMap])
+  ], [handleEdit, handleDelete, handleTrial, handleToggleStatus, formatPrice, groups, groupNameMap])
 
   return (
     <div className="px-6 pt-6 space-y-6">

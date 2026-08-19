@@ -50,7 +50,7 @@ function NodeList() {
   const { addTask } = useTasks()
 
   const fetchNodes = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
-    const sort = sorting[0]?.id as "id" | "name" | "region" | "status" | "created_at" | undefined
+    const sort = sorting[0]?.id as "id" | "name" | "region_id" | "status" | "created_at" | undefined
     const order: "asc" | "desc" | undefined = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined
 
     const { data: res } = await getAdminNodes({
@@ -58,7 +58,7 @@ function NodeList() {
         page,
         page_size: pageSize,
         keyword: (filters.name as string) || undefined,
-        region: (filters.region as string) || undefined,
+        region_id: filters.region_id !== undefined ? Number(filters.region_id) : undefined,
         status: filters.status !== undefined ? Number(filters.status) as 0 | 1 | 2 | 3 | 4 : undefined,
         sort,
         order,
@@ -249,7 +249,8 @@ function NodeList() {
       ),
     },
     {
-      accessorKey: "region",
+      accessorKey: "region_display_name",
+      id: "region_id",
       header: "区域",
       enableSorting: true,
     },

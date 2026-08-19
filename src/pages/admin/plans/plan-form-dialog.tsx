@@ -50,12 +50,22 @@ import { billingCycleMap } from "@/lib/order-constants"
 
 const BILLING_CYCLES = Object.entries(billingCycleMap).map(([value, label]) => ({ value, label }))
 
+const imageTypeLabel = (t?: string) => t === "virtual-machine" ? "VM" : t === "container" ? "容器" : ""
+
+function toImageOption(img: { id?: number; name?: string; type?: string; os?: string; version?: string; arch?: string }): PaginatedMultiSelectItem {
+  return {
+    id: String(img.id),
+    label: img.name ?? `镜像 ${img.id}`,
+    description: [imageTypeLabel(img.type), img.os, img.version, img.arch].filter(Boolean).join(" "),
+  }
+}
+
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   description: z.string().max(512).default(""),
   group_id: z.string().default(""),
   type: z.enum(["vm", "container"]).default("vm"),
-  cpu: z.coerce.number<number | string>().int().min(1, "至少 1 核"),
+  cpu: z.coerce.number<number | string>().min(0.5, "至少 0.5 核"),
   memory: z.coerce.number<number | string>().int().min(1, "请输入内存大小"),
   disk: z.coerce.number<number | string>().int().min(1, "请输入磁盘大小"),
   bandwidth: z.coerce.number<number | string>().int().min(0).default(0),
@@ -81,6 +91,13 @@ const schema = z.object({
   image_ids: z.array(z.string()).default([]),
   status: z.string().default("1"),
   sort_order: z.coerce.number<number | string>().int().min(0).default(0),
+}).superRefine((v, ctx) => {
+  if (v.type === "vm" && v.cpu !== Math.floor(v.cpu)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "虚拟机套餐 CPU 必须为整数", path: ["cpu"] })
+  }
+  if (v.type === "vm" && v.cpu < 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "虚拟机套餐 CPU 至少 1 核", path: ["cpu"] })
+  }
 })
 
 type FormInput = z.input<typeof schema>
@@ -139,9 +156,13 @@ interface Props {
 
 const PAGE_SIZE = 20
 
-export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: Props) {
+export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, plan, onSuccess }: Props) {
   const isEdit = !!plan
   const [serverError, setServerError] = useState("")
+  const onOpenChange = useCallback((v: boolean) => {
+    if (v) setServerError("")
+    rawOnOpenChange(v)
+  }, [rawOnOpenChange])
 
   // 套餐分组选项：弹窗打开时才取数
   const groupsQuery = useQuery({
@@ -173,10 +194,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
   })
   const initialImageItems = useMemo<PaginatedMultiSelectItem[]>(
     () =>
-      (initialImagesQuery.data?.data?.items ?? []).map((img) => ({
-        id: String(img.id),
-        label: img.name ?? `镜像 ${img.id}`,
-      })),
+      (initialImagesQuery.data?.data?.items ?? []).map(toImageOption),
     [initialImagesQuery.data]
   )
 
@@ -188,20 +206,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
     const items = nodes.map((n) => ({
       id: String(n.id),
       label: n.name ?? `节点 ${n.id}`,
-      description: [n.region, n.host].filter(Boolean).join(" · "),
-    }))
-    return { items, hasMore: items.length >= PAGE_SIZE }
-  }, [])
-
-  const fetchImageOptions = useCallback(async (page: number, keyword: string) => {
-    const { data: res } = await getAdminImages({
-      query: { page, page_size: PAGE_SIZE, status: 1, keyword: keyword || undefined },
-    })
-    const images = res?.data?.items ?? []
-    const items = images.map((img) => ({
-      id: String(img.id),
-      label: img.name ?? `镜像 ${img.id}`,
-      description: [img.os, img.version, img.arch].filter(Boolean).join(" "),
+      description: [n.region_display_name, n.host].filter(Boolean).join(" · "),
     }))
     return { items, hasMore: items.length >= PAGE_SIZE }
   }, [])
@@ -210,13 +215,23 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
     resolver: zodResolver(schema),
     defaultValues,
   })
+  const planType = useWatch({ control: form.control, name: "type" })
+  const isVM = planType === "vm"
   const natMode = useWatch({ control: form.control, name: "nat_mode" })
   const ipv6Enabled = useWatch({ control: form.control, name: "ipv6_enabled" })
 
+  const imageType = planType === "vm" ? "virtual-machine" : planType === "container" ? "container" : undefined
+  const fetchImageOptions = useCallback(async (page: number, keyword: string) => {
+    const { data: res } = await getAdminImages({
+      query: { page, page_size: PAGE_SIZE, status: 1, keyword: keyword || undefined, type: imageType },
+    })
+    const images = res?.data?.items ?? []
+    const items = images.map(toImageOption)
+    return { items, hasMore: items.length >= PAGE_SIZE }
+  }, [imageType])
+
   useEffect(() => {
     if (!open) return
-
-    setServerError("")
 
     if (plan) {
       form.reset({
@@ -396,7 +411,11 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>类型</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(v) => {
+                        field.onChange(v)
+                        if (v === "vm") form.setValue("cpu_allowance", 0)
+                        form.setValue("image_ids", [])
+                      }} value={field.value}>
                         <FormControl>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                         </FormControl>
@@ -489,12 +508,13 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                   name="cpu"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel required>CPU (核)</FormLabel>
-                      <FormControl><Input type="number" placeholder="1" {...field} /></FormControl>
+                      <FormLabel required>CPU (核){!isVM && <span className="text-xs text-muted-foreground font-normal ml-1">容器支持小数</span>}</FormLabel>
+                      <FormControl><Input type="number" step={isVM ? "1" : "0.5"} min={isVM ? "1" : "0.5"} placeholder="1" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                {!isVM && (
                 <FormField
                   control={form.control}
                   name="cpu_allowance"
@@ -507,6 +527,7 @@ export default function PlanFormDialog({ open, onOpenChange, plan, onSuccess }: 
                     </FormItem>
                   )}
                 />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField

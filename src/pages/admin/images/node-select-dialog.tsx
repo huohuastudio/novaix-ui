@@ -63,14 +63,15 @@ export default function NodeSelectDialog({
   }, [open])
 
   const regions = useMemo(() => {
-    const map = new Map<string, NodeNodeItem[]>()
+    const map = new Map<string, { label: string; nodes: NodeNodeItem[] }>()
     for (const node of nodes) {
-      const region = node.region || "未分区"
-      const list = map.get(region) ?? []
-      list.push(node)
-      map.set(region, list)
+      const key = node.region_id != null ? String(node.region_id) : "0"
+      const label = node.region_display_name || "未分区"
+      const entry = map.get(key) ?? { label, nodes: [] }
+      entry.nodes.push(node)
+      map.set(key, entry)
     }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
   }, [nodes])
 
   const toggleNode = useCallback((id: number) => {
@@ -144,11 +145,12 @@ export default function NodeSelectDialog({
             </p>
           ) : (
             <div className="space-y-3">
-              {regions.map(([region, regionNodes]) => {
+              {regions.map((group) => {
+                const regionNodes = group.nodes
                 const regionChecked = regionNodes.every(n => selected.has(n.id!))
                 const regionSelectedCount = regionNodes.filter(n => selected.has(n.id!)).length
                 return (
-                  <div key={region}>
+                  <div key={group.label}>
                     <label className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-1.5 hover:bg-muted cursor-pointer">
                       <input
                         type="checkbox"
@@ -157,7 +159,7 @@ export default function NodeSelectDialog({
                         ref={(el) => { if (el) el.indeterminate = regionSelectedCount > 0 && !regionChecked }}
                         onChange={() => toggleRegion(regionNodes)}
                       />
-                      <span className="text-sm font-medium">{region}</span>
+                      <span className="text-sm font-medium">{group.label}</span>
                       <span className="text-xs text-muted-foreground">{regionSelectedCount}/{regionNodes.length}</span>
                     </label>
                     <div className="mt-1 space-y-1 pl-4">

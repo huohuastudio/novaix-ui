@@ -26,6 +26,7 @@ export function ProfileFormLayout({
       nodeId={nodeId}
       mainSection={mainSection}
       actions={actions}
+      mode="profile"
     />
   )
 }

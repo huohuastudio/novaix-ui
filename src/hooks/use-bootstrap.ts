@@ -5,7 +5,7 @@ import type {
   PublicPublicPartnerItem,
   PublicPublicBannerItem,
   PublicPublicTestimonialItem,
-  PublicPublicDataCenterItem,
+  PublicPublicRegionItem,
   PublicPublicFaqItem,
 } from "@/api"
 
@@ -16,14 +16,14 @@ export interface BootstrapData {
   partners: PublicPublicPartnerItem[]
   banners: PublicPublicBannerItem[]
   testimonials: PublicPublicTestimonialItem[]
-  dataCenters: PublicPublicDataCenterItem[]
+  regions: PublicPublicRegionItem[]
   faqs: PublicPublicFaqItem[]
   homeReady: boolean
 }
 
 export const EMPTY_BOOTSTRAP: BootstrapData = {
   headerMenus: [], footerMenus: [], links: [], partners: [],
-  banners: [], testimonials: [], dataCenters: [], faqs: [],
+  banners: [], testimonials: [], regions: [], faqs: [],
   homeReady: false,
 }
 

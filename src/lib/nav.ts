@@ -25,6 +25,7 @@ import {
   Palette,
   PenSquare,
   Receipt,
+  MapPin,
 } from "lucide-react"
 import type { NavGroup } from "@/components/nav-main"
 
@@ -38,6 +39,7 @@ export function buildNavGroups(basePath: string): NavGroup[] {
     {
       label: "资源管理",
       items: [
+        { title: "区域管理", url: `${basePath}/regions`, icon: MapPin },
         { title: "节点管理", url: `${basePath}/nodes`, icon: Server },
         { title: "实例管理", url: `${basePath}/instances`, icon: MonitorCog },
         { title: "镜像管理", url: `${basePath}/images`, icon: Disc3 },

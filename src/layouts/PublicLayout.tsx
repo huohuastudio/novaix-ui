@@ -185,7 +185,7 @@ export default function PublicLayout() {
         partners: d.partners ?? prev.partners,
         banners: d.banners ?? prev.banners,
         testimonials: d.testimonials ?? prev.testimonials,
-        dataCenters: d.data_centers ?? prev.dataCenters,
+        regions: d.regions ?? prev.regions,
         faqs: d.faqs ?? prev.faqs,
         homeReady: needHome || prev.homeReady,
       }))

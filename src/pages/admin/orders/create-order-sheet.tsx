@@ -126,7 +126,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
     })
     const items = (res?.data?.items ?? []).map((n) => ({
       id: n.id!,
-      label: `${n.name} (${n.region})`,
+      label: `${n.name}${n.region_display_name ? ` (${n.region_display_name})` : ""}`,
     }))
     return { items, hasMore: items.length >= PAGE_SIZE }
   }, [])

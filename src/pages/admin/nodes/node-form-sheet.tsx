@@ -2,8 +2,10 @@ import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort } from "@/api"
-import type { NodeNodeItem, ServiceTestConnectionResponse } from "@/api"
+import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort, getAdminRegionsAll } from "@/api"
+import type { NodeNodeItem, ServiceTestConnectionResponse, RegionRegionItem } from "@/api"
+import { useQuery } from "@tanstack/react-query"
+import { getAdminRegionsAllQueryKey } from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { HelpLink } from "@/components/help-doc"
 import { getErrorMessage } from "@/lib/utils"
@@ -43,9 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 const baseFields = {
   name: z.string().min(1, "请输入名称").max(128, "名称不能超过 128 个字符"),
-  region: z.string().max(64, "区域不能超过 64 个字符").optional().default(""),
-  latitude: z.coerce.number<number | string>().min(-90).max(90).optional().default(0),
-  longitude: z.coerce.number<number | string>().min(-180).max(180).optional().default(0),
+  region_id: z.coerce.number<number | string>().int().optional(),
   host: z.string().min(1, "请输入主机地址").max(255, "主机地址不能超过 255 个字符"),
   port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(8443),
   ssh_port: z.coerce.number<number | string>().int().min(1, "端口范围 1-65535").max(65535, "端口范围 1-65535").optional().default(22),
@@ -83,9 +83,7 @@ type EditFormValues = z.output<typeof editSchema>
 
 const defaultValues: EditFormValues = {
   name: "",
-  region: "",
-  latitude: 0,
-  longitude: 0,
+  region_id: undefined,
   host: "",
   port: 8443,
   ssh_port: 22,
@@ -123,48 +121,30 @@ function NameField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeF
   )
 }
 
-function RegionField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> }) {
+function RegionSelectField({ form, regions }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues>; regions: RegionRegionItem[] }) {
   return (
     <FormField
       control={form.control}
-      name="region"
+      name="region_id"
       render={({ field }) => (
         <FormItem>
           <FormLabel>区域</FormLabel>
-          <FormControl><Input placeholder="hk" {...field} /></FormControl>
+          <Select onValueChange={(v) => field.onChange(v ? Number(v) : undefined)} value={field.value ? String(field.value) : ""}>
+            <FormControl>
+              <SelectTrigger><SelectValue placeholder="选择区域" /></SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {regions.map((r) => (
+                <SelectItem key={r.id} value={String(r.id)}>
+                  {r.flag ? `${r.flag} ` : ""}{r.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <FormMessage />
         </FormItem>
       )}
     />
-  )
-}
-
-function CoordinateFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues> | UseFormReturn<EditFormInput, unknown, EditFormValues> }) {
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <FormField
-        control={form.control}
-        name="latitude"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>纬度</FormLabel>
-            <FormControl><Input type="number" step="any" placeholder="22.3193" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="longitude"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>经度</FormLabel>
-            <FormControl><Input type="number" step="any" placeholder="114.1694" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
   )
 }
 
@@ -443,9 +423,7 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
 function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name" | "network_name" | "storage_pool">>) {
   return {
     name: values.name,
-    region: values.region || undefined,
-    latitude: values.latitude,
-    longitude: values.longitude,
+    region_id: values.region_id || undefined,
     host: values.host,
     port: values.port,
     ssh_port: values.ssh_port,
@@ -466,6 +444,16 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
 
 // ── 创建表单 ──
 
+function useRegions() {
+  return useQuery({
+    queryKey: getAdminRegionsAllQueryKey(),
+    queryFn: async () => {
+      const { data: res } = await getAdminRegionsAll()
+      return (res?.data ?? []) as RegionRegionItem[]
+    },
+  })
+}
+
 function CreateNodeForm({ open, onOpenChange, onSuccess }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -474,6 +462,7 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
   const [serverError, setServerError] = useState("")
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
+  const { data: regions = [] } = useRegions()
 
   const form = useForm<NodeFormInput, unknown, NodeFormValues>({
     resolver: zodResolver(createSchema),
@@ -547,9 +536,8 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
             <form id="create-node-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" data-tour="node-form">
               <div className="grid grid-cols-2 gap-4" data-tour="node-form-basic">
                 <NameField form={form} />
-                <RegionField form={form} />
+                <RegionSelectField form={form} regions={regions} />
               </div>
-              <CoordinateFields form={form} />
               <div data-tour="node-form-host">
                 <HostField form={form} />
               </div>
@@ -592,6 +580,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   const [serverError, setServerError] = useState("")
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
+  const { data: regions = [] } = useRegions()
 
   const form = useForm<EditFormInput, unknown, EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -632,9 +621,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
       setTestResult(null)
       form.reset({
         name: node.name ?? "",
-        region: node.region ?? "",
-        latitude: node.latitude ?? 0,
-        longitude: node.longitude ?? 0,
+        region_id: node.region_id ?? undefined,
         host: node.host ?? "",
         port: node.port ?? 8443,
         ssh_port: node.ssh_port ?? 22,
@@ -680,9 +667,8 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
             <form id="edit-node-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <NameField form={form} />
-                <RegionField form={form} />
+                <RegionSelectField form={form} regions={regions} />
               </div>
-              <CoordinateFields form={form} />
               <HostField form={form} />
               <PortFields form={form} />
               <SSHAuthFields form={form} optional />

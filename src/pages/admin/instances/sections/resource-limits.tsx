@@ -15,20 +15,24 @@ import {
 } from "@/components/ui/select"
 import { useConfigReset } from "@/hooks/use-config-reset"
 
+const INSTANCE_ONLY_KEYS = new Set(["cpu", "memory", "disk", "bandwidth", "traffic_limit"])
+
 interface ResourceLimitsSectionProps {
   form: IncusConfigForm
+  mode?: "instance" | "profile"
 }
 
-export function ResourceLimitsSection({ form }: ResourceLimitsSectionProps) {
+export function ResourceLimitsSection({ form, mode = "instance" }: ResourceLimitsSectionProps) {
   const instanceType = form.watch("type")
+  const isVM = instanceType === "virtual-machine"
   const diskPriority = form.watch("limits_disk_priority")
   const reset = useConfigReset(form)
 
-  const rows: ConfigRowItem[] = [
+  const allRows: ConfigRowItem[] = [
     {
       key: "cpu",
       label: "limits.cpu",
-      description: "CPU 核心数或固定 CPU 绑定",
+      description: isVM ? "CPU 核心数（VM 仅支持整数），0 表示由高级配置托管" : "CPU 核心数，容器支持小数（如 0.5），0 表示由高级配置托管",
       children: (
         <FormField
           control={form.control}
@@ -40,8 +44,9 @@ export function ResourceLimitsSection({ form }: ResourceLimitsSectionProps) {
                   <Input
                     type="number"
                     className="w-24"
-                    min={1}
+                    min={0}
                     max={128}
+                    step={isVM ? 1 : 0.5}
                     value={field.value}
                     onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : "")}
                   />
@@ -68,7 +73,7 @@ export function ResourceLimitsSection({ form }: ResourceLimitsSectionProps) {
                   <Input
                     type="number"
                     className="w-24"
-                    min={64}
+                    min={0}
                     max={524288}
                     value={field.value}
                     onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : "")}
@@ -163,7 +168,7 @@ export function ResourceLimitsSection({ form }: ResourceLimitsSectionProps) {
                   <Input
                     type="number"
                     className="w-24"
-                    min={1}
+                    min={0}
                     max={10240}
                     value={field.value}
                     onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : "")}
@@ -232,10 +237,12 @@ export function ResourceLimitsSection({ form }: ResourceLimitsSectionProps) {
     },
   ]
 
+  const rows = mode === "profile" ? allRows.filter((r) => !INSTANCE_ONLY_KEYS.has(r.key)) : allRows
+
   return (
     <ConfigSection
       title="资源限制"
-      description="配置实例的 CPU、内存、磁盘和网络资源限制"
+      description={mode === "instance" ? "配置实例的 CPU、内存、磁盘和网络资源限制" : "配置 Incus 资源限制参数"}
     >
       <ConfigTable rows={rows} currentInstanceType={instanceType} />
     </ConfigSection>

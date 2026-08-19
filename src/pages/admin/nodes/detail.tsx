@@ -274,7 +274,7 @@ function OverviewTab({ node }: { node: NodeNodeItem }) {
           </div>
           <div>
             <div className="text-muted-foreground">区域</div>
-            <div className="font-medium mt-0.5">{node.region || "-"}</div>
+            <div className="font-medium mt-0.5">{node.region_display_name || "-"}</div>
           </div>
           <div>
             <div className="text-muted-foreground">架构</div>
@@ -627,7 +627,7 @@ export default function NodeDetail() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {node.host} · {node.region || "未设置区域"}{node.arch ? ` · ${node.arch}` : ""}
+                {node.host} · {node.region_display_name || "未设置区域"}{node.arch ? ` · ${node.arch}` : ""}
               </p>
             </div>
           </div>

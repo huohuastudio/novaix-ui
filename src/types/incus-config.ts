@@ -373,5 +373,35 @@ export function configToFormValues(
     gpu_devices: gpuDevices,
     volume_devices: volumeDevices,
     other_devices: otherDevices,
+    raw_incus_config: buildRawIncusConfig(cfg),
   }
+}
+
+// 表单字段已建模的 config 键；不在此集合中的键会回填到高级配置 JSON。
+// 注意：limits.cpu / limits.cpu.allowance / limits.memory 不在此列表中，
+// 因为导入的实例可能包含不可表达的值（CPU 绑定、time-slice、小数内存），
+// 需要在高级配置中展示以防编辑时丢失。
+const knownConfigKeys = new Set([
+  "security.privileged", "security.nesting", "security.protection.delete",
+  "security.protection.shift", "security.secureboot", "security.csm",
+  "security.idmap.base", "security.idmap.size", "security.idmap.isolated",
+  "security.devlxd", "security.devlxd.images",
+  "limits.memory.swap", "limits.disk.priority", "limits.processes",
+  "snapshots.schedule", "snapshots.schedule.stopped", "snapshots.pattern", "snapshots.expiry",
+  "migration.stateful", "cluster.evacuate",
+  "boot.autostart", "boot.autostart.priority", "boot.autostart.delay",
+  "boot.stop.priority", "boot.host_shutdown_timeout",
+  "cloud-init.user-data", "cloud-init.vendor-data", "cloud-init.network-config",
+  "limits.memory.enforce",
+])
+
+function buildRawIncusConfig(cfg: Record<string, string> | null | undefined): string {
+  if (!cfg) return ""
+  const extra: Record<string, string> = {}
+  for (const [k, v] of Object.entries(cfg)) {
+    if (!knownConfigKeys.has(k)) {
+      extra[k] = v
+    }
+  }
+  return Object.keys(extra).length > 0 ? JSON.stringify(extra, null, 2) : ""
 }
