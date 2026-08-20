@@ -185,6 +185,7 @@ function CountryPickerField({ form }: { form: UseFormReturn<FormInput, unknown, 
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
+                type="button"
                 variant="outline"
                 role="combobox"
                 aria-expanded={open}
@@ -198,7 +199,26 @@ function CountryPickerField({ form }: { form: UseFormReturn<FormInput, unknown, 
               <Command shouldFilter={false}>
                 <CommandInput placeholder="搜索国家（中文/拼音/英文）..." value={search} onValueChange={setSearch} />
                 <CommandList>
-                  <CommandEmpty>未找到匹配的国家</CommandEmpty>
+                  <CommandEmpty>
+                    <div className="py-2 text-center">
+                      <p className="text-sm text-muted-foreground">未找到匹配的国家</p>
+                      {search && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="mt-1"
+                          onClick={() => {
+                            form.setValue("country", search, { shouldValidate: true })
+                            setOpen(false)
+                            setSearch("")
+                          }}
+                        >
+                          使用「{search}」
+                        </Button>
+                      )}
+                    </div>
+                  </CommandEmpty>
                   <CommandGroup>
                     {filtered.map((c) => (
                       <CommandItem

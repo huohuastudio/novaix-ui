@@ -1,7 +1,7 @@
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useForm, type UseFormReturn } from "react-hook-form"
+import { useForm, useWatch, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
@@ -142,22 +142,38 @@ function useNodeNetworks() {
 
 function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormInput, unknown, PoolFormValues>; typeDisabled?: boolean }) {
   const nodeHelper = useNodeNetworks()
+  const poolType = useWatch({ control: form.control, name: "type" })
+  const isIPv6 = poolType === "ipv6"
+  const ph = isIPv6
+    ? { name: "公网 IPv6", cidr: "2001:db8::/64", gw: "2001:db8::1", dns1: "2606:4700:4700::1111", dns2: "2606:4700:4700::1001" }
+    : { name: "公网 IPv4", cidr: "192.168.1.0/24", gw: "192.168.1.1", dns1: "8.8.8.8", dns2: "8.8.4.4" }
 
   const handleSelectNetwork = (networkName: string) => {
     nodeHelper.setSelectedNetwork(networkName)
     const net = nodeHelper.networks.find(n => n.name === networkName)
     if (!net) return
     form.setValue("network_name", net.name)
-    const ipv4Addr = net.config?.["ipv4.address"]
-    if (ipv4Addr && ipv4Addr !== "none" && ipv4Addr !== "auto") {
-      const [gateway] = ipv4Addr.split("/")
-      form.setValue("gateway", gateway ?? "")
-      const prefix = ipv4Addr.split("/")[1]
-      if (gateway && prefix) {
-        const parts = gateway.split(".").map(Number)
-        const mask = ~((1 << (32 - Number(prefix))) - 1) >>> 0
-        const netAddr = [(parts[0] & (mask >>> 24)), (parts[1] & ((mask >>> 16) & 255)), (parts[2] & ((mask >>> 8) & 255)), (parts[3] & (mask & 255))]
-        form.setValue("cidr", `${netAddr.join(".")}/${prefix}`)
+    if (isIPv6) {
+      const ipv6Addr = net.config?.["ipv6.address"]
+      if (ipv6Addr && ipv6Addr !== "none" && ipv6Addr !== "auto") {
+        const [gateway, prefix] = ipv6Addr.split("/")
+        form.setValue("gateway", gateway ?? "")
+        if (gateway && prefix) {
+          form.setValue("cidr", `${gateway.replace(/:?[^:]+$/, "::")}/${prefix}`)
+        }
+      }
+    } else {
+      const ipv4Addr = net.config?.["ipv4.address"]
+      if (ipv4Addr && ipv4Addr !== "none" && ipv4Addr !== "auto") {
+        const [gateway] = ipv4Addr.split("/")
+        form.setValue("gateway", gateway ?? "")
+        const prefix = ipv4Addr.split("/")[1]
+        if (gateway && prefix) {
+          const parts = gateway.split(".").map(Number)
+          const mask = ~((1 << (32 - Number(prefix))) - 1) >>> 0
+          const netAddr = [(parts[0] & (mask >>> 24)), (parts[1] & ((mask >>> 16) & 255)), (parts[2] & ((mask >>> 8) & 255)), (parts[3] & (mask & 255))]
+          form.setValue("cidr", `${netAddr.join(".")}/${prefix}`)
+        }
       }
     }
     toast.success(`已填充网桥「${net.name}」的配置`)
@@ -197,9 +213,12 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
                 {nodeHelper.networks.map(n => (
                   <SelectItem key={n.name} value={n.name}>
                     {n.name}
-                    {n.config?.["ipv4.address"] && n.config["ipv4.address"] !== "none" && (
-                      <span className="ml-1.5 text-muted-foreground">({n.config["ipv4.address"]})</span>
-                    )}
+                    {(() => {
+                      const addr = isIPv6 ? n.config?.["ipv6.address"] : n.config?.["ipv4.address"]
+                      return addr && addr !== "none" && addr !== "auto" ? (
+                        <span className="ml-1.5 text-muted-foreground">({addr})</span>
+                      ) : null
+                    })()}
                   </SelectItem>
                 ))}
                 {!nodeHelper.loadingNetworks && nodeHelper.selectedNodeId && nodeHelper.networks.length === 0 && (
@@ -218,7 +237,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           render={({ field }) => (
             <FormItem>
               <FormLabel required>名称</FormLabel>
-              <FormControl><Input placeholder="公网 IPv4" {...field} /></FormControl>
+              <FormControl><Input placeholder={ph.name} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -229,7 +248,16 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           render={({ field }) => (
             <FormItem>
               <FormLabel required>类型</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={typeDisabled}>
+              <Select onValueChange={(v) => {
+                field.onChange(v)
+                if (v === "ipv6") {
+                  form.setValue("dns1", "2606:4700:4700::1111")
+                  form.setValue("dns2", "2606:4700:4700::1001")
+                } else {
+                  form.setValue("dns1", "8.8.8.8")
+                  form.setValue("dns2", "8.8.4.4")
+                }
+              }} value={field.value} disabled={typeDisabled}>
                 <FormControl>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                 </FormControl>
@@ -266,7 +294,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
                 <FormLabel required>CIDR</FormLabel>
                 <HelpLink path="/novaix/ip-pool" />
               </div>
-              <FormControl><Input placeholder="192.168.1.0/24" {...field} /></FormControl>
+              <FormControl><Input placeholder={ph.cidr} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -277,7 +305,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           render={({ field }) => (
             <FormItem>
               <FormLabel required>网关</FormLabel>
-              <FormControl><Input placeholder="192.168.1.1" {...field} /></FormControl>
+              <FormControl><Input placeholder={ph.gw} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -291,7 +319,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           render={({ field }) => (
             <FormItem>
               <FormLabel>DNS 1</FormLabel>
-              <FormControl><Input placeholder="8.8.8.8" {...field} /></FormControl>
+              <FormControl><Input placeholder={ph.dns1} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -302,7 +330,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           render={({ field }) => (
             <FormItem>
               <FormLabel>DNS 2</FormLabel>
-              <FormControl><Input placeholder="8.8.4.4" {...field} /></FormControl>
+              <FormControl><Input placeholder={ph.dns2} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}

@@ -28,7 +28,7 @@ import PlanFormDialog from "./plan-form-dialog"
 import PlanGroupDialog from "./plan-group-dialog"
 import TrialDialog from "./trial-dialog"
 import { useQuery } from "@tanstack/react-query"
-import { getAdminPlanGroupsOptions } from "@/api/@tanstack/react-query.gen"
+import { getAdminPlanGroupsOptions, getAdminNodesOptions } from "@/api/@tanstack/react-query.gen"
 
 const activeBadgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
 
@@ -48,6 +48,15 @@ export default function Plans() {
   // 套餐分组字典（与分组管理弹窗共享同一缓存条目，弹窗内增删改后由弹窗负责失效；查询参数须与 plan-group-dialog.tsx 保持一致）
   const groupsQuery = useQuery(getAdminPlanGroupsOptions({ query: { page: 1, page_size: 100 } }))
   const groups = useMemo<ProductPlanGroupItem[]>(() => groupsQuery.data?.data?.items ?? [], [groupsQuery.data])
+
+  const nodesQuery = useQuery(getAdminNodesOptions({ query: { page: 1, page_size: 500 } }))
+  const nodeRegionMap = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const n of nodesQuery.data?.data?.items ?? []) {
+      if (n.id != null && n.region_display_name) m.set(n.id, n.region_display_name)
+    }
+    return m
+  }, [nodesQuery.data])
 
   const groupNameMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -151,6 +160,19 @@ export default function Plans() {
       ),
     },
     {
+      id: "regions",
+      header: "区域",
+      cell: ({ row }) => {
+        const nodeIds = row.original.node_ids
+        if (!nodeIds) return <span className="text-xs text-muted-foreground">全部</span>
+        const regions = [...new Set(
+          nodeIds.split(",").map(id => nodeRegionMap.get(Number(id))).filter(Boolean)
+        )]
+        if (!regions.length) return <span className="text-muted-foreground">-</span>
+        return <span className="text-xs text-muted-foreground">{regions.join("、")}</span>
+      },
+    },
+    {
       id: "group_id",
       header: "分组",
       meta: {
@@ -237,6 +259,9 @@ export default function Plans() {
             <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(plan)}>
               <Pencil className="size-4" />
             </Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => handleToggleStatus(plan)} title={plan.status === 1 ? "下架" : "上架"}>
+              {plan.status === 1 ? <ArrowDownToDot className="size-4" /> : <ArrowUpFromDot className="size-4" />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-8">
@@ -247,12 +272,6 @@ export default function Plans() {
                 <DropdownMenuItem onClick={() => handleTrial(plan)}>
                   <FlaskConical className="size-4 mr-2" />
                   试建实例
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleToggleStatus(plan)}>
-                  {plan.status === 1
-                    ? <><ArrowDownToDot className="size-4 mr-2" />下架</>
-                    : <><ArrowUpFromDot className="size-4 mr-2" />上架</>
-                  }
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(plan)}>
@@ -265,7 +284,7 @@ export default function Plans() {
         )
       },
     },
-  ], [handleEdit, handleDelete, handleTrial, handleToggleStatus, formatPrice, groups, groupNameMap])
+  ], [handleEdit, handleDelete, handleTrial, handleToggleStatus, formatPrice, groups, groupNameMap, nodeRegionMap])
 
   return (
     <div className="px-6 pt-6 space-y-6">

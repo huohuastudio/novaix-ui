@@ -86,6 +86,10 @@ const schema = z.object({
   ipv6_enabled: z.boolean().default(false),
   port_count: z.coerce.number<number | string>().int().min(1).default(20),
   cpu_allowance: z.coerce.number<number | string>().int().min(0).max(100).default(0),
+  refund_enabled: z.coerce.number<number | string>().int().min(-1).max(1).default(-1),
+  refund_window_hours: z.coerce.number<number | string>().int().min(-1).max(87600).default(-1),
+  refund_traffic_limit: z.coerce.number<number | string>().int().min(-1).default(-1),
+  refund_max_count: z.coerce.number<number | string>().int().min(-1).default(-1),
   stock: z.coerce.number<number | string>().int().default(-1),
   node_ids: z.array(z.string()).default([]),
   image_ids: z.array(z.string()).default([]),
@@ -129,6 +133,10 @@ const defaultValues: FormValues = {
   ipv6_enabled: false,
   port_count: 20,
   cpu_allowance: 0,
+  refund_enabled: -1,
+  refund_window_hours: -1,
+  refund_traffic_limit: -1,
+  refund_max_count: -1,
   stock: -1,
   node_ids: [],
   image_ids: [],
@@ -260,6 +268,10 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         ipv6_enabled: (plan as Record<string, unknown>).ipv6_enabled as boolean ?? false,
         port_count: (plan as Record<string, unknown>).port_count as number ?? 20,
         cpu_allowance: (plan as Record<string, unknown>).cpu_allowance as number ?? 0,
+        refund_enabled: (plan as Record<string, unknown>).refund_enabled as number ?? -1,
+        refund_window_hours: (plan as Record<string, unknown>).refund_window_hours as number ?? -1,
+        refund_traffic_limit: (plan as Record<string, unknown>).refund_traffic_limit as number ?? -1,
+        refund_max_count: (plan as Record<string, unknown>).refund_max_count as number ?? -1,
         stock: plan.stock ?? -1,
         node_ids: nodeIds,
         image_ids: imageIds,
@@ -300,6 +312,10 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         ipv6_enabled: values.ipv6_enabled,
         port_count: values.port_count,
         cpu_allowance: values.cpu_allowance,
+        refund_enabled: values.refund_enabled,
+        refund_window_hours: values.refund_window_hours,
+        refund_traffic_limit: values.refund_traffic_limit,
+        refund_max_count: values.refund_max_count,
         stock: values.stock,
         node_ids: joinIds(values.node_ids),
         image_ids: joinIds(values.image_ids),
@@ -824,6 +840,71 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                       />
                     </FormControl>
                     <FormDescription>不选择则所有镜像均可使用此套餐</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          <section>
+            <h3 className="text-sm font-medium">退款策略</h3>
+            <p className="text-xs text-muted-foreground mt-1">控制该套餐的退款条件，-1 表示跟随全局设置</p>
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="refund_enabled"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>是否允许退款</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="-1">跟随全局设置</SelectItem>
+                        <SelectItem value="1">允许</SelectItem>
+                        <SelectItem value="0">禁止</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="refund_window_hours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>退款时间窗口（小时）</FormLabel>
+                    <FormControl><Input type="number" min={-1} placeholder="-1" {...field} /></FormControl>
+                    <FormDescription>-1 跟随全局，0 不限制</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="refund_traffic_limit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>退款流量阈值（GB）</FormLabel>
+                    <FormControl><Input type="number" min={-1} placeholder="-1" {...field} /></FormControl>
+                    <FormDescription>-1 跟随全局，0 不限制</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="refund_max_count"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>退款次数上限</FormLabel>
+                    <FormControl><Input type="number" min={-1} placeholder="-1" {...field} /></FormControl>
+                    <FormDescription>-1 跟随全局，0 不限制</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

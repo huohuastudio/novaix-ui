@@ -27,6 +27,7 @@ import {
   LogIn,
   ShieldCheck,
   Receipt,
+  Undo2,
 } from "lucide-react"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useAdminPath } from "@/hooks/use-site-settings"
@@ -58,6 +59,7 @@ import { InstanceSection } from "./sections/instance"
 import { OAuthSection } from "./sections/oauth"
 import { TicketSection } from "./sections/ticket"
 import { InvoiceSection } from "./sections/invoice"
+import { RefundSection } from "./sections/refund"
 
 interface SettingItem {
   id: string
@@ -107,6 +109,7 @@ const settingGroups: SettingGroup[] = [
       { id: "payment", label: "支付渠道", description: "在线支付方式与网关配置", icon: CreditCard, component: PaymentSection, docPath: "/novaix/payment" },
       { id: "agent", label: "代理系统", description: "分销代理佣金与规则", icon: Users, component: AgentSection, docPath: "/novaix/agent" },
       { id: "invoice", label: "发票", description: "电子发票申请与管理", icon: Receipt, component: InvoiceSection },
+      { id: "refund", label: "退款策略", description: "退款时间窗口、流量阈值、次数限制", icon: Undo2, component: RefundSection },
     ],
   },
   {

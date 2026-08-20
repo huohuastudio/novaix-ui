@@ -69,6 +69,7 @@ const sharedIpSchema = z.object({
   description: z.string().max(512).default(""),
   status: z.coerce.number<number | string>().int().default(1),
   mode: z.enum(["shared", "dedicated"]).default("shared"),
+  alloc_mode: z.enum(["sequential", "random"]).default("sequential"),
 })
 
 type SharedIpFormInput = z.input<typeof sharedIpSchema>
@@ -83,6 +84,7 @@ const formDefaults: SharedIpFormValues = {
   description: "",
   status: 1,
   mode: "shared",
+  alloc_mode: "sequential",
 }
 
 // ── 节点分页加载 ──
@@ -248,30 +250,53 @@ function SharedIpFormFields({
       </div>
 
       {mode === "shared" && (
-        <div className="grid grid-cols-2 gap-4">
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="port_start"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>起始端口</FormLabel>
+                  <FormControl><Input type="number" placeholder="10000" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="port_end"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>结束端口</FormLabel>
+                  <FormControl><Input type="number" placeholder="60000" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
-            name="port_start"
+            name="alloc_mode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel required>起始端口</FormLabel>
-                <FormControl><Input type="number" placeholder="10000" {...field} /></FormControl>
+                <FormLabel>端口分配策略</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="sequential">顺序分配（按顺序递增）</SelectItem>
+                    <SelectItem value="random">随机分配（随机选择起始位置）</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="port_end"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel required>结束端口</FormLabel>
-                <FormControl><Input type="number" placeholder="60000" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        </>
       )}
 
       <FormField
@@ -381,7 +406,8 @@ function SharedIpEditDialog({
         port_end: item.port_end ?? 60000,
         description: item.description ?? "",
         status: item.status ?? 1,
-        mode: (item as Record<string, unknown>).mode as "shared" | "dedicated" ?? "shared",
+        mode: (item.mode as "shared" | "dedicated") ?? "shared",
+        alloc_mode: (item.alloc_mode as "sequential" | "random") ?? "sequential",
       })
     }
   }, [open, item, form])
@@ -510,14 +536,11 @@ export default function SharedIPs() {
     {
       id: "mode",
       header: "模式",
-      cell: ({ row }) => {
-        const mode = (row.original as Record<string, unknown>).mode as string
-        return (
-          <Badge variant={mode === "dedicated" ? "outline" : "secondary"}>
-            {mode === "dedicated" ? "独享" : "共享"}
-          </Badge>
-        )
-      },
+      cell: ({ row }) => (
+        <Badge variant={row.original.mode === "dedicated" ? "outline" : "secondary"}>
+          {row.original.mode === "dedicated" ? "独享" : "共享"}
+        </Badge>
+      ),
     },
     {
       id: "port_range",
@@ -527,6 +550,18 @@ export default function SharedIPs() {
           {row.original.port_start} - {row.original.port_end}
         </span>
       ),
+    },
+    {
+      id: "alloc_mode",
+      header: "分配策略",
+      cell: ({ row }) => {
+        if (row.original.mode === "dedicated") return <span className="text-muted-foreground">-</span>
+        return (
+          <Badge variant="outline">
+            {row.original.alloc_mode === "random" ? "随机" : "顺序"}
+          </Badge>
+        )
+      },
     },
     {
       id: "usage",
