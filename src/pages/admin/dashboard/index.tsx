@@ -578,7 +578,7 @@ export default function Dashboard() {
                     <p className="text-sm font-medium truncate">{inst.name}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
                       {inst.username}
-                      {inst.ip_address && ` · ${inst.ip_address}`}
+                      {(inst.ip_address || inst.ipv6_address) && ` · ${inst.ip_address || inst.ipv6_address}`}
                     </p>
                   </div>
                   <div className="shrink-0 ml-3 text-right">

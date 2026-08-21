@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 
-export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; isNAT?: boolean }) {
+export function PortForwardSection({ instanceId, isNAT, isIPv6Only }: { instanceId: number; isNAT?: boolean; isIPv6Only?: boolean }) {
   const api = useMemo(() => ({
     scope: "admin" as const,
     list: getAdminInstancesByIdPortForwardRules,
@@ -33,7 +33,7 @@ export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; 
             <h3 className="text-lg font-semibold">端口转发</h3>
             <p className="text-sm text-muted-foreground mt-1">将宿主机端口映射到实例内部端口，变更会自动同步到节点</p>
           </div>
-          <Button onClick={pf.openCreate}>
+          <Button onClick={pf.openCreate} disabled={isIPv6Only}>
             <Plus className="size-4" />
             添加规则
           </Button>
@@ -43,7 +43,9 @@ export function PortForwardSection({ instanceId, isNAT }: { instanceId: number; 
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <ArrowUpDown className="size-10 text-muted-foreground/50 mb-3" />
             <p className="text-sm text-muted-foreground">暂无端口转发规则</p>
-            <p className="text-xs text-muted-foreground mt-1">添加规则将宿主机端口映射到实例内部</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isIPv6Only ? "纯 IPv6 实例不支持端口转发" : "添加规则将宿主机端口映射到实例内部"}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">

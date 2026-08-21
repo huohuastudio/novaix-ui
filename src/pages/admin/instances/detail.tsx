@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getStatusInfo } from "@/lib/instance-constants"
+import { getStatusInfo, isIPv6OnlyInstance } from "@/lib/instance-constants"
 import { MigrateDialog } from "./components/migrate-dialog"
 import { OverviewTab, InstanceOverviewSkeleton } from "./sections/overview"
 import { SnapshotsTab, InstanceSnapshotsSkeleton } from "./sections/snapshots-tab"
@@ -205,7 +205,7 @@ export default function InstanceDetail() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {instance.ip_address || "无 IP"} · {instance.node_name || "未知节点"}
+              {instance.ip_address || instance.ipv6_address || "无 IP"} · {instance.node_name || "未知节点"}
               {instance.arch ? ` · ${instance.arch}` : ""}
             </p>
           </div>
@@ -327,7 +327,7 @@ export default function InstanceDetail() {
           )}
           {visitedTabs.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardSection instanceId={Number(id)} isNAT={!!instance.nat_info} />
+              <PortForwardSection instanceId={Number(id)} isNAT={!!instance.nat_info} isIPv6Only={isIPv6OnlyInstance(instance)} />
             </div>
           )}
           {visitedTabs.has("snapshots") && (

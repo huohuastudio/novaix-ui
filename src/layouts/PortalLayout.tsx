@@ -26,7 +26,7 @@ import { useSiteSettings, useAdminPath } from '@/hooks/use-site-settings'
 import { getUser, logout } from '@/lib/auth'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getPortalNotificationsUnreadCountOptions, getPortalNotificationsUnreadCountQueryKey } from '@/api/@tanstack/react-query.gen'
+import { getPortalNotificationsUnreadCountOptions, getPortalNotificationsUnreadCountQueryKey, getPortalAgentApplicationOptions } from '@/api/@tanstack/react-query.gen'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
@@ -38,9 +38,20 @@ const mobileActive = `${mobileBase} bg-accent text-foreground`
 const mobileInactive = `${mobileBase} text-muted-foreground hover:bg-accent hover:text-foreground`
 
 function useNavItems() {
-  const { edition, invoice_enabled } = useSiteSettings()
+  const { edition, invoice_enabled, agent_enabled, agent_application_enabled } = useSiteSettings()
   const isPaid = edition === 'paid'
-  const user = getUser()
+  const agentFeatureOn = isPaid && agent_enabled === 'true'
+
+  // 仅在代理功能开启时查询服务端代理状态（TanStack Query 自动缓存，不会重复请求）
+  const agentQuery = useQuery({
+    ...getPortalAgentApplicationOptions(),
+    enabled: agentFeatureOn,
+  })
+  const agentData = agentFeatureOn && agentQuery.data?.code === 0
+    ? agentQuery.data.data as { is_agent?: boolean; status?: string } | null
+    : null
+  const serverIsAgent = agentData?.is_agent === true
+  const hasApplication = !!agentData?.status
 
   const items = [
     { to: '/portal', label: '控制台', end: true },
@@ -51,7 +62,7 @@ function useNavItems() {
     { to: '/portal/tickets', label: '工单' },
   ]
 
-  if (user?.role === 'agent' && isPaid) {
+  if (agentFeatureOn && (serverIsAgent || hasApplication || agent_application_enabled === 'true')) {
     items.push({ to: '/portal/agent', label: '代理中心' })
   }
 

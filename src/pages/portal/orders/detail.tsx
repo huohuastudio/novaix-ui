@@ -38,6 +38,7 @@ import {
 import {
   getPortalOrdersByIdOptions,
   getPortalOrdersByIdQueryKey,
+  getPortalOrdersByIdRefundEligibilityOptions,
   getPortalOrdersQueryKey,
 } from '@/api/@tanstack/react-query.gen'
 import { PayDialog } from './pay-dialog'
@@ -124,6 +125,16 @@ export default function PortalOrderDetail() {
     }
   }, [orderQuery.isError, order, orderRes, navigate])
 
+  const isPaid = order?.status === 'paid'
+  const noRefundStatus = !order?.refund_status || order.refund_status === ''
+  const eligibilityQuery = useQuery({
+    ...getPortalOrdersByIdRefundEligibilityOptions({ path: { id: Number(id) } }),
+    enabled: !!order?.id && isPaid && noRefundStatus,
+  })
+  const eligibilityData = eligibilityQuery.data?.data as { eligible?: boolean; reason?: string } | undefined
+  const refundEligible = eligibilityData?.eligible ?? false
+  const refundIneligibleReason = eligibilityData?.reason ?? ''
+
   // 操作成功后刷新订单详情，同时失效订单列表缓存
   const refreshOrder = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: getPortalOrdersByIdQueryKey({ path: { id: Number(id) } }) })
@@ -179,7 +190,7 @@ export default function PortalOrderDetail() {
   const colors = statusColors[status] ?? { dot: 'bg-zinc-400', text: 'text-zinc-400' }
   const snap = order.plan_snapshot
   const refundStatus = order.refund_status
-  const canRequestRefund = status === 'paid' && (!refundStatus || refundStatus === '' || refundStatus === 'rejected')
+  const canRequestRefund = refundEligible === true
   const refundCfg = refundStatus ? refundStatusMap[refundStatus] : null
 
   return (
@@ -235,6 +246,13 @@ export default function PortalOrderDetail() {
             )}
           </div>
         </div>
+
+        {/* 不可退款原因提示 */}
+        {status === 'paid' && refundEligible === false && !refundStatus && refundIneligibleReason && (
+          <div className="rounded-2xl bg-background p-5">
+            <p className="text-sm text-muted-foreground">{refundIneligibleReason}</p>
+          </div>
+        )}
 
         {/* 退款状态提示 */}
         {refundCfg && (

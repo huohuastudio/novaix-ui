@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal, ArrowUpFromDot, ArrowDownToDot } from "lucide-react"
+import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +25,7 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount } from "@/hooks/use-site-settings"
+import { getErrorMessage } from "@/lib/utils"
 import { EmptyState } from "@/components/empty-state"
 import PlanFormDialog from "./plan-form-dialog"
 import PlanGroupDialog from "./plan-group-dialog"
@@ -31,6 +34,103 @@ import { useQuery } from "@tanstack/react-query"
 import { getAdminPlanGroupsOptions, getAdminNodesOptions } from "@/api/@tanstack/react-query.gen"
 
 const activeBadgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+
+function EditableNumberCell({
+  planId,
+  field,
+  value,
+  min = 0,
+  onSaved,
+  renderDisplay,
+}: {
+  planId: number
+  field: "stock" | "sort_order"
+  value: number
+  min?: number
+  onSaved: () => void
+  renderDisplay?: (value: number) => React.ReactNode
+}) {
+  const [editing, setEditing] = useState(false)
+  const [inputValue, setInputValue] = useState("")
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      requestAnimationFrame(() => inputRef.current?.select())
+    }
+  }, [editing])
+
+  const startEditing = () => {
+    setInputValue(String(value))
+    setEditing(true)
+  }
+
+  const save = async () => {
+    const trimmed = inputValue.trim()
+    const num = Number(trimmed)
+    if (trimmed === "" || !Number.isInteger(num) || num < min) {
+      toast.error(`请输入不小于 ${min} 的整数`)
+      return
+    }
+    if (num === value) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await putAdminPlansById({
+        path: { id: planId },
+        body: { [field]: num },
+      })
+      if (res.data?.code !== 0) {
+        toast.error(res.data?.message || "更新失败")
+      } else {
+        onSaved()
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "更新失败"))
+    } finally {
+      setSaving(false)
+      setEditing(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      save()
+    } else if (e.key === "Escape") {
+      setEditing(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        type="number"
+        min={min}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={handleKeyDown}
+        disabled={saving}
+        className="h-7 w-20 text-sm"
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center rounded px-1.5 py-0.5 -mx-1.5 -my-0.5 hover:bg-muted transition-colors cursor-text"
+      onClick={startEditing}
+    >
+      {renderDisplay ? renderDisplay(value) : value}
+    </button>
+  )
+}
 
 function formatResource(value: number | undefined, unit: string, zeroText = "不限") {
   if (!value) return zeroText
@@ -94,6 +194,7 @@ export default function Plans() {
     queryKey: getAdminPlansQueryKey(),
     filterKeys: ["name", "status", "group_id"],
   })
+  const refreshPlans = table.refresh
 
   const [trialPlan, setTrialPlan] = useState<ProductPlanItem | undefined>()
   const [trialOpen, setTrialOpen] = useState(false)
@@ -219,12 +320,20 @@ export default function Plans() {
     {
       id: "stock",
       header: "库存",
-      cell: ({ row }) => {
-        const stock = row.original.stock
-        if (stock === -1) return <span className="text-muted-foreground">不限</span>
-        if (stock === 0) return <Badge variant="destructive">售罄</Badge>
-        return stock
-      },
+      cell: ({ row }) => (
+        <EditableNumberCell
+          planId={row.original.id!}
+          field="stock"
+          value={row.original.stock ?? -1}
+          min={-1}
+          onSaved={refreshPlans}
+          renderDisplay={(v) => {
+            if (v === -1) return <span className="text-muted-foreground">不限</span>
+            if (v === 0) return <Badge variant="destructive">售罄</Badge>
+            return v
+          }}
+        />
+      ),
     },
     {
       accessorKey: "status",
@@ -248,6 +357,15 @@ export default function Plans() {
       accessorKey: "sort_order",
       header: "排序",
       enableSorting: true,
+      cell: ({ row }) => (
+        <EditableNumberCell
+          planId={row.original.id!}
+          field="sort_order"
+          value={row.original.sort_order ?? 0}
+          min={0}
+          onSaved={refreshPlans}
+        />
+      ),
     },
     {
       id: "actions",
@@ -284,7 +402,7 @@ export default function Plans() {
         )
       },
     },
-  ], [handleEdit, handleDelete, handleTrial, handleToggleStatus, formatPrice, groups, groupNameMap, nodeRegionMap])
+  ], [handleEdit, handleDelete, handleTrial, handleToggleStatus, formatPrice, refreshPlans, groups, groupNameMap, nodeRegionMap])
 
   return (
     <div className="px-6 pt-6 space-y-6">

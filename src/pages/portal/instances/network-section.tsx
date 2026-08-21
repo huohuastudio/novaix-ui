@@ -61,10 +61,11 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
   // IP 列表加载失败时回退为仅展示主 IP
   const ips = useMemo<PortalPortalIpItem[]>(() => {
     if (ipsQuery.isError) {
-      return instance.ip_address ? [{ id: 0, address: instance.ip_address, is_primary: true }] : []
+      const fallbackAddr = instance.ip_address || instance.ipv6_address
+      return fallbackAddr ? [{ id: 0, address: fallbackAddr, is_primary: true }] : []
     }
     return (ipsQuery.data?.data as PortalPortalIpItem[] | undefined) ?? []
-  }, [ipsQuery.isError, ipsQuery.data, instance.ip_address])
+  }, [ipsQuery.isError, ipsQuery.data, instance.ip_address, instance.ipv6_address])
   const loading = ipsQuery.isPending
 
   // rDNS 加载失败不影响主流程（错误静默忽略）

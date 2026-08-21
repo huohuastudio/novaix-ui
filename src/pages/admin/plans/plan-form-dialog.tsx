@@ -86,6 +86,7 @@ const schema = z.object({
   ipv6_enabled: z.boolean().default(false),
   port_count: z.coerce.number<number | string>().int().min(1).default(20),
   cpu_allowance: z.coerce.number<number | string>().int().min(0).max(100).default(0),
+  require_kyc: z.boolean().default(false),
   refund_enabled: z.coerce.number<number | string>().int().min(-1).max(1).default(-1),
   refund_window_hours: z.coerce.number<number | string>().int().min(-1).max(87600).default(-1),
   refund_traffic_limit: z.coerce.number<number | string>().int().min(-1).default(-1),
@@ -133,6 +134,7 @@ const defaultValues: FormValues = {
   ipv6_enabled: false,
   port_count: 20,
   cpu_allowance: 0,
+  require_kyc: false,
   refund_enabled: -1,
   refund_window_hours: -1,
   refund_traffic_limit: -1,
@@ -227,6 +229,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
   const isVM = planType === "vm"
   const natMode = useWatch({ control: form.control, name: "nat_mode" })
   const ipv6Enabled = useWatch({ control: form.control, name: "ipv6_enabled" })
+  const ipCount = useWatch({ control: form.control, name: "ip_count" })
 
   const imageType = planType === "vm" ? "virtual-machine" : planType === "container" ? "container" : undefined
   const fetchImageOptions = useCallback(async (page: number, keyword: string) => {
@@ -268,6 +271,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         ipv6_enabled: (plan as Record<string, unknown>).ipv6_enabled as boolean ?? false,
         port_count: (plan as Record<string, unknown>).port_count as number ?? 20,
         cpu_allowance: (plan as Record<string, unknown>).cpu_allowance as number ?? 0,
+        require_kyc: (plan as Record<string, unknown>).require_kyc as boolean ?? false,
         refund_enabled: (plan as Record<string, unknown>).refund_enabled as number ?? -1,
         refund_window_hours: (plan as Record<string, unknown>).refund_window_hours as number ?? -1,
         refund_traffic_limit: (plan as Record<string, unknown>).refund_traffic_limit as number ?? -1,
@@ -312,6 +316,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         ipv6_enabled: values.ipv6_enabled,
         port_count: values.port_count,
         cpu_allowance: values.cpu_allowance,
+        require_kyc: values.require_kyc,
         refund_enabled: values.refund_enabled,
         refund_window_hours: values.refund_window_hours,
         refund_traffic_limit: values.refund_traffic_limit,
@@ -463,7 +468,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                     </FormItem>
                   )}
                 />
-                {!natMode && (
+                {!natMode && !ipv6Enabled && (
                 <FormField
                   control={form.control}
                   name="ip_count"
@@ -482,7 +487,11 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                   checked={natMode}
                   onCheckedChange={(v) => {
                     form.setValue("nat_mode", v)
-                    form.setValue("ip_count", v ? 0 : 1)
+                    if (v) {
+                      form.setValue("ip_count", 0)
+                    } else if (!ipv6Enabled) {
+                      form.setValue("ip_count", 1)
+                    }
                   }}
                 />
                 <div>
@@ -494,29 +503,39 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                 </div>
               </div>
               {natMode && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="port_count"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>端口数量</FormLabel>
-                        <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex items-center gap-3 py-2">
-                    <Switch
-                      checked={ipv6Enabled}
-                      onCheckedChange={(v) => form.setValue("ipv6_enabled", v)}
-                    />
-                    <div>
-                      <Label>分配独立 IPv6</Label>
-                      <p className="text-xs text-muted-foreground">每个实例分配独立的公网 IPv6 地址，需要在同一网络下创建 IPv6 地址池</p>
-                    </div>
-                  </div>
-                </>
+                <FormField
+                  control={form.control}
+                  name="port_count"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>端口数量</FormLabel>
+                      <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <div className="flex items-center gap-3 py-2">
+                <Switch
+                  checked={ipv6Enabled}
+                  onCheckedChange={(v) => {
+                    form.setValue("ipv6_enabled", v)
+                    if (!natMode) {
+                      form.setValue("ip_count", v ? 0 : 1)
+                    }
+                  }}
+                />
+                <div>
+                  <Label>分配独立 IPv6</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {natMode
+                      ? "每个实例分配独立的公网 IPv6 地址，需要在同一网络下创建 IPv6 地址池"
+                      : "启用后为纯 IPv6 套餐，实例仅分配 IPv6 地址，需要在同一网络下创建 IPv6 地址池"}
+                  </p>
+                </div>
+              </div>
+              {!natMode && ipv6Enabled && ipCount === 0 && (
+                <p className="text-xs text-amber-500 -mt-1">当前为纯 IPv6 套餐，实例将不分配 IPv4 地址</p>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -845,6 +864,26 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                 )}
               />
             </div>
+          </section>
+
+          <Separator />
+
+          <section>
+            <FormField
+              control={form.control}
+              name="require_kyc"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between">
+                  <div>
+                    <FormLabel>需要实名认证</FormLabel>
+                    <FormDescription>开启后，用户必须完成实名认证才能购买此套餐</FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </section>
 
           <Separator />

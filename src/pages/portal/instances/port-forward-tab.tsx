@@ -11,7 +11,7 @@ import { PortForwardRuleFormDialog, PortForwardDeleteDialog } from "@/components
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId: number; instanceBusy: boolean; isNAT?: boolean }) {
+export function PortForwardTab({ instanceId, instanceBusy, isNAT, isIPv6Only }: { instanceId: number; instanceBusy: boolean; isNAT?: boolean; isIPv6Only?: boolean }) {
   const api = useMemo(() => ({
     scope: "portal" as const,
     list: getPortalInstancesByIdPortForwardRules,
@@ -49,7 +49,7 @@ export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">端口转发</h2>
-          <Button onClick={pf.openCreate} disabled={instanceBusy}>
+          <Button onClick={pf.openCreate} disabled={instanceBusy || isIPv6Only}>
             <Plus className="size-3.5" />
             添加规则
           </Button>
@@ -59,7 +59,9 @@ export function PortForwardTab({ instanceId, instanceBusy, isNAT }: { instanceId
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <ArrowUpDown className="size-10 text-muted-foreground/25 mb-3" />
             <p className="text-[13px] text-muted-foreground">暂无端口转发规则</p>
-            <p className="text-[12px] text-muted-foreground/70 mt-1">添加规则将宿主机端口映射到实例内部</p>
+            <p className="text-[12px] text-muted-foreground/70 mt-1">
+              {isIPv6Only ? "纯 IPv6 实例不支持端口转发" : "添加规则将宿主机端口映射到实例内部"}
+            </p>
           </div>
         ) : (
           <div className="rounded-2xl bg-background divide-y divide-border/50">

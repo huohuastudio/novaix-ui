@@ -30,18 +30,44 @@ export function AgentSection() {
       </div>
 
       {enabled && (
-        <div className="space-y-2">
-          <Label htmlFor="agent_default_commission_rate">默认返佣比例（%）</Label>
-          <Input
-            id="agent_default_commission_rate"
-            type="number"
-            min={1}
-            max={100}
-            value={data.agent_default_commission_rate ?? "10"}
-            onChange={(e) => update("agent_default_commission_rate", e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">新设置代理时的默认返佣比例</p>
-        </div>
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="agent_default_commission_rate">默认返佣比例（%）</Label>
+            <Input
+              id="agent_default_commission_rate"
+              type="number"
+              min={1}
+              max={100}
+              value={data.agent_default_commission_rate ?? "10"}
+              onChange={(e) => update("agent_default_commission_rate", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">新设置代理时的默认返佣比例</p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>用户自助申请</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">允许用户在前台自助申请成为代理</p>
+            </div>
+            <Switch
+              checked={data.agent_application_enabled === "true"}
+              onCheckedChange={(checked) => update("agent_application_enabled", checked ? "true" : "false")}
+            />
+          </div>
+
+          {data.agent_application_enabled === "true" && (
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>自动通过</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">开启后用户申请即自动成为代理，关闭则需管理员审核</p>
+              </div>
+              <Switch
+                checked={data.agent_application_auto_approve === "true"}
+                onCheckedChange={(checked) => update("agent_application_auto_approve", checked ? "true" : "false")}
+              />
+            </div>
+          )}
+        </>
       )}
 
       <div className="pt-2">

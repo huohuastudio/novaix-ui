@@ -68,7 +68,7 @@ export function InstancesTab({ userId }: { userId: number }) {
       accessorKey: "ip_address",
       header: "IP",
       cell: ({ row }) => (
-        <span className="font-mono text-xs">{row.original.ip_address || "-"}</span>
+        <span className="font-mono text-xs">{row.original.ip_address || row.original.ipv6_address || "-"}</span>
       ),
     },
     {

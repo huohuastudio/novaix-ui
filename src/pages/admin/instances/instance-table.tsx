@@ -266,7 +266,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
     {
       accessorKey: "ip_address",
       header: "IP 地址",
-      cell: ({ row }) => row.original.ip_address || <span className="text-muted-foreground">-</span>,
+      cell: ({ row }) => row.original.ip_address || row.original.ipv6_address || <span className="text-muted-foreground">-</span>,
     },
     {
       accessorKey: "os_type",

@@ -6,6 +6,7 @@ import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Terminal } from "lucide-react"
 import { toast } from "sonner"
+import { isIPv6OnlyInstance } from "@/lib/instance-constants"
 import { getErrorMessage } from "@/lib/utils"
 
 export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }) {
@@ -17,10 +18,12 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
   const instanceBusy = instance.active_task_id != null
   const nat = instance.nat_info
   const defaultUser = instance.default_user || "root"
-  const ip = nat ? `${nat.shared_ip_address}:${nat.ssh_port}` : instance.ip_address || ""
+  const primaryIP = instance.ip_address || instance.ipv6_address || ""
+  const isIPv6Only = isIPv6OnlyInstance(instance)
+  const ip = nat ? `${nat.shared_ip_address}:${nat.ssh_port}` : primaryIP
   const sshCommand = nat
     ? `ssh -p ${nat.ssh_port} ${defaultUser}@${nat.shared_ip_address}`
-    : (instance.ip_address ? `ssh ${defaultUser}@${instance.ip_address}` : "")
+    : (primaryIP ? `ssh ${defaultUser}@${primaryIP}` : "")
 
   const togglePassword = async () => {
     if (password !== null) {
@@ -120,7 +123,10 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
             <Terminal className="size-3" />
             {isRunning ? "打开终端" : "终端（需运行中）"}
           </Button>
-          {instance.ipv6_address && (
+          {isIPv6Only && (
+            <span className="text-[11px] text-amber-500 ml-auto">需 IPv6 网络环境访问</span>
+          )}
+          {instance.ipv6_address && !isIPv6Only && (
             <div className="flex items-center gap-1.5 ml-auto">
               <span className="text-[11px] text-muted-foreground">IPv6</span>
               <span className="text-[11px] font-mono text-muted-foreground">{instance.ipv6_address}</span>

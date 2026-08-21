@@ -74,3 +74,7 @@ export const typeFilterOptions = [
   { label: "虚拟机", value: "virtual-machine" },
   { label: "容器", value: "container" },
 ]
+
+export function isIPv6OnlyInstance(inst: { nat_info?: unknown; ip_address?: string; ipv6_address?: string }) {
+  return !inst.nat_info && !inst.ip_address && !!inst.ipv6_address
+}

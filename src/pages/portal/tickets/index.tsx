@@ -81,7 +81,7 @@ export default function PortalTickets() {
     const items = (res?.data?.items ?? []).map((i) => ({
       id: i.id!,
       label: i.name ?? `#${i.id}`,
-      description: i.ip_address || undefined,
+      description: i.ip_address || i.ipv6_address || undefined,
     }))
     const total = res?.data?.total ?? 0
     return { items, hasMore: page * 20 < total }

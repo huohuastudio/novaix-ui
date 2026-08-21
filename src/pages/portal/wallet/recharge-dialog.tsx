@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { PaymentPending } from "@/components/payment-pending"
 import { postPortalPayments } from "@/api"
 import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
-import { useFormatAmount } from "@/hooks/use-site-settings"
+import { useFormatAmount, useSiteSettings } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
 
@@ -31,6 +31,8 @@ export function RechargeDialog({
   onSuccess?: () => void
 }) {
   const formatAmount = useFormatAmount()
+  const { recharge_min_amount } = useSiteSettings()
+  const minAmount = Math.max(100, parseInt(recharge_min_amount) || 0)
   const [selectedProvider, setSelectedProvider] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("")
   const [amount, setAmount] = useState<number>(0)
@@ -69,6 +71,10 @@ export function RechargeDialog({
   const handleSubmit = async () => {
     if (effectiveAmount <= 0) {
       toast.error("请选择或输入充值金额")
+      return
+    }
+    if (effectiveAmount < minAmount) {
+      toast.error(`充值金额不能低于 ${formatAmount(minAmount)}`)
       return
     }
     if (!effectiveProvider) {
@@ -179,8 +185,8 @@ export function RechargeDialog({
                 <Input
                   type="number"
                   step="0.01"
-                  min="0.01"
-                  placeholder="自定义金额（元）"
+                  min={(minAmount / 100).toFixed(2)}
+                  placeholder={`自定义金额（元），最低 ${formatAmount(minAmount)}`}
                   value={customAmount}
                   onChange={(e) => {
                     setCustomAmount(e.target.value)

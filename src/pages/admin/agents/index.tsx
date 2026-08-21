@@ -42,8 +42,9 @@ import { getErrorMessage } from "@/lib/utils"
 import { UserPopover } from "@/components/user-popover"
 import { PaginatedCombobox } from "@/components/paginated-combobox"
 import AgentGroups from "./agent-groups"
+import AgentApplications from "./agent-applications"
 import { useQuery } from "@tanstack/react-query"
-import { getAdminAgentGroupsOptions } from "@/api/@tanstack/react-query.gen"
+import { getAdminAgentGroupsOptions, getAdminAgentApplicationsPendingCountOptions } from "@/api/@tanstack/react-query.gen"
 
 const NO_GROUP = "none"
 
@@ -406,6 +407,11 @@ export default function Agents() {
   useBreadcrumb([{ label: "代理管理" }])
   const [tab, setTab] = useState("agents")
 
+  const pendingQuery = useQuery(getAdminAgentApplicationsPendingCountOptions())
+  const pendingCount = pendingQuery.data?.code === 0
+    ? ((pendingQuery.data.data as { count?: number })?.count ?? 0)
+    : 0
+
   return (
     <div className="px-6 pt-6 space-y-6">
       <div className="shrink-0 flex items-start justify-between">
@@ -419,11 +425,21 @@ export default function Agents() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="agents">代理列表</TabsTrigger>
+            <TabsTrigger value="applications" className="relative">
+              代理申请
+              {pendingCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium min-w-[18px] h-[18px] px-1">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="groups">代理分组</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      {tab === "agents" ? <AgentList /> : <AgentGroups />}
+      {tab === "agents" && <AgentList />}
+      {tab === "applications" && <AgentApplications />}
+      {tab === "groups" && <AgentGroups />}
     </div>
   )
 }

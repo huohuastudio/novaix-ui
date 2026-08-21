@@ -18,7 +18,7 @@ import {
   getPortalInstancesQueryKey,
 } from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem } from "@/api"
-import { portalStatusConfig } from "@/lib/instance-constants"
+import { portalStatusConfig, isIPv6OnlyInstance } from "@/lib/instance-constants"
 import { usePortalInstanceActions } from "@/hooks/use-portal-instance-actions"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 import type { PortalPowerAction } from "@/hooks/use-portal-instance-actions"
@@ -205,7 +205,7 @@ export default function PortalInstanceDetail() {
                 </span>
               </div>
               <p className="text-[13px] text-muted-foreground mt-0.5">
-                <span className="font-mono">{instance.ip_address || "未分配 IP"}</span>
+                <span className="font-mono">{instance.ip_address || instance.ipv6_address || "未分配 IP"}</span>
                 {instance.os_type && <> · {instance.os_type}</>}
               </p>
             </div>
@@ -282,7 +282,7 @@ export default function PortalInstanceDetail() {
 
           {visitedTabs.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardTab instanceId={Number(id)} instanceBusy={busy} isNAT={!!instance.nat_info} />
+              <PortForwardTab instanceId={Number(id)} instanceBusy={busy} isNAT={!!instance.nat_info} isIPv6Only={isIPv6OnlyInstance(instance)} />
             </div>
           )}
 

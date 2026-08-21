@@ -122,7 +122,7 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
     {
       accessorKey: "ip_address",
       header: "IP 地址",
-      cell: ({ row }) => row.original.ip_address || <span className="text-muted-foreground">-</span>,
+      cell: ({ row }) => row.original.ip_address || row.original.ipv6_address || <span className="text-muted-foreground">-</span>,
     },
     {
       accessorKey: "os_type",

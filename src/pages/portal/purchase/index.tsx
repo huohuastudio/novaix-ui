@@ -374,6 +374,9 @@ export default function PortalPurchase() {
                 {!soldOut && plan.stock !== undefined && plan.stock > 0 && plan.stock <= 5 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">仅剩 {plan.stock} 台</p>
                 )}
+                {plan.require_kyc && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">需要实名认证</p>
+                )}
               </button>
             )
           })}

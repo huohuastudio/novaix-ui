@@ -70,7 +70,7 @@ function InstanceCard({
 
         {/* IP */}
         <p className="text-[13px] text-muted-foreground mt-1 font-mono">
-          {instance.ip_address || "未分配 IP"}
+          {instance.ip_address || instance.ipv6_address || "未分配 IP"}
         </p>
 
         {/* 配置 */}

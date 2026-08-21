@@ -50,7 +50,7 @@ export function InstancePopover({ instanceId, label }: InstancePopoverProps) {
             </div>
             <div className="grid grid-cols-[5rem_1fr] gap-y-1.5 text-muted-foreground">
               <span>IP</span>
-              <span className="text-foreground font-mono text-xs">{instance.ip_address || "-"}</span>
+              <span className="text-foreground font-mono text-xs">{instance.ip_address || instance.ipv6_address || "-"}</span>
               <span>配置</span>
               <span className="text-foreground text-xs">
                 {instance.cpu}C / {(instance.memory ?? 0) >= 1024 ? `${((instance.memory ?? 0) / 1024).toFixed(0)}G` : `${instance.memory}M`} / {instance.disk}G
