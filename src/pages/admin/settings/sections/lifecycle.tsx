@@ -22,6 +22,25 @@ export function LifecycleSection() {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="space-y-2">
+        <Label htmlFor="renew_price_policy">续费价格策略</Label>
+        <Select
+          value={data.renew_price_policy ?? "follow_plan"}
+          onValueChange={(v) => update("renew_price_policy", v)}
+        >
+          <SelectTrigger id="renew_price_policy">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="follow_plan">跟随套餐当前价格</SelectItem>
+            <SelectItem value="lock_purchase_price">锁定购买时价格</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          跟随套餐：续费按套餐最新价格计算；锁定购买价：续费按开通时的价格计算
+        </p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="suspend_grace_days">到期暂停宽限期（天）</Label>
         <Input
           id="suspend_grace_days"

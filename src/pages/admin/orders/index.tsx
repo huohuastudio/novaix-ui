@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Routes, Route, useNavigate } from "react-router-dom"
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
-import { RotateCcw, XCircle, CreditCard, Undo2, Plus, ShoppingCart, X, CheckCheck, Ban } from "lucide-react"
+import { RotateCcw, XCircle, CreditCard, Undo2, Plus, ShoppingCart, X, CheckCheck, Ban, Trash2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
@@ -18,6 +18,7 @@ import {
   postAdminOrdersByIdCancel,
   postAdminOrdersBatchRefund,
   postAdminOrdersBatchRefundReject,
+  deleteAdminOrdersById,
 } from "@/api"
 import type { OrderOrderItem, OrderTransactionItem, OrderBatchRefundResponse } from "@/api"
 import { getAdminOrdersQueryKey, getAdminTransactionsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -29,6 +30,7 @@ import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeMap, refundStatusM
 import { ExportButton } from "@/components/export-button"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { UserPopover } from "@/components/user-popover"
+import { InstancePopover } from "@/components/instance-popover"
 import { OrderPopover } from "@/components/order-popover"
 import CreateOrderSheet from "./create-order-sheet"
 import { RefundDialog } from "./refund-dialog"
@@ -57,7 +59,7 @@ function OrderList() {
         keyword: (filters.order_no as string) || undefined,
         user_id: filters.user_id ? Number(filters.user_id) : undefined,
         status: (filters.status as "pending" | "paid" | "cancelled" | "refunded") || undefined,
-        type: (filters.type as "new" | "renew" | "upgrade") || undefined,
+        type: (filters.type as "new" | "renew" | "upgrade" | "addon_ip" | "traffic_package") || undefined,
         billing_cycle: (filters.billing_cycle as "hourly" | "monthly" | "quarterly" | "yearly") || undefined,
         refund_status: (filters.refund_status as "pending" | "approved" | "rejected") || undefined,
         sort,
@@ -115,6 +117,24 @@ function OrderList() {
   const handleRefund = useCallback((order: OrderOrderItem) => {
     setRefundOrder(order)
   }, [])
+
+  const handleDelete = useCallback(async (order: OrderOrderItem) => {
+    const ok = await confirm({
+      title: "删除订单",
+      description: `确定要删除订单「${order.order_no}」吗？此操作不可撤销。`,
+      confirmText: "删除",
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await deleteAdminOrdersById({ path: { id: order.id! } })
+      toast.success("订单已删除")
+      setRowSelection({})
+      table.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "删除失败"))
+    }
+  }, [table, confirm])
 
   const selectedIds = useMemo(
     () => Object.keys(rowSelection).map(Number),
@@ -255,6 +275,17 @@ function OrderList() {
       ),
     },
     {
+      accessorKey: "instance_name",
+      header: "实例",
+      cell: ({ row }) => {
+        const qty = row.original.quantity ?? 1
+        if (!row.original.instance_id && qty > 1) {
+          return <span className="text-muted-foreground text-xs">批量 ×{qty}</span>
+        }
+        return <InstancePopover instanceId={row.original.instance_id} label={row.original.instance_name} />
+      },
+    },
+    {
       accessorKey: "type",
       header: "类型",
       meta: {
@@ -264,6 +295,8 @@ function OrderList() {
           { label: "新购", value: "new" },
           { label: "续费", value: "renew" },
           { label: "升级", value: "upgrade" },
+          { label: "附加 IP", value: "addon_ip" },
+          { label: "流量包", value: "traffic_package" },
         ],
       },
       cell: ({ row }) => orderTypeMap[row.original.type ?? ""] ?? row.original.type,
@@ -379,11 +412,21 @@ function OrderList() {
                 <TooltipContent>退款</TooltipContent>
               </Tooltip>
             )}
+            {(order.status === "pending" || order.status === "cancelled") && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => handleDelete(order)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>删除</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         )
       },
     },
-  ], [handlePay, handleCancel, handleRefund, formatAmount, formatDate, navigate, adminPath])
+  ], [handlePay, handleCancel, handleRefund, handleDelete, formatAmount, formatDate, navigate, adminPath])
 
   return (
     <>

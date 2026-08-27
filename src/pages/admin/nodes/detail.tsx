@@ -18,12 +18,13 @@ import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Spinner } from "@/components/ui/spinner"
 import { postAdminNodesByIdSync } from "@/api"
-import type { NodeNodeItem, NodeMetricPoint } from "@/api"
+import type { NodeNodeItem, NodeMetricPoint, NodeKsmResponse } from "@/api"
 import {
   getAdminNodesByIdOptions,
   getAdminNodesByIdQueryKey,
   getAdminNodesByIdInstanceStatsOptions,
   getAdminNodesByIdMetricsOptions,
+  getAdminNodesByIdKsmOptions,
   getAdminNodesQueryKey,
 } from "@/api/@tanstack/react-query.gen"
 import { formatBytes, getErrorMessage} from "@/lib/utils"
@@ -180,12 +181,23 @@ function useStoragePoolUsage(nodeId: number, nodeStatus: number | undefined): Po
   return enabled ? (data ?? []) : []
 }
 
+function useKSMStatus(nodeId: number, nodeStatus: number | undefined) {
+  const { data, isError } = useQuery({
+    ...getAdminNodesByIdKsmOptions({ path: { id: nodeId } }),
+    enabled: nodeStatus === NODE_STATUS.ONLINE,
+    select: (res) => res.data as NodeKsmResponse | undefined,
+    retry: false,
+  })
+  return { ksm: data ?? null, ksmError: isError }
+}
+
 function OverviewTab({ node }: { node: NodeNodeItem }) {
   const formatDate = useFormatDate()
   const status = getStatus(node)
   const instStats = useInstanceStats(node.id!)
   const { metric: latestMetric, isLoading: metricsLoading } = useLatestMetrics(node.id!, node.monitor_enabled ?? false)
   const poolUsage = useStoragePoolUsage(node.id!, node.status)
+  const { ksm, ksmError } = useKSMStatus(node.id!, node.status)
 
   const hasMetric = !!latestMetric
   const fallback = useResourceFallback(node.id!, node.status, hasMetric, metricsLoading)
@@ -256,6 +268,46 @@ function OverviewTab({ node }: { node: NodeNodeItem }) {
                 )
               })}
             </div>
+          </section>
+        </>
+      )}
+
+      {(ksm || ksmError) && (
+        <>
+          <Separator className="my-8" />
+          <section className="space-y-5">
+            <div>
+              <h3 className="text-lg font-semibold">KSM 内存合并</h3>
+              <p className="text-sm text-muted-foreground mt-1">内核同页合并（Kernel Same-page Merging）可合并虚拟机间的相同内存页以节省物理内存</p>
+            </div>
+            {ksmError ? (
+              <p className="text-sm text-muted-foreground">KSM 状态读取失败，请检查节点 SSH 连接</p>
+            ) : ksm?.supported ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4 text-sm max-w-3xl">
+                <div>
+                  <div className="text-muted-foreground">状态</div>
+                  <div className="mt-1">
+                    <Badge variant={ksm.enabled ? "default" : "secondary"}>
+                      {ksm.enabled ? "已启用" : "未启用"}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">共享页面</div>
+                  <div className="font-medium font-mono mt-0.5">{(ksm.pages_shared ?? 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">正在共享</div>
+                  <div className="font-medium font-mono mt-0.5">{(ksm.pages_sharing ?? 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">节省内存</div>
+                  <div className="font-medium font-mono mt-0.5">{formatBytes(ksm.pages_saved ?? 0)}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">当前节点内核不支持 KSM</p>
+            )}
           </section>
         </>
       )}

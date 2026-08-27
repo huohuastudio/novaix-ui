@@ -32,6 +32,7 @@ import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
 import { statusMap, statusFilterOptions, typeFilterOptions } from "@/lib/instance-constants"
 import { NodePopover } from "@/components/node-popover"
+import { UserPopover } from "@/components/user-popover"
 import { EmptyState } from "@/components/empty-state"
 import { MonitorCog, Play, Square, RotateCw, ChevronDown, X } from "lucide-react"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
@@ -215,6 +216,13 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       ),
     },
     {
+      accessorKey: "username",
+      header: "用户",
+      cell: ({ row }) => (
+        <UserPopover userId={row.original.user_id} username={row.original.username} />
+      ),
+    },
+    {
       accessorKey: "node_name",
       header: "宿主机",
       cell: ({ row }) => (
@@ -272,6 +280,11 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       accessorKey: "os_type",
       header: "系统",
       cell: ({ row }) => row.original.os_type || <span className="text-muted-foreground">-</span>,
+    },
+    {
+      accessorKey: "expire_at",
+      header: "到期时间",
+      cell: ({ row }) => row.original.expire_at ? formatDate(row.original.expire_at) : <span className="text-muted-foreground">-</span>,
     },
     {
       accessorKey: "created_at",

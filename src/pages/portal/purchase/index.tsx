@@ -365,6 +365,22 @@ export default function PortalPurchase() {
                     {(plan.traffic ?? 0) > 0 && ` / ${plan.traffic} GB`}
                   </div>
                 )}
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
+                  {plan.nat_mode ? (
+                    <>
+                      <span className="rounded bg-muted px-1.5 py-0.5">NAT</span>
+                      {(plan.port_count ?? 0) > 0 && <span className="rounded bg-muted px-1.5 py-0.5">{plan.port_count} 端口</span>}
+                      {plan.ipv6_enabled && <span className="rounded bg-muted px-1.5 py-0.5">IPv6</span>}
+                    </>
+                  ) : !plan.ip_count && plan.ipv6_enabled ? (
+                    <span className="rounded bg-muted px-1.5 py-0.5">纯 IPv6</span>
+                  ) : (
+                    <>
+                      <span className="rounded bg-muted px-1.5 py-0.5">独立IP{(plan.ip_count ?? 0) > 1 ? ` ×${plan.ip_count}` : ''}</span>
+                      {plan.ipv6_enabled && <span className="rounded bg-muted px-1.5 py-0.5">IPv6</span>}
+                    </>
+                  )}
+                </div>
                 <p className="text-lg font-semibold mt-3">
                   {formatAmount(getPlanPrice(plan, selectedCycle))}
                   <span className="text-xs font-normal text-muted-foreground ml-1">
