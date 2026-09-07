@@ -135,7 +135,7 @@ function TaskList({
   }, [confirming, onClear])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="px-3 h-9 border-b flex items-center justify-between shrink-0">
         <span className="text-xs font-medium">任务</span>
         <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ function TaskList({
           暂无任务
         </div>
       ) : (
-        <div className="overflow-y-auto min-h-0 flex-1">
+        <div className="overflow-y-auto min-h-0 flex-1 overscroll-contain">
           {tasks.map((t) => (
             <button
               key={t.id}
@@ -232,7 +232,7 @@ export function TaskTrigger() {
       <PopoverContent
         align="end"
         collisionPadding={8}
-        style={{ maxHeight: "min(480px, var(--radix-popper-available-height))" }}
+        style={{ maxHeight: "min(480px, var(--radix-popper-available-height, 80dvh))" }}
         className={cn(
           "p-0 overflow-hidden flex flex-col",
           showDetail && isDesktop ? "w-[560px]" : "w-72",

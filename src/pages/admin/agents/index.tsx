@@ -414,7 +414,7 @@ export default function Agents() {
 
   return (
     <div className="px-6 pt-6 space-y-6">
-      <div className="shrink-0 flex items-start justify-between">
+      <div className="shrink-0 flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">代理管理</h1>

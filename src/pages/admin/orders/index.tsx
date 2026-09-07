@@ -212,15 +212,15 @@ function OrderList() {
       <span className="text-sm text-muted-foreground whitespace-nowrap">
         已选 {selectedIds.length} 项
       </span>
-      <Button size="sm" variant="outline" disabled={batchLoading} onClick={handleBatchRefund}>
+      <Button variant="outline" disabled={batchLoading} onClick={handleBatchRefund}>
         <CheckCheck className="size-4" />
         批量退款
       </Button>
-      <Button size="sm" variant="outline" disabled={batchLoading} onClick={handleBatchReject}>
+      <Button variant="outline" disabled={batchLoading} onClick={handleBatchReject}>
         <Ban className="size-4" />
         批量拒绝
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
+      <Button variant="ghost" onClick={() => setRowSelection({})}>
         <X className="size-4" />
       </Button>
     </div>
@@ -616,7 +616,7 @@ function OrderListPage() {
 
   return (
     <div className="px-6 pt-6 space-y-6">
-      <div className="shrink-0 flex items-start justify-between">
+      <div className="shrink-0 flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">订单管理</h1>

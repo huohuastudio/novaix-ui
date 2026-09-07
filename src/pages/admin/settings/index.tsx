@@ -29,6 +29,7 @@ import {
   Receipt,
   Undo2,
   Wallet,
+  ArrowLeftRight,
 } from "lucide-react"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useAdminPath } from "@/hooks/use-site-settings"
@@ -62,6 +63,7 @@ import { TicketSection } from "./sections/ticket"
 import { InvoiceSection } from "./sections/invoice"
 import { RechargeSection } from "./sections/recharge"
 import { RefundSection } from "./sections/refund"
+import { PushTransferSection } from "./sections/push-transfer"
 
 interface SettingItem {
   id: string
@@ -113,6 +115,7 @@ const settingGroups: SettingGroup[] = [
       { id: "agent", label: "代理系统", description: "分销代理佣金与规则", icon: Users, component: AgentSection, docPath: "/novaix/agent" },
       { id: "invoice", label: "发票", description: "电子发票申请与管理", icon: Receipt, component: InvoiceSection },
       { id: "refund", label: "退款策略", description: "退款时间窗口、流量阈值、次数限制", icon: Undo2, component: RefundSection },
+      { id: "push_transfer", label: "实例转移", description: "转移码模式、手续费、实名要求、审批流程", icon: ArrowLeftRight, component: PushTransferSection },
     ],
   },
   {

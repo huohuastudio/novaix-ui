@@ -18,9 +18,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-// 广播通知对话框，用于向所有用户发送系统通知
-export function BroadcastDialog() {
-  const [open, setOpen] = useState(false)
+export function BroadcastDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  showTrigger = true,
+}: {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
+} = {}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = controlledOnOpenChange ?? setUncontrolledOpen
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -53,16 +62,18 @@ export function BroadcastDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Megaphone className="size-4" />
-            </Button>
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent>广播通知</TooltipContent>
-      </Tooltip>
+      {showTrigger && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Megaphone className="size-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>广播通知</TooltipContent>
+        </Tooltip>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>广播通知</DialogTitle>

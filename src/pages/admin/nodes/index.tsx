@@ -451,7 +451,7 @@ export default function Nodes() {
 
   return (
     <div className="px-6 pt-6 space-y-6">
-      <div className="shrink-0 flex items-start justify-between">
+      <div className="shrink-0 flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div data-tour="node-description">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">节点管理</h1>

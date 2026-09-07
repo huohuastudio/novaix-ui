@@ -13,6 +13,14 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   return fallback
 }
 
+export function getErrorCode(err: unknown): number | undefined {
+  if (err && typeof err === "object" && "response" in err) {
+    const resp = (err as { response?: { data?: { code?: number } } }).response
+    return resp?.data?.code
+  }
+  return undefined
+}
+
 export function isHtmlEmpty(html: string): boolean {
   const text = html.replace(/<[^>]*>/g, '').trim()
   return text.length === 0

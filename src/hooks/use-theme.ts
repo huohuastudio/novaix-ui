@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react"
 
-type Theme = "light" | "dark" | "system"
+export type Theme = "light" | "dark" | "system"
+
+const themeCycle: Theme[] = ["light", "dark", "system"]
+export const themeIcons = { light: "Sun", dark: "Moon", system: "Monitor" } as const
+export const themeLabels = { light: "浅色", dark: "深色", system: "跟随系统" } as const
 
 function getSystemTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
@@ -30,5 +34,9 @@ export function useTheme() {
     setThemeState(t)
   }
 
-  return { theme, setTheme }
+  function toggleTheme() {
+    setTheme(themeCycle[(themeCycle.indexOf(theme) + 1) % themeCycle.length])
+  }
+
+  return { theme, setTheme, toggleTheme }
 }

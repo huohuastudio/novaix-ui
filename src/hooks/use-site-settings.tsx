@@ -42,6 +42,7 @@ interface SiteSettings {
   invoice_enabled: string
   agent_enabled: string
   agent_application_enabled: string
+  push_transfer_enabled: string
   edition: string
   features: string
 }
@@ -86,6 +87,7 @@ const defaultSettings: SiteSettings = {
   invoice_enabled: "false",
   agent_enabled: "false",
   agent_application_enabled: "false",
+  push_transfer_enabled: "false",
   edition: "free",
   features: "[]",
 }

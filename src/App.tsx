@@ -49,6 +49,7 @@ const VPCs = lazy(() => import('@/pages/admin/vpcs'))
 const VPCDetail = lazy(() => import('@/pages/admin/vpcs/detail'))
 const About = lazy(() => import('@/pages/admin/about'))
 const CMS = lazy(() => import('@/pages/admin/cms'))
+const AdminPushTransfers = lazy(() => import('@/pages/admin/push-transfers'))
 const PortalLogin = lazy(() => import('@/pages/portal/login'))
 const PortalDashboard = lazy(() => import('@/pages/portal/dashboard'))
 const PortalInstances = lazy(() => import('@/pages/portal/instances'))
@@ -68,6 +69,7 @@ const PortalNotifications = lazy(() => import('@/pages/portal/notifications'))
 const PortalAgent = lazy(() => import('@/pages/portal/agent'))
 const PortalVPCs = lazy(() => import('@/pages/portal/vpcs'))
 const PortalInvoices = lazy(() => import('@/pages/portal/invoices'))
+const PortalTransfers = lazy(() => import('@/pages/portal/transfers'))
 const PortalImpersonate = lazy(() => import('@/pages/portal/impersonate'))
 import Home from './pages/Home'
 const Legal = lazy(() => import('./pages/Legal'))
@@ -157,6 +159,7 @@ function AppRoutes() {
         <Route path="payments" element={<Payments />} />
         <Route path="coupons/*" element={<Coupons />} />
         <Route path="invoices" element={<Invoices />} />
+        <Route path="push-transfers" element={<AdminPushTransfers />} />
         <Route path="tickets/*" element={<Tickets />} />
         <Route path="cms/*" element={<CMS />} />
         <Route path="vpcs" element={<VPCs />} />
@@ -197,6 +200,7 @@ function AppRoutes() {
         <Route path="tickets/:id" element={<PortalTicketDetail />} />
         <Route path="wallet" element={<PortalWallet />} />
         <Route path="invoices" element={<PortalInvoices />} />
+        <Route path="transfers" element={<PortalTransfers />} />
         <Route path="profile" element={<PortalProfile />} />
         <Route path="notifications" element={<PortalNotifications />} />
         <Route path="purchase" element={<PortalPurchase />} />

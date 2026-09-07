@@ -38,7 +38,7 @@ const mobileActive = `${mobileBase} bg-accent text-foreground`
 const mobileInactive = `${mobileBase} text-muted-foreground hover:bg-accent hover:text-foreground`
 
 function useNavItems() {
-  const { edition, invoice_enabled, agent_enabled, agent_application_enabled } = useSiteSettings()
+  const { edition, invoice_enabled, agent_enabled, agent_application_enabled, push_transfer_enabled } = useSiteSettings()
   const isPaid = edition === 'paid'
   const agentFeatureOn = isPaid && agent_enabled === 'true'
 
@@ -59,6 +59,7 @@ function useNavItems() {
     ...(isPaid ? [{ to: '/portal/vpcs', label: '私有网络' }] : []),
     { to: '/portal/orders', label: '费用订单' },
     ...(invoice_enabled === 'true' ? [{ to: '/portal/invoices', label: '发票' }] : []),
+    ...(push_transfer_enabled === 'true' ? [{ to: '/portal/transfers', label: '实例转移' }] : []),
     { to: '/portal/tickets', label: '工单' },
   ]
 

@@ -146,13 +146,13 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         已选 {selectedIds.length} 项
       </span>
       {primaryActions.map(({ action, icon: Icon, label }) => (
-        <Button key={action} size="sm" variant="outline" disabled={batchLoading} className="hidden sm:inline-flex" onClick={() => handleBatch(action)}>
+        <Button key={action} variant="outline" disabled={batchLoading} className="hidden sm:inline-flex" onClick={() => handleBatch(action)}>
           <Icon className="size-4" />{label}
         </Button>
       ))}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" disabled={batchLoading}>
+          <Button variant="outline" disabled={batchLoading}>
             <span className="sm:hidden">操作</span>
             <span className="hidden sm:inline">更多</span>
             <ChevronDown className="size-4" />
@@ -170,7 +170,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
           <DropdownMenuItem className="text-destructive" onClick={() => setBatchDeleteOpen(true)}>删除</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
+      <Button variant="ghost" onClick={() => setRowSelection({})}>
         <X className="size-4" />
       </Button>
     </div>

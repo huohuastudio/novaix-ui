@@ -26,6 +26,7 @@ import {
   PenSquare,
   Receipt,
   MapPin,
+  ArrowLeftRight,
 } from "lucide-react"
 import type { NavGroup } from "@/components/nav-main"
 
@@ -76,6 +77,7 @@ export function buildNavGroups(basePath: string): NavGroup[] {
         { title: "订单管理", url: `${basePath}/orders`, icon: ShoppingCart },
         { title: "支付记录", url: `${basePath}/payments`, icon: CreditCard },
         { title: "发票管理", url: `${basePath}/invoices`, icon: Receipt },
+        { title: "转移管理", url: `${basePath}/push-transfers`, icon: ArrowLeftRight },
       ],
     },
     {

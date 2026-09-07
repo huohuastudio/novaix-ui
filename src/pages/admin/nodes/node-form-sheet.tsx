@@ -525,7 +525,7 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
           <SheetTitle>添加节点</SheetTitle>
           <SheetDescription>添加一台宿主机，保存后点击初始化按钮进行环境配置</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           <Alert className="mb-4">
             <Info className="size-4" />
             <AlertDescription>
@@ -662,7 +662,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
           <SheetTitle>编辑节点</SheetTitle>
           <SheetDescription>修改节点连接信息和资源配置</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           <Form {...form}>
             <form id="edit-node-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
