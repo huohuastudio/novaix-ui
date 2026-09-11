@@ -417,7 +417,7 @@ function InstalledPlugins({
                       <span className="text-xs text-muted-foreground">v{p.version}</span>
                     )}
                     {p.type && (
-                      <Badge variant="secondary" className="text-[11px] px-1.5 py-0">
+                      <Badge variant="secondary" className="text-2xs px-1.5 py-0">
                         {typeLabels[p.type] ?? p.type}
                       </Badge>
                     )}
@@ -642,12 +642,12 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
                     <span className="font-medium text-sm">{item.name}</span>
                     <span className="text-xs text-muted-foreground">v{item.version}</span>
                     {item.type && (
-                      <Badge variant="secondary" className="text-[11px] px-1.5 py-0">
+                      <Badge variant="secondary" className="text-2xs px-1.5 py-0">
                         {typeLabels[item.type] ?? item.type}
                       </Badge>
                     )}
                     {item.installed && (
-                      <Badge variant="outline" className="text-[11px] px-1.5 py-0">
+                      <Badge variant="outline" className="text-2xs px-1.5 py-0">
                         已安装{item.installed_version ? ` v${item.installed_version}` : ""}
                       </Badge>
                     )}

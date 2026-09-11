@@ -374,7 +374,7 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
   return (
     <>
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">管理操作</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">管理操作</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {instance.billing_cycle !== "hourly" && (
             <button
@@ -451,7 +451,7 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
             ) : packages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Gauge className="size-9 text-muted-foreground/25 mb-3" />
-                <p className="text-[13px] text-muted-foreground">暂无可购买的流量包</p>
+                <p className="text-xs text-muted-foreground">暂无可购买的流量包</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -469,7 +469,7 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{pkg.name}</span>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          <Badge variant="secondary" className="text-2xs px-1.5 py-0">
                             {trafficPackageTypeMap[pkg.type ?? ""] ?? pkg.type}
                           </Badge>
                         </div>

@@ -161,7 +161,7 @@ export default function PortalInstanceUpgrade() {
         </Button>
         <div>
           <h1 className="text-xl font-semibold tracking-tight">升级/降级</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {instance.name} · 当前 {instance.cpu} 核 / {formatMemory(instance.memory ?? 0)} / {formatDisk(instance.disk ?? 0)}
           </p>
         </div>
@@ -169,26 +169,26 @@ export default function PortalInstanceUpgrade() {
 
       {/* 当前配置 */}
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-3">当前配置</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">当前配置</h2>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="rounded-2xl bg-background p-4">
-            <div className="text-[12px] text-muted-foreground">CPU</div>
-            <div className="text-lg font-semibold mt-1">{instance.cpu} <span className="text-[13px] font-normal text-muted-foreground">vCPU</span></div>
+            <div className="text-xs text-muted-foreground">CPU</div>
+            <div className="text-lg font-semibold mt-1">{instance.cpu} <span className="text-xs font-normal text-muted-foreground">vCPU</span></div>
           </div>
           <div className="rounded-2xl bg-background p-4">
-            <div className="text-[12px] text-muted-foreground">内存</div>
+            <div className="text-xs text-muted-foreground">内存</div>
             <div className="text-lg font-semibold mt-1">{formatMemory(instance.memory ?? 0)}</div>
           </div>
           <div className="rounded-2xl bg-background p-4">
-            <div className="text-[12px] text-muted-foreground">磁盘</div>
+            <div className="text-xs text-muted-foreground">磁盘</div>
             <div className="text-lg font-semibold mt-1">{formatDisk(instance.disk ?? 0)}</div>
           </div>
           <div className="rounded-2xl bg-background p-4">
-            <div className="text-[12px] text-muted-foreground">带宽</div>
-            <div className="text-lg font-semibold mt-1">{instance.bandwidth ?? 0} <span className="text-[13px] font-normal text-muted-foreground">Mbps</span></div>
+            <div className="text-xs text-muted-foreground">带宽</div>
+            <div className="text-lg font-semibold mt-1">{instance.bandwidth ?? 0} <span className="text-xs font-normal text-muted-foreground">Mbps</span></div>
           </div>
           <div className="rounded-2xl bg-background p-4">
-            <div className="text-[12px] text-muted-foreground">计费周期</div>
+            <div className="text-xs text-muted-foreground">计费周期</div>
             <div className="text-lg font-semibold mt-1">{cycleLabel}</div>
           </div>
         </div>
@@ -196,7 +196,7 @@ export default function PortalInstanceUpgrade() {
 
       {/* 可选套餐 */}
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-3">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
           选择目标套餐
           {selected && (
             <span className="ml-2 text-foreground normal-case">
@@ -208,8 +208,8 @@ export default function PortalInstanceUpgrade() {
 
         {options.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-[13px] text-muted-foreground">暂无可用的升级/降级选项</p>
-            <p className="text-[12px] text-muted-foreground/70 mt-1">当前套餐磁盘最大，无法切换到更小磁盘的套餐</p>
+            <p className="text-xs text-muted-foreground">暂无可用的升级/降级选项</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">当前套餐磁盘最大，无法切换到更小磁盘的套餐</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -231,7 +231,7 @@ export default function PortalInstanceUpgrade() {
                       {isSelected && <Check className="size-4 text-foreground shrink-0" />}
                       <div>
                         <span className="text-sm font-medium">{opt.plan_name}</span>
-                        <span className="ml-2 text-[12px] text-muted-foreground">
+                        <span className="ml-2 text-xs text-muted-foreground">
                           {opt.cpu} 核 / {formatMemory(opt.memory ?? 0)} / {formatDisk(opt.disk ?? 0)} / {opt.bandwidth ?? 0} Mbps
                         </span>
                       </div>
@@ -242,7 +242,7 @@ export default function PortalInstanceUpgrade() {
                       ) : (
                         <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">退 {formatAmount(opt.refund_amount)}</span>
                       )}
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                      <div className="text-2xs text-muted-foreground mt-0.5">
                         {cycleLabel} {formatAmount(
                           cycle === "monthly" ? opt.price_monthly
                             : cycle === "quarterly" ? opt.price_quarterly
@@ -261,7 +261,7 @@ export default function PortalInstanceUpgrade() {
       {/* 优惠码（仅升级时显示，降级退款不适用） */}
       {selected && (selected.price_diff ?? 0) > 0 && (
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-3">优惠码（可选）</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">优惠码（可选）</h2>
           <div className="rounded-2xl bg-background p-5">
             <div className="flex gap-2 max-w-md">
               <Input

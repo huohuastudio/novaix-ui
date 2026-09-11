@@ -163,7 +163,7 @@ export function RegionMap({ regions }: RegionMapProps) {
               y={coords[1]}
               textAnchor="middle"
               className={`select-none pointer-events-none ${label.sea ? "fill-muted-foreground/30" : "fill-muted-foreground/70"}`}
-              style={{ fontSize: label.sea ? 12 : 10, fontStyle: label.sea ? "italic" : "normal" }}
+              style={{ fontSize: label.sea ? 22 : 18, fontStyle: label.sea ? "italic" : "normal" }}
             >
               {label.name}
             </text>

@@ -13,6 +13,7 @@ import type {
   PortalPushTransferResponse,
   PortalPushTransferInstanceInfo,
 } from '@/api'
+import { getPortalPushTransfersInviteByTokenQueryKey } from '@/api/@tanstack/react-query.gen'
 
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ export default function TransferInvite() {
   const [accepting, setAccepting] = useState(false)
 
   const query = useQuery({
-    queryKey: ['pushTransferInvite', token],
+    queryKey: getPortalPushTransfersInviteByTokenQueryKey({ path: { token: token! } }),
     queryFn: async () => {
       const res = await getPortalPushTransfersInviteByToken({ path: { token: token! } })
       const body = res.data as { code?: number; data?: { transfer?: PortalPushTransferResponse; instance?: PortalPushTransferInstanceInfo } }

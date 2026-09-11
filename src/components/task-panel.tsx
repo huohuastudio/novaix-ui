@@ -39,10 +39,11 @@ function statusVariant(status: string) {
 }
 
 function TaskLogView({ task, className }: { task: TaskEntry; className?: string }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    const el = containerRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [task.logs])
 
   const lineColor = (text: string) => {
@@ -53,7 +54,7 @@ function TaskLogView({ task, className }: { task: TaskEntry; className?: string 
   }
 
   return (
-    <div className={cn("bg-zinc-950 rounded border border-zinc-800 overflow-y-auto p-2 font-mono text-[11px] leading-snug", className)}>
+    <div ref={containerRef} className={cn("bg-zinc-950 rounded border border-zinc-800 overflow-y-auto p-2 font-mono text-2xs leading-snug", className)}>
       {task.logs.length === 0 && task.wsStatus !== "closed" && (
         <div className="text-zinc-600">等待日志...</div>
       )}
@@ -68,7 +69,6 @@ function TaskLogView({ task, className }: { task: TaskEntry; className?: string 
       {task.wsStatus === "closed" && (
         <div className="text-zinc-600 mt-1">--- 结束 ---</div>
       )}
-      <div ref={bottomRef} />
     </div>
   )
 }
@@ -91,7 +91,7 @@ function TaskDetailHeader({ task, onBack }: { task: TaskEntry; onBack?: () => vo
       </span>
       <Badge
         variant={statusVariant(task.status)}
-        className="text-[10px] shrink-0"
+        className="text-2xs shrink-0"
       >
         {taskStatusLabel(task.status)}
       </Badge>
@@ -139,7 +139,7 @@ function TaskList({
       <div className="px-3 h-9 border-b flex items-center justify-between shrink-0">
         <span className="text-xs font-medium">任务</span>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {tasks.length === 0
               ? "暂无"
               : activeCount > 0
@@ -150,7 +150,7 @@ function TaskList({
             <button
               type="button"
               className={cn(
-                "text-[11px] transition-colors cursor-pointer",
+                "text-2xs transition-colors cursor-pointer",
                 confirming ? "text-destructive font-medium" : "text-muted-foreground hover:text-foreground",
               )}
               onClick={handleClear}
@@ -186,7 +186,7 @@ function TaskList({
               </span>
               <Badge
                 variant={statusVariant(t.status)}
-                className="text-[10px] shrink-0"
+                className="text-2xs shrink-0"
               >
                 {taskStatusLabel(t.status)}
               </Badge>
@@ -220,7 +220,7 @@ export function TaskTrigger() {
             <Button variant="ghost" size="icon-sm" className="relative">
               <ListTodoIcon className="size-4" />
               {activeCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-2xs font-medium text-primary-foreground">
                   {activeCount}
                 </span>
               )}
@@ -243,12 +243,12 @@ export function TaskTrigger() {
             {showDetail && (
               <div className="w-[280px] border-r flex flex-col shrink-0 min-h-0">
                 <TaskDetailHeader task={selectedTask} />
-                <div className="flex-1 min-h-0">
-                  <TaskLogView task={selectedTask} className="h-full rounded-none border-0" />
+                <div className="flex flex-col flex-1 min-h-0">
+                  <TaskLogView task={selectedTask} className="flex-1 min-h-0 rounded-none border-0" />
                 </div>
               </div>
             )}
-            <div className={cn("flex-1 min-w-0 min-h-0", showDetail ? "w-[280px]" : "w-72")}>
+            <div className={cn("flex flex-col flex-1 min-w-0 min-h-0", showDetail ? "w-[280px]" : "w-72")}>
               <TaskList
                 tasks={tasks}
                 selectedTaskId={selectedTaskId}
@@ -267,8 +267,8 @@ export function TaskTrigger() {
                   task={selectedTask}
                   onBack={() => setSelectedTaskId(null)}
                 />
-                <div className="flex-1 min-h-0">
-                  <TaskLogView task={selectedTask} className="h-full rounded-none border-0" />
+                <div className="flex flex-col flex-1 min-h-0">
+                  <TaskLogView task={selectedTask} className="flex-1 min-h-0 rounded-none border-0" />
                 </div>
               </>
             ) : (

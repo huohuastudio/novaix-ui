@@ -264,12 +264,12 @@ export function ImageSelector({ value, onChange, onServerChange, onProtocolChang
                         </div>
                         <div className="flex gap-1 mt-1">
                           {img.arch.map((a) => (
-                            <Badge key={a} variant="outline" className="text-[10px] px-1 py-0">
+                            <Badge key={a} variant="outline" className="text-2xs px-1 py-0">
                               {a}
                             </Badge>
                           ))}
                           {img.variant && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                            <Badge variant="secondary" className="text-2xs px-1 py-0">
                               {img.variant}
                             </Badge>
                           )}

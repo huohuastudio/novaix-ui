@@ -8,6 +8,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    /* 中文最小可读字号从 12px 提升到 13px */
+    --text-xs: 0.8125rem;
+    --text-xs--line-height: 1.125rem;
+    /* 图表刻度、徽章、角标等微型元素 */
+    --text-2xs: 0.75rem;
+    --text-2xs--line-height: 1rem;
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -350,7 +356,7 @@
   font-family: inherit;
 }
 .driver-popover.novaix-tour-popover .driver-popover-progress-text {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
 }
 .driver-popover.novaix-tour-popover .driver-popover-prev-btn {

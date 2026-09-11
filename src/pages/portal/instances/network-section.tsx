@@ -195,7 +195,7 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
   if (loading) {
     return (
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">网络</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">网络</h2>
         <div className="rounded-2xl bg-background divide-y divide-border/50">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between px-5 py-3.5">
@@ -218,7 +218,7 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
     <>
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             {instance.nat_info ? '独享 IP' : '网络'}
           </h2>
           <Button variant="outline" onClick={handlePurchaseIp} disabled={purchasing}>
@@ -229,7 +229,7 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
         {ips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Network className="size-10 text-muted-foreground/25 mb-3" />
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {instance.nat_info ? '暂无独享 IP，购买后可获得独立出口和全端口访问' : '暂无 IP 地址'}
             </p>
           </div>
@@ -243,16 +243,16 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
                     <Globe className="size-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-medium font-mono truncate">{ip.address}</span>
+                        <span className="text-xs font-medium font-mono truncate">{ip.address}</span>
                         {ip.is_primary && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">主 IP</Badge>
+                          <Badge variant="secondary" className="text-2xs px-1.5 py-0">主 IP</Badge>
                         )}
                         {instance.nat_info && !ip.is_primary && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">独享</Badge>
+                          <Badge variant="outline" className="text-2xs px-1.5 py-0">独享</Badge>
                         )}
                       </div>
                       {rdns?.hostname && (
-                        <div className="text-[12px] text-muted-foreground mt-0.5 truncate">{rdns.hostname}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{rdns.hostname}</div>
                       )}
                     </div>
                   </div>

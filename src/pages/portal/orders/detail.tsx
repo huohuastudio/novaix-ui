@@ -67,8 +67,8 @@ const fulfillmentMap: Record<string, string> = {
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between px-5 py-3.5">
-      <span className="text-[13px] text-muted-foreground">{label}</span>
-      <span className={`text-[13px] font-medium ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`text-xs font-medium ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }
@@ -214,7 +214,7 @@ export default function PortalOrderDetail() {
                   {orderStatusMap[status]?.label ?? status}
                 </span>
               </div>
-              <p className="text-[13px] text-muted-foreground mt-0.5 font-mono">
+              <p className="text-xs text-muted-foreground mt-0.5 font-mono">
                 {order.order_no}
               </p>
             </div>
@@ -261,17 +261,17 @@ export default function PortalOrderDetail() {
               <span className={`text-sm font-medium ${refundCfg.color}`}>{refundCfg.label}</span>
             </div>
             {order.refund_reason && (
-              <p className="text-[13px] text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 退款原因：{order.refund_reason}
               </p>
             )}
             {refundStatus === 'rejected' && order.refund_rejected_reason && (
-              <p className="text-[13px] text-red-600 dark:text-red-400 mt-1">
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                 拒绝原因：{order.refund_rejected_reason}
               </p>
             )}
             {order.refund_requested_at && (
-              <p className="text-[12px] text-muted-foreground/70 mt-1">
+              <p className="text-xs text-muted-foreground/70 mt-1">
                 申请时间：{order.refund_requested_at}
               </p>
             )}
@@ -282,10 +282,10 @@ export default function PortalOrderDetail() {
         <div className="rounded-2xl bg-background p-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <p className="text-[13px] text-muted-foreground">订单金额</p>
+              <p className="text-xs text-muted-foreground">订单金额</p>
               <p className="text-3xl font-semibold tracking-tight mt-1">{formatAmount(order.amount ?? 0)}</p>
             </div>
-            <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span>{orderTypeMap[order.type ?? ''] ?? order.type}</span>
               {order.billing_cycle && (
                 <span>{billingCycleMap[order.billing_cycle] ?? order.billing_cycle}</span>
@@ -296,7 +296,7 @@ export default function PortalOrderDetail() {
 
         {/* 订单信息 */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">订单信息</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">订单信息</h2>
           <div className="rounded-2xl bg-background divide-y divide-border/50">
             <InfoRow label="订单编号" value={order.order_no ?? ''} mono />
             <InfoRow label="订单类型" value={orderTypeMap[order.type ?? ''] ?? order.type ?? '—'} />
@@ -320,15 +320,15 @@ export default function PortalOrderDetail() {
             )}
             {order.instances && order.instances.length > 0 ? (
               <div className="px-5 py-3.5 space-y-2">
-                <span className="text-[13px] text-muted-foreground">关联云服务器（{order.quantity} 台）</span>
+                <span className="text-xs text-muted-foreground">关联云服务器（{order.quantity} 台）</span>
                 {order.instances.map((slot) => (
                   <div key={slot.instance_index} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">#{slot.instance_index}</span>
                       {slot.instance_id ? (
-                        <span className="text-[13px]">{slot.instance_name}</span>
+                        <span className="text-xs">{slot.instance_name}</span>
                       ) : (
-                        <span className="text-[13px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {slot.status === "failed" ? "创建失败" : "开通中..."}
                         </span>
                       )}
@@ -336,7 +336,7 @@ export default function PortalOrderDetail() {
                     {slot.instance_id && (
                       <Link
                         to={`/portal/servers/${slot.instance_id}`}
-                        className="text-[13px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+                        className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
                       >
                         <Server className="size-3" />
                         查看
@@ -347,10 +347,10 @@ export default function PortalOrderDetail() {
               </div>
             ) : !!order.instance_id && (
               <div className="flex items-center justify-between px-5 py-3.5">
-                <span className="text-[13px] text-muted-foreground">关联云服务器</span>
+                <span className="text-xs text-muted-foreground">关联云服务器</span>
                 <Link
                   to={`/portal/servers/${order.instance_id}`}
-                  className="text-[13px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
                 >
                   <Server className="size-3" />
                   查看详情
@@ -363,7 +363,7 @@ export default function PortalOrderDetail() {
         {/* 套餐配置 */}
         {snap && (
           <section>
-            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">套餐配置</h2>
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">套餐配置</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="rounded-2xl bg-background p-5">
                 <Cpu className="size-4 text-muted-foreground mb-2" />
@@ -392,7 +392,7 @@ export default function PortalOrderDetail() {
             </div>
             {(snap.traffic ?? 0) > 0 && (
               <div className="rounded-2xl bg-background p-5 mt-3">
-                <div className="flex items-center justify-between text-[13px]">
+                <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">每月流量</span>
                   <span className="font-medium">{snap.traffic} GB</span>
                 </div>

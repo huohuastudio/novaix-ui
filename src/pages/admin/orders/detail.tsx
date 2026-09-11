@@ -277,12 +277,12 @@ export default function OrderDetail() {
                     )}
                     <Badge
                       variant={slot.status === "completed" ? "default" : slot.status === "failed" ? "destructive" : "secondary"}
-                      className="text-[10px] px-1 py-0"
+                      className="text-2xs px-1 py-0"
                     >
                       {slot.status === "completed" ? "已完成" : slot.status === "failed" ? "失败" : "开通中"}
                     </Badge>
                     {slot.instance_id && slot.instance_status && instanceStatusMap[slot.instance_status] && (
-                      <Badge variant={instanceStatusMap[slot.instance_status].variant} className="text-[10px] px-1 py-0">
+                      <Badge variant={instanceStatusMap[slot.instance_status].variant} className="text-2xs px-1 py-0">
                         {instanceStatusMap[slot.instance_status].label}
                       </Badge>
                     )}
@@ -293,7 +293,7 @@ export default function OrderDetail() {
               <Link to={`${adminPath}/instances/${order.instance.id}`} className="text-primary hover:underline">
                 {order.instance.name}
                 {instanceStatusMap[order.instance.status ?? ""] && (
-                  <Badge variant={instanceStatusMap[order.instance.status!].variant} className="ml-1.5 text-[10px] px-1 py-0">
+                  <Badge variant={instanceStatusMap[order.instance.status!].variant} className="ml-1.5 text-2xs px-1 py-0">
                     {instanceStatusMap[order.instance.status!].label}
                   </Badge>
                 )}

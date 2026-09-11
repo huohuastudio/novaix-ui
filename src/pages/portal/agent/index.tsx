@@ -274,7 +274,7 @@ function AgentDashboard() {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">下级用户</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">下级用户</h2>
         {usersLoading ? (
           <div className="rounded-2xl bg-background divide-y divide-border/50">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -318,7 +318,7 @@ function AgentDashboard() {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">返佣记录</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">返佣记录</h2>
         {commissionsLoading ? (
           <div className="rounded-2xl bg-background divide-y divide-border/50">
             {Array.from({ length: 3 }).map((_, i) => (

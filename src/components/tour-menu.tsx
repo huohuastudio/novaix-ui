@@ -33,7 +33,7 @@ function TourMenu({ context, buttonClassName }: { context: "admin" | "portal"; b
         </TooltipTrigger>
         <TooltipContent>新手教程</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-64 max-h-[min(400px,var(--radix-dropdown-menu-content-available-height,80dvh))]">
         <DropdownMenuLabel className="flex items-center gap-2">
           <GraduationCap className="size-4" />
           新手教程

@@ -615,7 +615,7 @@ export default function PortalProfile() {
                 {emails.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
                     <Mail className="size-8 text-muted-foreground/25 mb-2" />
-                    <p className="text-[13px] text-muted-foreground">尚未绑定邮箱</p>
+                    <p className="text-xs text-muted-foreground">尚未绑定邮箱</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -796,7 +796,7 @@ export default function PortalProfile() {
                 ) : sshKeys.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
                     <Key className="size-8 text-muted-foreground/25 mb-2" />
-                    <p className="text-[13px] text-muted-foreground">尚未添加 SSH 密钥</p>
+                    <p className="text-xs text-muted-foreground">尚未添加 SSH 密钥</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -857,7 +857,7 @@ export default function PortalProfile() {
                 ) : apiKeys.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed">
                     <KeyRound className="size-8 text-muted-foreground/25 mb-2" />
-                    <p className="text-[13px] text-muted-foreground">尚未创建 API 密钥</p>
+                    <p className="text-xs text-muted-foreground">尚未创建 API 密钥</p>
                   </div>
                 ) : (
                   <div className="space-y-2">

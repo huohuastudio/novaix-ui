@@ -134,7 +134,7 @@ export default function PortalTicketDetail() {
             <h1 className="text-xl font-semibold tracking-tight">{detail.subject}</h1>
             <TicketStatus status={status} />
           </div>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             #{detail.id}
             {detail.department && <> · {detail.department}</>}
             {detail.instance_name && <> · 关联实例：{detail.instance_name}</>}

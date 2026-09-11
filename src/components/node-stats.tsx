@@ -315,7 +315,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                   <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={TICK_STYLE} tickFormatter={(v) => `${v}%`} {...AXIS_PROPS} />
                   <Tooltip {...tooltipStyle} formatter={(v) => [formatPercent(v as number | undefined), "CPU"]} />
                   <Area type="monotone" dataKey="cpu_usage" stroke="var(--color-chart-1)" fill="url(#cpuGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
@@ -333,7 +333,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                   <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={TICK_STYLE} tickFormatter={(v) => `${v}%`} {...AXIS_PROPS} />
                   <Tooltip
                     {...tooltipStyle}
                     formatter={(_v, _name, item) => {
@@ -365,7 +365,7 @@ export default function NodeStats({ nodeId, monitorEnabled, onMonitorChange }: N
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                   <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
-                  <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => formatBytes(v)} axisLine={false} tickLine={false} />
+                  <YAxis tick={TICK_STYLE} tickFormatter={(v) => formatBytes(v)} {...AXIS_PROPS} />
                   <Tooltip
                     {...tooltipStyle}
                     formatter={(v, name) => [

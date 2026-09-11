@@ -48,7 +48,7 @@ export function PortForwardTab({ instanceId, instanceBusy, natPortRange, isIPv6O
     <>
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">端口转发</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">端口转发</h2>
           <Button onClick={pf.openCreate} disabled={instanceBusy || isIPv6Only}>
             <Plus className="size-3.5" />
             添加规则
@@ -58,8 +58,8 @@ export function PortForwardTab({ instanceId, instanceBusy, natPortRange, isIPv6O
         {pf.rules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <ArrowUpDown className="size-10 text-muted-foreground/25 mb-3" />
-            <p className="text-[13px] text-muted-foreground">暂无端口转发规则</p>
-            <p className="text-[12px] text-muted-foreground/70 mt-1">
+            <p className="text-xs text-muted-foreground">暂无端口转发规则</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
               {isIPv6Only ? "纯 IPv6 实例不支持端口转发" : "添加规则将宿主机端口映射到实例内部"}
             </p>
           </div>
@@ -69,22 +69,22 @@ export function PortForwardTab({ instanceId, instanceBusy, natPortRange, isIPv6O
               <div key={rule.id} className="flex items-center justify-between px-5 py-3.5 gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted uppercase">
+                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-2xs font-medium bg-muted uppercase">
                       {rule.protocol}
                     </span>
-                    <span className="text-[12px] text-muted-foreground font-mono">
+                    <span className="text-xs text-muted-foreground font-mono">
                       {rule.listen_address || "0.0.0.0"}:{rule.listen_port}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">→</span>
-                    <span className="text-[12px] text-muted-foreground font-mono">
+                    <span className="text-2xs text-muted-foreground">→</span>
+                    <span className="text-xs text-muted-foreground font-mono">
                       内网:{rule.connect_port}
                     </span>
                     {rule.enabled === false && (
-                      <span className="text-[11px] text-muted-foreground/60">已禁用</span>
+                      <span className="text-2xs text-muted-foreground/60">已禁用</span>
                     )}
                   </div>
                   {rule.description && (
-                    <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{rule.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{rule.description}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

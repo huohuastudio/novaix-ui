@@ -47,37 +47,37 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
 
   return (
     <section>
-      <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">连接信息</h2>
+      <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">连接信息</h2>
       <div className="rounded-2xl bg-background divide-y divide-border/50">
         {/* IP / 连接地址 */}
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-[13px] text-muted-foreground">{nat ? "连接地址" : "IP 地址"}</span>
+          <span className="text-xs text-muted-foreground">{nat ? "连接地址" : "IP 地址"}</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium font-mono">{ip || "-"}</span>
+            <span className="text-xs font-medium font-mono">{ip || "-"}</span>
             {ip && <CopyButton value={ip} />}
           </div>
         </div>
 
         {/* 用户名 */}
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-[13px] text-muted-foreground">用户名</span>
+          <span className="text-xs text-muted-foreground">用户名</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium font-mono">{defaultUser}</span>
+            <span className="text-xs font-medium font-mono">{defaultUser}</span>
             <CopyButton value={defaultUser} />
           </div>
         </div>
 
         {/* 密码 */}
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-[13px] text-muted-foreground">密码</span>
+          <span className="text-xs text-muted-foreground">密码</span>
           <div className="flex items-center gap-1.5">
             {password ? (
               <>
-                <code className="text-[12px] font-mono bg-muted px-2 py-0.5 rounded select-all">{password}</code>
+                <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded select-all">{password}</code>
                 <CopyButton value={password} />
               </>
             ) : (
-              <span className="text-[13px] font-medium font-mono">••••••••</span>
+              <span className="text-xs font-medium font-mono">••••••••</span>
             )}
             <button
               onClick={togglePassword}
@@ -93,9 +93,9 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
         {/* SSH 命令 */}
         {sshCommand && (
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-[13px] text-muted-foreground">SSH 命令</span>
+            <span className="text-xs text-muted-foreground">SSH 命令</span>
             <div className="flex items-center gap-1.5">
-              <code className="text-[12px] font-mono bg-muted px-2 py-0.5 rounded">{sshCommand}</code>
+              <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{sshCommand}</code>
               <CopyButton value={sshCommand} />
             </div>
           </div>
@@ -104,15 +104,15 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
         {/* NAT 端口范围 */}
         {nat && nat.port_start != null && nat.port_end != null && (
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {nat.mode === "quota" ? "公共可选范围" : "可用端口"}
             </span>
             <div className="text-right">
-              <span className="text-[13px] font-medium font-mono">
+              <span className="text-xs font-medium font-mono">
                 {nat.mode === "quota" ? nat.port_start : nat.port_start + 1} - {nat.port_end}
               </span>
               {nat.mode === "quota" && nat.port_quota != null && nat.port_quota > 0 && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-2xs text-muted-foreground mt-0.5">
                   额度 {nat.port_used ?? 0}/{nat.port_quota}，需添加转发规则后使用
                 </p>
               )}
@@ -125,7 +125,7 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
           <Button
             size="sm"
             variant="outline"
-            className="text-[12px] h-7"
+            className="text-xs h-7"
             onClick={() => navigate(`/portal/servers/${instance.id}/terminal`)}
             disabled={!isRunning}
           >
@@ -133,12 +133,12 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
             {isRunning ? "打开终端" : "终端（需运行中）"}
           </Button>
           {isIPv6Only && (
-            <span className="text-[11px] text-amber-500 ml-auto">需 IPv6 网络环境访问</span>
+            <span className="text-2xs text-amber-500 ml-auto">需 IPv6 网络环境访问</span>
           )}
           {instance.ipv6_address && !isIPv6Only && (
             <div className="flex items-center gap-1.5 ml-auto">
-              <span className="text-[11px] text-muted-foreground">IPv6</span>
-              <span className="text-[11px] font-mono text-muted-foreground">{instance.ipv6_address}</span>
+              <span className="text-2xs text-muted-foreground">IPv6</span>
+              <span className="text-2xs font-mono text-muted-foreground">{instance.ipv6_address}</span>
               <CopyButton value={instance.ipv6_address} />
             </div>
           )}

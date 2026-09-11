@@ -424,7 +424,7 @@ function Marketplace({ onInstalled }: { onInstalled: () => void }) {
             description={item.description}
             author={item.author}
             badges={item.installed ? (
-              <Badge variant="outline" className="absolute top-2 right-2 text-[11px] px-1.5 py-0">
+              <Badge variant="outline" className="absolute top-2 right-2 text-2xs px-1.5 py-0">
                 已安装{item.installed_version ? ` v${item.installed_version}` : ""}
               </Badge>
             ) : undefined}

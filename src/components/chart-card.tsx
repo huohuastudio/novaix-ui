@@ -3,7 +3,7 @@ import { useContainerSize } from "@/hooks/use-container-size"
 
 export function ChartLegend({ items }: { items: { color: string; label: string }[] }) {
   return (
-    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+    <div className="flex items-center gap-3 text-2xs text-muted-foreground">
       {items.map((item) => (
         <span key={item.label} className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-3 rounded-full" style={{ backgroundColor: item.color }} />
@@ -28,7 +28,7 @@ export function ChartCard({ title, icon: Icon, legend, children }: ChartCardProp
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className="size-4 text-muted-foreground" />
-          <h4 className="text-[13px] font-medium">{title}</h4>
+          <h4 className="text-xs font-medium">{title}</h4>
         </div>
         {legend}
       </div>

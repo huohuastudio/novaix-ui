@@ -137,9 +137,9 @@ export default function Alerts() {
                   <TableCell className="text-sm tabular-nums">{formatValue(item.type ?? "", item.threshold ?? 0)}</TableCell>
                   <TableCell>
                     {item.notified ? (
-                      <Badge variant="default" className="text-[10px]">已通知</Badge>
+                      <Badge variant="default" className="text-2xs">已通知</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-[10px]">未通知</Badge>
+                      <Badge variant="secondary" className="text-2xs">未通知</Badge>
                     )}
                   </TableCell>
                 </TableRow>

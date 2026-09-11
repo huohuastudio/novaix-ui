@@ -277,7 +277,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
               <span className="text-sm text-muted-foreground">
                 流量使用
                 {instance.traffic_throttled && (
-                  <span className="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">已限速</span>
+                  <span className="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-2xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">已限速</span>
                 )}
               </span>
               <span className="text-sm tabular-nums font-medium">

@@ -69,16 +69,16 @@ function InstanceCard({
         </div>
 
         {instance.remark && (
-          <p className="text-[13px] text-muted-foreground mt-0.5 truncate">{instance.remark}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">{instance.remark}</p>
         )}
 
         {/* IP */}
-        <p className="text-[13px] text-muted-foreground mt-1 font-mono">
+        <p className="text-xs text-muted-foreground mt-1 font-mono">
           {instance.ip_address || instance.ipv6_address || "未分配 IP"}
         </p>
 
         {/* 配置 */}
-        <div className="flex items-center gap-3 mt-4 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
           <span>{instance.cpu ?? 0} vCPU</span>
           <span className="text-border/60">·</span>
           <span>{formatMemory(instance.memory ?? 0)}</span>
@@ -87,7 +87,7 @@ function InstanceCard({
         </div>
 
         {/* 底部信息 */}
-        <div className="flex items-center gap-3 mt-2 text-[12px] text-muted-foreground/70">
+        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/70">
           {instance.plan_name && <span>{instance.plan_name}</span>}
           {instance.os_type && (
             <>

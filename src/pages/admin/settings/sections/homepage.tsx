@@ -141,7 +141,7 @@ export function HomepageSection() {
               <div className="space-y-1">
                 <Label className="text-xs">图标</Label>
                 <Input value={f.icon} onChange={(e) => setFeatures(updateAt(features, i, { icon: e.target.value as FeatureIcon }))} placeholder="zap" />
-                <p className="text-[10px] text-muted-foreground">可选: zap, globe, shield, cpu</p>
+                <p className="text-2xs text-muted-foreground">可选: zap, globe, shield, cpu</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">标题</Label>

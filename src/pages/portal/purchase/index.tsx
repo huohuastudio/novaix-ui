@@ -283,7 +283,7 @@ export default function PortalPurchase() {
       {/* 选择区域 */}
       {regions.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择区域</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">选择区域</h2>
           <div className="flex flex-wrap gap-2">
             {regions.map((region) => {
               const active = region.id === selectedRegionId
@@ -314,7 +314,7 @@ export default function PortalPurchase() {
 
       {/* 套餐选择 */}
       <div className="space-y-4" data-tour="purchase-plans">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">选择套餐</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">选择套餐</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {plans.map((plan) => {
             const active = plan.id === selectedPlanId
@@ -335,12 +335,12 @@ export default function PortalPurchase() {
                 }`}
               >
                 {soldOut && (
-                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
                     售罄
                   </span>
                 )}
                 {nodeUnavailable && (
-                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
                     售罄
                   </span>
                 )}
@@ -401,7 +401,7 @@ export default function PortalPurchase() {
 
       {/* 计费周期 */}
       <div className="space-y-4" data-tour="purchase-cycle">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">计费周期</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">计费周期</h2>
         <div className="flex flex-wrap gap-2">
           {(['hourly', 'monthly', 'quarterly', 'yearly'] as BillingCycle[]).map((cycle) => {
             const active = cycle === selectedCycle
@@ -430,7 +430,7 @@ export default function PortalPurchase() {
       {/* 系统镜像 */}
       {images.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">系统镜像</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">系统镜像</h2>
           <div className="max-w-xs">
             <Select
               value={selectedImageId?.toString() ?? ''}
@@ -453,7 +453,7 @@ export default function PortalPurchase() {
 
       {/* 数量 */}
       <div className="space-y-4">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">购买数量</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">购买数量</h2>
         <div className="rounded-2xl bg-background p-6">
           <div className="flex items-center gap-4 max-w-xs">
             <Button
@@ -497,7 +497,7 @@ export default function PortalPurchase() {
 
       {/* 主机名和密码 */}
       <div className="space-y-4" data-tour="purchase-config">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">基本配置</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">基本配置</h2>
         <div className="rounded-2xl bg-background p-6">
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
             <div className="space-y-2">
@@ -578,7 +578,7 @@ export default function PortalPurchase() {
 
       {/* 优惠券 */}
       <div className="space-y-4">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">优惠券</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">优惠券</h2>
         <div className="rounded-2xl bg-background p-6">
           <div className="flex items-end gap-3 max-w-md">
             <div className="flex-1 space-y-2">

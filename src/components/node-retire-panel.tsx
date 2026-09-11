@@ -30,7 +30,7 @@ import {
   deleteAdminInstancesById,
 } from "@/api"
 import type { ServiceRetireInstanceItem } from "@/api"
-import { getAdminNodesQueryKey } from "@/api/@tanstack/react-query.gen"
+import { getAdminNodesQueryKey, getAdminNodesByIdRetireStatusQueryKey } from "@/api/@tanstack/react-query.gen"
 import { getErrorMessage } from "@/lib/utils"
 import { NODE_STATUS } from "@/lib/node-constants"
 import { useTasks } from "@/hooks/use-tasks"
@@ -38,7 +38,7 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { onAdminTaskChange } from "@/hooks/use-admin-events"
 import { Spinner } from "@/components/ui/spinner"
 
-const RETIRE_STATUS_KEY = (nodeId: number) => ["admin", "nodes", nodeId, "retire-status"]
+const retireStatusKey = (nodeId: number) => getAdminNodesByIdRetireStatusQueryKey({ path: { id: nodeId } })
 
 interface Props {
   nodeId: number
@@ -226,7 +226,7 @@ export default function NodeRetirePanel({ nodeId }: Props) {
   const { addTask } = useTasks()
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const retireKey = RETIRE_STATUS_KEY(nodeId)
+  const retireKey = retireStatusKey(nodeId)
 
   const query = useQuery({
     queryKey: retireKey,

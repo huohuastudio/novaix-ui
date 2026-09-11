@@ -22,10 +22,10 @@ function MetricTile({
 }) {
   return (
     <div className="rounded-2xl bg-background p-5">
-      <div className="text-[13px] text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-2 flex items-baseline gap-1">
         <span className="text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
-        {unit && <span className="text-[13px] text-muted-foreground">{unit}</span>}
+        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
       </div>
       {percent !== undefined && (
         <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
@@ -63,9 +63,9 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
       {isRunning && (
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">实时监控</h2>
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">实时监控</h2>
             {state?.uptime && (
-              <span className="text-[12px] text-muted-foreground">运行 {state.uptime}</span>
+              <span className="text-xs text-muted-foreground">运行 {state.uptime}</span>
             )}
           </div>
           {state ? (
@@ -109,7 +109,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
 
       {/* 资源配置 */}
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">资源配置</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">资源配置</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <MetricTile label="CPU" value={String(instance.cpu ?? 0)} unit="vCPU" />
           <MetricTile label="内存" value={formatMemory(instance.memory ?? 0)} />
@@ -123,13 +123,13 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
         {(instance.traffic_limit ?? 0) > 0 && (
           <div className="rounded-2xl bg-background p-5 mt-3">
             <div className="flex items-baseline justify-between">
-              <span className="text-[13px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 流量
                 {instance.traffic_throttled && (
-                  <span className="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">已限速</span>
+                  <span className="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-2xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">已限速</span>
                 )}
               </span>
-              <span className="text-[13px] tabular-nums">
+              <span className="text-xs tabular-nums">
                 {formatDisk(instance.traffic_used ?? 0)} / {formatDisk(trafficTotal)}
               </span>
             </div>
@@ -148,7 +148,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
 
       {/* 详细信息 */}
       <section>
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider mb-4">详细信息</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">详细信息</h2>
         <div className="rounded-2xl bg-background divide-y divide-border/50">
           <InfoRow label="操作系统" value={
             state?.os_info
@@ -172,8 +172,8 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between px-5 py-3.5">
-      <span className="text-[13px] text-muted-foreground">{label}</span>
-      <span className="text-[13px] font-medium">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium">{value}</span>
     </div>
   )
 }

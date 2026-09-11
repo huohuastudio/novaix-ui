@@ -139,10 +139,10 @@ export default function ArticleList() {
                 )}
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    {article.is_pinned && <Badge variant="default" className="text-[10px]">置顶</Badge>}
-                    {article.type && <Badge variant="secondary" className="text-[10px]">{typeLabels[article.type] ?? article.type}</Badge>}
+                    {article.is_pinned && <Badge variant="default" className="text-2xs">置顶</Badge>}
+                    {article.type && <Badge variant="secondary" className="text-2xs">{typeLabels[article.type] ?? article.type}</Badge>}
                     {article.category_id && categoryMap.has(article.category_id) && (
-                      <Badge variant="outline" className="text-[10px]">{categoryMap.get(article.category_id)}</Badge>
+                      <Badge variant="outline" className="text-2xs">{categoryMap.get(article.category_id)}</Badge>
                     )}
                   </div>
                   <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">

@@ -117,7 +117,7 @@ export default function PortalDashboard() {
       {/* 产品与服务 + 公告 */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4" data-tour="portal-services">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">产品与服务</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">产品与服务</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {services.map((svc) => (
               <Link
@@ -144,7 +144,7 @@ export default function PortalDashboard() {
         {/* 公告栏 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">最新公告</h2>
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">最新公告</h2>
             <Link to="/articles?type=announcement" className="text-xs text-primary hover:underline">
               查看全部
             </Link>

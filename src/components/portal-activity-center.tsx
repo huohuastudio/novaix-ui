@@ -55,7 +55,7 @@ export function PortalActivityCenter() {
         <Button variant="ghost" size="icon" className="relative size-8">
           <Activity className="size-4" />
           {activeCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-medium text-white">
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-2xs font-medium text-white">
               {activeCount > 9 ? "9+" : activeCount}
             </span>
           )}

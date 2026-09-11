@@ -230,12 +230,12 @@ export default function PortalInstanceDetail() {
             <div data-tour="instance-info" className="min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <h1 className="text-xl font-semibold tracking-tight truncate" title={instance.name}>{instance.name}</h1>
-                <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium shrink-0 ${cfg.color}`}>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-medium shrink-0 ${cfg.color}`}>
                   <span className={`size-1.5 rounded-full ${cfg.dot}`} />
                   {cfg.label}
                 </span>
               </div>
-              <p className="text-[13px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 <span className="font-mono">{instance.ip_address || instance.ipv6_address || "未分配 IP"}</span>
                 {instance.os_type && <> · {instance.os_type}</>}
               </p>
@@ -264,9 +264,9 @@ export default function PortalInstanceDetail() {
               ) : (
                 <div className="flex items-center gap-1 mt-0.5 group/remark">
                   {instance.remark ? (
-                    <span className="text-[13px] text-muted-foreground">{instance.remark}</span>
+                    <span className="text-xs text-muted-foreground">{instance.remark}</span>
                   ) : (
-                    <span className="text-[13px] text-muted-foreground/50">添加备注</span>
+                    <span className="text-xs text-muted-foreground/50">添加备注</span>
                   )}
                   <Button
                     variant="ghost"
@@ -320,7 +320,7 @@ export default function PortalInstanceDetail() {
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 activeTab === tab.key
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -381,7 +381,7 @@ export default function PortalInstanceDetail() {
             ) : (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Terminal className="size-10 text-muted-foreground/25 mb-3" />
-                <p className="text-[13px] text-muted-foreground">云服务器未运行，无法连接终端</p>
+                <p className="text-xs text-muted-foreground">云服务器未运行，无法连接终端</p>
                 {(isStopped || isError) && (
                   <Button className="mt-4" onClick={() => doPower("start")} disabled={busy}>
                     <Play className="size-3.5" />

@@ -83,7 +83,7 @@ export default function PortalWallet() {
 
       {/* 交易记录 */}
       <div className="space-y-4">
-        <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">交易记录</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">交易记录</h2>
         {loading ? (
           <div className="rounded-2xl bg-background divide-y divide-border/50">
             {Array.from({ length: 5 }).map((_, i) => (

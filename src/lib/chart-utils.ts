@@ -34,10 +34,10 @@ export const tooltipStyle = {
     backgroundColor: "var(--color-card)",
     border: "1px solid var(--color-border)",
     borderRadius: "8px",
-    fontSize: "12px",
+    fontSize: "13px",
   },
 }
 
-export const TICK_STYLE = { fontSize: 11, fill: "var(--color-muted-foreground)" }
+export const TICK_STYLE = { fontSize: 12, fill: "var(--color-muted-foreground)" }
 export const AXIS_PROPS = { axisLine: false, tickLine: false } as const
 export const CHART_MARGIN = { top: 4, right: 4, bottom: 0, left: -12 }

@@ -230,7 +230,7 @@ function DashboardPreview() {
 
           <div className="grid md:grid-cols-[1fr_280px] divide-y md:divide-y-0 md:divide-x divide-border/50">
             <div className="p-3 sm:p-4">
-              <div className="hidden sm:grid grid-cols-[1fr_80px_80px_80px_140px] gap-2 px-3 pb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-[1fr_80px_80px_80px_140px] gap-2 px-3 pb-2 text-2xs font-medium text-muted-foreground uppercase tracking-wider">
                 <span>名称</span><span>CPU</span><span>内存</span><span>地域</span><span className="text-right">IP 地址</span>
               </div>
               <div className="space-y-1.5">
@@ -256,13 +256,13 @@ function DashboardPreview() {
             </div>
 
             <div className="p-3 sm:p-4 space-y-3">
-              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Web-Prod-01 · 资源</div>
+              <div className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">Web-Prod-01 · 资源</div>
               {resources.map((r, i) => (
                 <div key={r.label} className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{r.label}</span>
                     <motion.span
-                      className="font-mono text-[11px] font-medium text-foreground"
+                      className="font-mono text-2xs font-medium text-foreground"
                       initial={{ opacity: 0 }}
                       animate={inView ? { opacity: 1 } : undefined}
                       transition={{ delay: 0.7 + i * 0.08 }}
@@ -280,7 +280,7 @@ function DashboardPreview() {
               ))}
 
               <div className="pt-2">
-                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">网络流量 (Mbps)</div>
+                <div className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-2">网络流量 (Mbps)</div>
                 <svg viewBox="0 0 200 48" className="w-full h-12">
                   <defs>
                     <linearGradient id="tf" x1="0" y1="0" x2="0" y2="1">
@@ -690,7 +690,7 @@ function DataCenterSection({ regions }: { regions: PublicPublicRegionItem[] }) {
               {(dc.features?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {dc.features!.map((f: string) => (
-                    <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
+                    <Badge key={f} variant="secondary" className="text-2xs">{f}</Badge>
                   ))}
                 </div>
               )}

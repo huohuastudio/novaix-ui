@@ -103,7 +103,7 @@ export function AdminIpList({ instanceId, onRefresh }: { instanceId: number; onR
                 <div className="flex items-center gap-2">
                   <span className="font-medium font-mono text-sm">{ip.address}</span>
                   {ip.is_primary && (
-                    <Badge variant="secondary" className="text-[10px]">主 IP</Badge>
+                    <Badge variant="secondary" className="text-2xs">主 IP</Badge>
                   )}
                 </div>
                 {ip.pool_name && (

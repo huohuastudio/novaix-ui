@@ -219,7 +219,7 @@ export default function Dashboard() {
                 <span>{item.label}</span>
                 <Badge
                   variant={item.label.includes("异常") ? "destructive" : "secondary"}
-                  className="ml-0.5 text-[10px] px-1.5 py-0"
+                  className="ml-0.5 text-2xs px-1.5 py-0"
                 >
                   {item.count}
                 </Badge>
@@ -284,7 +284,7 @@ export default function Dashboard() {
                     tickMargin={4}
                     interval="preserveStartEnd"
                     minTickGap={60}
-                    style={{ fontSize: 10 }}
+                    style={{ fontSize: 12 }}
                     className="fill-muted-foreground"
                   />
                   <YAxis
@@ -293,7 +293,7 @@ export default function Dashboard() {
                     tickMargin={4}
                     tickFormatter={(v) => `${currencySymbol}${v}`}
                     width={48}
-                    style={{ fontSize: 10 }}
+                    style={{ fontSize: 12 }}
                     className="fill-muted-foreground"
                   />
                   <ChartTooltip
@@ -394,7 +394,7 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 {instanceStatusData.map(d => (
-                  <div key={d.key} className="flex items-center gap-1 text-[11px]">
+                  <div key={d.key} className="flex items-center gap-1 text-2xs">
                     <span className={`size-1.5 rounded-full ${STATUS_META[d.key].tw}`} />
                     <span className="text-muted-foreground">{STATUS_META[d.key].label}</span>
                     <span className="font-medium tabular-nums">{d.value}</span>
@@ -439,7 +439,7 @@ export default function Dashboard() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground tabular-nums">
+                  <p className="text-2xs text-muted-foreground tabular-nums">
                     {r.format(r.used)} / {r.format(r.total)}
                   </p>
                 </div>
@@ -539,13 +539,13 @@ export default function Dashboard() {
                     <p className="text-sm font-medium tabular-nums">
                       {formatAmount(order.amount ?? 0)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-2xs text-muted-foreground truncate">
                       {order.username} · {orderTypeMap[order.type ?? ""] ?? order.type}
                     </p>
                   </div>
                   <Badge
                     variant={orderStatusMap[order.status ?? ""]?.variant ?? "secondary"}
-                    className="shrink-0 ml-3 text-[10px] px-1.5 py-0"
+                    className="shrink-0 ml-3 text-2xs px-1.5 py-0"
                   >
                     {orderStatusMap[order.status ?? ""]?.label ?? order.status}
                   </Badge>
@@ -578,14 +578,14 @@ export default function Dashboard() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{inst.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-2xs text-muted-foreground truncate">
                       {inst.username}
                       {(inst.ip_address || inst.ipv6_address) && ` · ${inst.ip_address || inst.ipv6_address}`}
                     </p>
                   </div>
                   <div className="shrink-0 ml-3 text-right">
                     <p className="text-xs font-medium tabular-nums">{daysUntil(inst.expire_at ?? "")}</p>
-                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                    <p className="text-2xs text-muted-foreground tabular-nums">
                       {(inst.expire_at ?? "").slice(5, 10)}
                     </p>
                   </div>
@@ -620,7 +620,7 @@ export default function Dashboard() {
                     {/* 右侧：内容 */}
                     <div className="pb-4 min-w-0">
                       <p className="text-sm leading-snug truncate">{event.detail}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-2xs text-muted-foreground">
                         {event.username} · {(event.created_at ?? "").slice(5, 16)}
                       </p>
                     </div>

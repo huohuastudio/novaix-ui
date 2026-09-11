@@ -206,8 +206,8 @@ export function SnapshotsTab({ instanceId, instanceBusy, autoBackup, lastBackupA
             <div className="flex items-center gap-3">
               <Clock className="size-4 text-muted-foreground" />
               <div>
-                <div className="text-[13px] font-medium">自动备份</div>
-                <div className="text-[12px] text-muted-foreground">
+                <div className="text-xs font-medium">自动备份</div>
+                <div className="text-xs text-muted-foreground">
                   {autoBackupDesc()}
                 </div>
               </div>
@@ -219,7 +219,7 @@ export function SnapshotsTab({ instanceId, instanceBusy, autoBackup, lastBackupA
             />
           </div>
           {backupPolicy && backupPolicy.enabled && (
-            <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-4 text-[12px]">
+            <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-4 text-xs">
               <div>
                 <span className="text-muted-foreground">执行频率</span>
                 <p className="font-medium mt-0.5">{backupPolicy.frequency === "weekly" ? "每周一次" : "每天一次"}</p>
@@ -237,7 +237,7 @@ export function SnapshotsTab({ instanceId, instanceBusy, autoBackup, lastBackupA
         </div>
 
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">快照管理</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">快照管理</h2>
           <Button onClick={() => setCreateOpen(true)} disabled={instanceBusy}>
             <Plus className="size-3.5" />
             创建快照
@@ -255,8 +255,8 @@ export function SnapshotsTab({ instanceId, instanceBusy, autoBackup, lastBackupA
             {snapshots.map((snap) => (
               <div key={snap.name} className="flex items-center justify-between px-5 py-3.5">
                 <div>
-                  <div className="text-[13px] font-medium">{snap.name}</div>
-                  <div className="text-[12px] text-muted-foreground mt-0.5">
+                  <div className="text-xs font-medium">{snap.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
                     {formatDate(snap.created_at)}
                     {snap.stateful && " · 包含运行状态"}
                   </div>
