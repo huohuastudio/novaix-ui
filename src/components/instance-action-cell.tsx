@@ -67,7 +67,7 @@ export function InstanceActionCell({
       {onRenew && inst.plan_id && !inTransition && inst.status !== "error" && (
         <ActionButton label="续费" icon={RefreshCw} busy={false} onClick={() => onRenew(inst)} />
       )}
-      {(inst.status === "stopped" || inst.status === "frozen") && (
+      {(inst.status === "stopped" || inst.status === "frozen" || inst.status === "error") && (
         <ActionButton label="启动" icon={Play} busy={busy} onClick={() => onPowerAction(inst, "start")} />
       )}
       {inst.status === "running" && (
@@ -80,7 +80,7 @@ export function InstanceActionCell({
       {inst.status === "frozen" && (
         <ActionButton label="解冻" icon={Play} busy={busy} onClick={() => onPowerAction(inst, "unfreeze")} />
       )}
-      {(inst.status === "running" || inst.status === "frozen") && (
+      {(inst.status === "running" || inst.status === "frozen" || inst.status === "error") && (
         <ActionButton label="强制停止" icon={Zap} busy={busy} destructive onClick={() => onPowerAction(inst, "force-stop")} />
       )}
       {inst.status === "error" && onRetry && (

@@ -31,6 +31,7 @@ const alertTypeLabels: Record<string, string> = {
   node_cpu: "CPU 使用率",
   node_memory: "内存使用率",
   node_disk: "磁盘使用率",
+  node_pool: "存储池使用率",
   node_offline: "节点离线",
 }
 
@@ -86,6 +87,7 @@ export default function Alerts() {
             <SelectItem value="node_cpu">CPU 使用率</SelectItem>
             <SelectItem value="node_memory">内存使用率</SelectItem>
             <SelectItem value="node_disk">磁盘使用率</SelectItem>
+            <SelectItem value="node_pool">存储池使用率</SelectItem>
             <SelectItem value="node_offline">节点离线</SelectItem>
           </SelectContent>
         </Select>

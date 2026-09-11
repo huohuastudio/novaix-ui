@@ -7,12 +7,12 @@ import {
   deleteAdminInstancesByIdPortForwardRulesByRuleId,
 } from "@/api"
 import { usePortForwardRules } from "@/hooks/use-port-forward-rules"
-import { PortForwardRuleFormDialog, PortForwardDeleteDialog } from "@/components/port-forward-rule-dialog"
+import { PortForwardRuleFormDialog, PortForwardDeleteDialog, type NATPortRange } from "@/components/port-forward-rule-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 
-export function PortForwardSection({ instanceId, isNAT, isIPv6Only }: { instanceId: number; isNAT?: boolean; isIPv6Only?: boolean }) {
+export function PortForwardSection({ instanceId, natPortRange, isIPv6Only }: { instanceId: number; natPortRange?: NATPortRange; isIPv6Only?: boolean }) {
   const api = useMemo(() => ({
     scope: "admin" as const,
     list: getAdminInstancesByIdPortForwardRules,
@@ -101,7 +101,7 @@ export function PortForwardSection({ instanceId, isNAT, isIPv6Only }: { instance
         setFormData={pf.setFormData}
         submitting={pf.submitting}
         onSubmit={pf.handleSubmit}
-        isNAT={isNAT}
+        natPortRange={natPortRange}
       />
 
       <PortForwardDeleteDialog

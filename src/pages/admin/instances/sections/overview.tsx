@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Plus, ArrowRightLeft } from "lucide-react"
+import { Plus, ArrowRightLeft, Pencil, Check, X } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -13,6 +13,7 @@ import {
   postAdminInstancesByIdUnthrottle,
   postAdminInstancesByIdIps,
   putAdminInstancesByIdHa,
+  putAdminInstancesByIdRemark,
 } from "@/api"
 import type { InstanceInstanceItem, IppoolFreeIpItem } from "@/api"
 import { getAdminInstancesByIdIpsQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -27,6 +28,7 @@ import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CopyButton } from "@/components/copy-button"
 import { useFormatDate } from "@/hooks/use-site-settings"
+import { Input } from "@/components/ui/input"
 import { AdminIpList } from "../components/ip-list"
 import { FreeIpPickerDialog } from "../components/free-ip-picker-dialog"
 import { getStatusInfo, getTypeLabel } from "@/lib/instance-constants"
@@ -36,6 +38,9 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
   const [changeIPOpen, setChangeIPOpen] = useState(false)
   const [addIpOpen, setAddIpOpen] = useState(false)
   const [unthrottling, setUnthrottling] = useState(false)
+  const [editingRemark, setEditingRemark] = useState(false)
+  const [remarkValue, setRemarkValue] = useState(instance.remark ?? "")
+  const [savingRemark, setSavingRemark] = useState(false)
   const status = getStatusInfo(instance.status)
   const isRunning = instance.status === "running"
   const state = useInstanceState(instance.id, isRunning)
@@ -45,6 +50,31 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
     queryClient.invalidateQueries({
       queryKey: getAdminInstancesByIdIpsQueryKey({ path: { id: instance.id! } }),
     })
+  }
+  const saveRemark = async () => {
+    const trimmed = remarkValue.trim()
+    if (trimmed === (instance.remark ?? "")) {
+      setEditingRemark(false)
+      return
+    }
+    setSavingRemark(true)
+    try {
+      const { data: res } = await putAdminInstancesByIdRemark({
+        path: { id: instance.id! },
+        body: { remark: trimmed },
+      })
+      if (res?.code === 0) {
+        toast.success("备注已更新")
+        setEditingRemark(false)
+        onRefresh()
+      } else {
+        toast.error(res?.message || "保存失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "保存失败"))
+    } finally {
+      setSavingRemark(false)
+    }
   }
   const handleChangeIP = async (ip: IppoolFreeIpItem) => {
     try {
@@ -284,6 +314,44 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
             <div className="text-muted-foreground">主机名</div>
             <div className="font-medium mt-0.5 truncate" title={state?.os_info?.hostname || instance.hostname}>{state?.os_info?.hostname || instance.hostname || "-"}</div>
           </div>
+          <div className="min-w-0">
+            <div className="text-muted-foreground">备注</div>
+            {editingRemark ? (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Input
+                  value={remarkValue}
+                  onChange={(e) => setRemarkValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveRemark()
+                    if (e.key === "Escape") { setEditingRemark(false); setRemarkValue(instance.remark ?? "") }
+                  }}
+                  className="h-7 text-sm"
+                  maxLength={256}
+                  placeholder="输入备注..."
+                  disabled={savingRemark}
+                  autoFocus
+                />
+                <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={saveRemark} disabled={savingRemark}>
+                  <Check className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => { setEditingRemark(false); setRemarkValue(instance.remark ?? "") }}>
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 mt-0.5 group">
+                <span className="font-medium truncate">{instance.remark || "-"}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  onClick={() => { setRemarkValue(instance.remark ?? ""); setEditingRemark(true) }}
+                >
+                  <Pencil className="size-3" />
+                </Button>
+              </div>
+            )}
+          </div>
           <div>
             <div className="text-muted-foreground">类型</div>
             <div className="font-medium mt-0.5">{getTypeLabel(instance.type)}</div>
@@ -390,12 +458,19 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                   <div className="font-medium font-mono mt-0.5">{instance.nat_info.ssh_port ?? "-"}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">可用端口</div>
+                  <div className="text-muted-foreground">
+                    {instance.nat_info.mode === "quota" ? "公共可选范围" : "可用端口"}
+                  </div>
                   <div className="font-medium font-mono mt-0.5">
                     {instance.nat_info.port_start != null && instance.nat_info.port_end != null
-                      ? `${instance.nat_info.port_start + 1} - ${instance.nat_info.port_end}`
+                      ? `${instance.nat_info.mode === "quota" ? instance.nat_info.port_start : instance.nat_info.port_start + 1} - ${instance.nat_info.port_end}`
                       : "-"}
                   </div>
+                  {instance.nat_info.mode === "quota" && instance.nat_info.port_quota != null && instance.nat_info.port_quota > 0 && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      额度 {instance.nat_info.port_used ?? 0}/{instance.nat_info.port_quota}
+                    </div>
+                  )}
                 </div>
                 {instance.nat_info.ssh_command && (
                   <div className="col-span-2 sm:col-span-3">

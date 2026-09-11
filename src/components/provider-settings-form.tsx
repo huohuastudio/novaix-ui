@@ -110,7 +110,8 @@ export function ProviderSettingsForm({
       if (providerPrefixes.some((pp) => key.startsWith(pp))) continue
       items[key] = value
     }
-    await control.save(items)
+    const ok = await control.save(items)
+    if (ok) control.commitOverrides(items)
     setSavingMain(false)
   }
 
@@ -175,6 +176,9 @@ export function ProviderSettingsForm({
             kind={kind}
             descriptor={selectedDescriptor}
             test={test}
+            parentDirty={control.dirty}
+            savedProvider={control.savedData[`${kind}_provider`] ?? ""}
+            descriptors={descriptors}
           />
         )
       )}
@@ -322,10 +326,16 @@ function ChannelForm({
   kind,
   descriptor,
   test,
+  parentDirty,
+  savedProvider,
+  descriptors,
 }: {
   kind: string
   descriptor: ProviderDescriptor
   test?: TestConfig
+  parentDirty?: boolean
+  savedProvider?: string
+  descriptors?: ProviderDescriptor[]
 }) {
   const group = `${kind}_${descriptor.name}`
   const settings = useSettings(group)
@@ -334,6 +344,9 @@ function ChannelForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [testValue, setTestValue] = useState("")
   const [testing, setTesting] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
+
+  if (settings.dirty && justSaved) setJustSaved(false)
 
   if (settings.loading) return <SettingSkeleton />
 
@@ -364,7 +377,11 @@ function ChannelForm({
       const key = `${group}_${f.key}`
       items[key] = settings.data[key] ?? f.default ?? ""
     }
-    await settings.save(items)
+    const ok = await settings.save(items)
+    if (ok) {
+      setJustSaved(true)
+      settings.commitOverrides(items)
+    }
     setSaving(false)
   }
 
@@ -398,36 +415,65 @@ function ChannelForm({
           保存
         </Button>
 
-        {test && (
-          <>
-            <Separator className="my-8" />
-            {test.inputless ? (
-              <Button variant="outline" onClick={handleTest} disabled={testing}>
-                {testing && <Loader2 className="size-4 animate-spin" />}
-                {test.label}
-              </Button>
-            ) : (
-              <div className="space-y-2">
-                <Label>{test.label}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={testValue}
-                    onChange={(e) => setTestValue(e.target.value)}
-                    placeholder={test.placeholder}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleTest}
-                    disabled={testing || !testValue}
-                  >
+        {test && (() => {
+          const anyDirty = settings.dirty || parentDirty
+          const savedProviderTitle = savedProvider && descriptors
+            ? descriptors.find((d) => d.name === savedProvider)?.title ?? savedProvider
+            : undefined
+          const providerChanged = savedProvider != null && savedProvider !== descriptor.name
+
+          const hint = (
+            <>
+              <p className="text-xs text-muted-foreground">
+                测试将使用已保存的配置
+                {savedProviderTitle && `（${savedProviderTitle}）`}
+                {!justSaved && !anyDirty && "，请先保存再测试"}
+              </p>
+              {anyDirty && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {providerChanged
+                    ? `当前选择的渠道尚未保存，测试仍将使用已保存的渠道（${savedProviderTitle}）`
+                    : "当前有未保存的修改，测试不会使用这些修改"}
+                </p>
+              )}
+            </>
+          )
+
+          return (
+            <>
+              <Separator className="my-8" />
+              {test.inputless ? (
+                <div className="space-y-2">
+                  <Button variant="outline" onClick={handleTest} disabled={testing}>
                     {testing && <Loader2 className="size-4 animate-spin" />}
-                    测试发送
+                    {test.label}
                   </Button>
+                  {hint}
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              ) : (
+                <div className="space-y-2">
+                  <Label>{test.label}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={testValue}
+                      onChange={(e) => setTestValue(e.target.value)}
+                      placeholder={test.placeholder}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleTest}
+                      disabled={testing || !testValue}
+                    >
+                      {testing && <Loader2 className="size-4 animate-spin" />}
+                      测试发送
+                    </Button>
+                  </div>
+                  {hint}
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </>
   )

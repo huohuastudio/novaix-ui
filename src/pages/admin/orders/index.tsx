@@ -16,6 +16,7 @@ import {
   getAdminTransactions,
   postAdminOrdersByIdPay,
   postAdminOrdersByIdCancel,
+  postAdminOrdersBatchCancel,
   postAdminOrdersBatchRefund,
   postAdminOrdersBatchRefundReject,
   deleteAdminOrdersById,
@@ -172,6 +173,17 @@ function OrderList() {
     }
   }, [table])
 
+  const handleBatchCancel = useCallback(async () => {
+    const ok = await confirm({
+      title: "批量取消订单",
+      description: `确定要批量取消 ${selectedIds.length} 个待支付订单吗？`,
+      confirmText: "确认取消",
+      destructive: true,
+    })
+    if (!ok) return
+    executeBatchAction(() => postAdminOrdersBatchCancel({ body: { ids: selectedIds } }), "取消")
+  }, [selectedIds, confirm, executeBatchAction])
+
   const handleBatchRefund = useCallback(async () => {
     const ok = await confirm({
       title: "批量退款",
@@ -212,6 +224,10 @@ function OrderList() {
       <span className="text-sm text-muted-foreground whitespace-nowrap">
         已选 {selectedIds.length} 项
       </span>
+      <Button variant="outline" disabled={batchLoading} onClick={handleBatchCancel}>
+        <XCircle className="size-4" />
+        批量取消
+      </Button>
       <Button variant="outline" disabled={batchLoading} onClick={handleBatchRefund}>
         <CheckCheck className="size-4" />
         批量退款

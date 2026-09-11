@@ -68,6 +68,10 @@ function InstanceCard({
           </span>
         </div>
 
+        {instance.remark && (
+          <p className="text-[13px] text-muted-foreground mt-0.5 truncate">{instance.remark}</p>
+        )}
+
         {/* IP */}
         <p className="text-[13px] text-muted-foreground mt-1 font-mono">
           {instance.ip_address || instance.ipv6_address || "未分配 IP"}
@@ -84,10 +88,16 @@ function InstanceCard({
 
         {/* 底部信息 */}
         <div className="flex items-center gap-3 mt-2 text-[12px] text-muted-foreground/70">
-          {instance.os_type && <span>{instance.os_type}</span>}
+          {instance.plan_name && <span>{instance.plan_name}</span>}
+          {instance.os_type && (
+            <>
+              {instance.plan_name && <span className="text-border/60">·</span>}
+              <span>{instance.os_type}</span>
+            </>
+          )}
           {instance.expire_at && (
             <>
-              {instance.os_type && <span className="text-border/60">·</span>}
+              {(instance.plan_name || instance.os_type) && <span className="text-border/60">·</span>}
               <span>到期 {formatDate(instance.expire_at)}</span>
             </>
           )}

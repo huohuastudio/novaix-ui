@@ -12,7 +12,7 @@ import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount, useFormatDate } from "@/hooks/use-site-settings"
 import { useProviderMap } from "@/hooks/use-provider-map"
-import { paymentStatusMap } from "@/lib/payment"
+import { paymentStatusMap, renderAmountWithFee } from "@/lib/payment"
 import { UserPopover } from "@/components/user-popover"
 import { OrderPopover } from "@/components/order-popover"
 
@@ -92,7 +92,10 @@ export default function Payments() {
       header: "金额",
       size: 100,
       enableSorting: true,
-      cell: ({ row }) => formatAmount(row.original.amount ?? 0),
+      cell: ({ row }) => {
+        const r = renderAmountWithFee(row.original.amount ?? 0, row.original.fee_amount ?? 0, formatAmount)
+        return r.title ? <span title={r.title}>{r.text}</span> : r.text
+      },
     },
     {
       accessorKey: "status",

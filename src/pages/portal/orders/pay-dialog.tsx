@@ -20,6 +20,7 @@ import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
+import { calculateFee, formatFeePercent } from "@/lib/payment"
 
 interface PayDialogProps {
   open: boolean
@@ -39,6 +40,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
     paymentNo: string
     payURL: string
     qrCode: boolean
+    amount: number
   } | null>(null)
 
   // 对话框打开时才加载支付方式
@@ -61,6 +63,11 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
   // 未手动选择时默认选中第一个支付方式（原逻辑在加载完成后 setState，这里改为派生）
   const effectiveProvider = selectedProvider || (methods[0]?.provider ?? "")
   const effectiveMethod = selectedProvider ? selectedMethod : (methods[0]?.method ?? "")
+  const selectedMethodObj = methods.find(
+    (m) => (m.provider ?? "") === effectiveProvider && (m.method ?? "") === effectiveMethod
+  )
+  const fee = payMode === "online" ? calculateFee(selectedMethodObj, amount) : 0
+  const totalAmount = amount + fee
 
   const handleBalancePay = async () => {
     setSubmitting(true)
@@ -105,6 +112,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
         paymentNo: data.payment_no ?? "",
         payURL: data.pay_url ?? "",
         qrCode: !!data.qr_code,
+        amount: data.amount ?? amount,
       })
       if (!data.qr_code) {
         window.open(data.pay_url, "_blank", "noopener,noreferrer")
@@ -132,7 +140,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
             paymentNo={paymentResult.paymentNo}
             payURL={paymentResult.payURL}
             qrCode={paymentResult.qrCode}
-            amount={amount}
+            amount={paymentResult.amount}
             onPaid={() => {
               onSuccess?.()
               onOpenChange(false)
@@ -206,6 +214,23 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
             </div>
           )}
 
+          {payMode === "online" && fee > 0 && (
+            <div className="rounded-md border border-dashed p-3 text-sm space-y-1">
+              <div className="flex justify-between text-muted-foreground">
+                <span>订单金额</span>
+                <span>{formatAmount(amount)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>手续费{selectedMethodObj?.fee_type === "percent" ? `（${formatFeePercent(selectedMethodObj.fee_amount ?? 0)}）` : ""}</span>
+                <span>+{formatAmount(fee)}</span>
+              </div>
+              <div className="flex justify-between font-medium pt-1 border-t">
+                <span>实付金额</span>
+                <span>{formatAmount(totalAmount)}</span>
+              </div>
+            </div>
+          )}
+
           <Button
             className="w-full"
             disabled={submitting || (payMode === "online" && !effectiveProvider)}
@@ -219,7 +244,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
             ) : payMode === "balance" ? (
               `余额支付 ${formatAmount(amount)}`
             ) : (
-              `在线支付 ${formatAmount(amount)}`
+              `在线支付 ${formatAmount(fee > 0 ? totalAmount : amount)}`
             )}
           </Button>
         </div>

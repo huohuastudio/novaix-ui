@@ -30,6 +30,7 @@ import {
   Undo2,
   Wallet,
   ArrowLeftRight,
+  Network,
 } from "lucide-react"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useAdminPath } from "@/hooks/use-site-settings"
@@ -64,6 +65,7 @@ import { InvoiceSection } from "./sections/invoice"
 import { RechargeSection } from "./sections/recharge"
 import { RefundSection } from "./sections/refund"
 import { PushTransferSection } from "./sections/push-transfer"
+import { VPCSection } from "./sections/vpc"
 
 interface SettingItem {
   id: string
@@ -139,6 +141,7 @@ const settingGroups: SettingGroup[] = [
       { id: "storage", label: "对象存储", description: "S3 兼容存储用于镜像归档", icon: HardDrive, component: StorageSection, docPath: "/novaix/storage" },
       { id: "rescue", label: "救援模式", description: "实例救援启动盘配置", icon: LifeBuoy, component: RescueSection, docPath: "/novaix/iso" },
       { id: "rdns", label: "rDNS", description: "反向 DNS 解析设置", icon: Globe2, component: RDNSSection, docPath: "/novaix/rdns" },
+      { id: "vpc", label: "私有网络", description: "VPC 功能开关", icon: Network, component: VPCSection },
     ],
   },
 ]

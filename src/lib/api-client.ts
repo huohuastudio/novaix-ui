@@ -5,6 +5,7 @@ import { setMaintenanceState } from '@/hooks/use-maintenance'
 
 const ERR_FEATURE_NOT_AVAILABLE = 10470
 const ERR_NODE_QUOTA_EXCEEDED = 10471
+const ERR_FEATURE_DISABLED_ADMIN = 10472
 const ERR_ADMIN_2FA_REQUIRED = 21004
 
 client.setConfig({ throwOnError: true })
@@ -26,12 +27,21 @@ client.instance.interceptors.response.use(
     const url = error.config?.url ?? ''
     if (status === 401 && !url.endsWith('/login') && !url.includes('/auth/impersonate')) {
       clearAuth()
-      window.location.href = getLoginPath()
+      const currentPath = window.location.pathname + window.location.search
+      const loginPath = getLoginPath()
+      if (currentPath && currentPath !== '/' && !currentPath.startsWith('//')) {
+        const sep = loginPath.includes('?') ? '&' : '?'
+        window.location.href = `${loginPath}${sep}redirect=${encodeURIComponent(currentPath)}`
+      } else {
+        window.location.href = loginPath
+      }
     }
     if (status === 403) {
       const code = error.response?.data?.code as number | undefined
       const message = error.response?.data?.message as string | undefined
-      if (code === ERR_FEATURE_NOT_AVAILABLE || code === ERR_NODE_QUOTA_EXCEEDED) {
+      if (code === ERR_FEATURE_DISABLED_ADMIN) {
+        toast.error(message || '管理员未启用此功能', { id: 'feature-disabled' })
+      } else if (code === ERR_FEATURE_NOT_AVAILABLE || code === ERR_NODE_QUOTA_EXCEEDED) {
         toast.error(message || '此功能仅限授权版使用，请先激活授权', { id: 'feature-gate' })
       } else if (code === ERR_ADMIN_2FA_REQUIRED) {
         setRequire2FASetup(true)

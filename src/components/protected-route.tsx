@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { isAuthenticated, getUser, clearAuth } from '@/lib/auth'
 import { getAdminPing, getPortalPing } from '@/api'
 
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function ProtectedRoute({ children, loginPath, requiredRole }: Props) {
+  const location = useLocation()
   const [status, setStatus] = useState<'checking' | 'valid' | 'invalid'>(() => {
     if (!isAuthenticated()) return 'invalid'
     const user = getUser()
@@ -29,7 +30,13 @@ export default function ProtectedRoute({ children, loginPath, requiredRole }: Pr
   }, [status, loginPath])
 
   if (status === 'checking') return null
-  if (status === 'invalid') return <Navigate to={loginPath} replace />
+  if (status === 'invalid') {
+    const currentPath = location.pathname + location.search
+    const redirectTo = currentPath && currentPath !== '/' && currentPath !== loginPath
+      ? `${loginPath}?redirect=${encodeURIComponent(currentPath)}`
+      : loginPath
+    return <Navigate to={redirectTo} replace />
+  }
 
   return <>{children}</>
 }

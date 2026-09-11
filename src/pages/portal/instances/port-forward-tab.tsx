@@ -7,11 +7,11 @@ import {
   deletePortalInstancesByIdPortForwardRulesByRuleId,
 } from "@/api"
 import { usePortForwardRules } from "@/hooks/use-port-forward-rules"
-import { PortForwardRuleFormDialog, PortForwardDeleteDialog } from "@/components/port-forward-rule-dialog"
+import { PortForwardRuleFormDialog, PortForwardDeleteDialog, type NATPortRange } from "@/components/port-forward-rule-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function PortForwardTab({ instanceId, instanceBusy, isNAT, isIPv6Only }: { instanceId: number; instanceBusy: boolean; isNAT?: boolean; isIPv6Only?: boolean }) {
+export function PortForwardTab({ instanceId, instanceBusy, natPortRange, isIPv6Only }: { instanceId: number; instanceBusy: boolean; natPortRange?: NATPortRange; isIPv6Only?: boolean }) {
   const api = useMemo(() => ({
     scope: "portal" as const,
     list: getPortalInstancesByIdPortForwardRules,
@@ -115,7 +115,7 @@ export function PortForwardTab({ instanceId, instanceBusy, isNAT, isIPv6Only }: 
         setFormData={pf.setFormData}
         submitting={pf.submitting}
         onSubmit={pf.handleSubmit}
-        isNAT={isNAT}
+        natPortRange={natPortRange}
       />
 
       <PortForwardDeleteDialog

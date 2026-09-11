@@ -18,6 +18,7 @@ import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount, useSiteSettings } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
+import { calculateFee, formatFeePercent } from "@/lib/payment"
 
 const presetAmounts = [1000, 5000, 10000, 50000, 100000]
 
@@ -42,6 +43,7 @@ export function RechargeDialog({
     paymentNo: string
     payURL: string
     qrCode: boolean
+    amount: number
   } | null>(null)
 
   // 对话框打开时才加载支付方式
@@ -67,6 +69,11 @@ export function RechargeDialog({
   const effectiveMethod = selectedProvider ? selectedMethod : (methods[0]?.method ?? "")
 
   const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amount
+  const selectedMethodObj = methods.find(
+    (m) => (m.provider ?? "") === effectiveProvider && (m.method ?? "") === effectiveMethod
+  )
+  const fee = calculateFee(selectedMethodObj, effectiveAmount)
+  const totalAmount = effectiveAmount + fee
 
   const handleSubmit = async () => {
     if (effectiveAmount <= 0) {
@@ -102,6 +109,7 @@ export function RechargeDialog({
         paymentNo: data.payment_no ?? "",
         payURL: data.pay_url ?? "",
         qrCode: !!data.qr_code,
+        amount: data.amount ?? effectiveAmount,
       })
       if (!data.qr_code) {
         window.open(data.pay_url, "_blank", "noopener,noreferrer")
@@ -130,7 +138,7 @@ export function RechargeDialog({
             paymentNo={paymentResult.paymentNo}
             payURL={paymentResult.payURL}
             qrCode={paymentResult.qrCode}
-            amount={effectiveAmount}
+            amount={paymentResult.amount}
             onPaid={() => {
               onSuccess?.()
               onOpenChange(false)
@@ -206,6 +214,23 @@ export function RechargeDialog({
               />
             </div>
 
+            {fee > 0 && effectiveAmount > 0 && (
+              <div className="rounded-md border border-dashed p-3 text-sm space-y-1">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>充值金额</span>
+                  <span>{formatAmount(effectiveAmount)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>手续费{selectedMethodObj?.fee_type === "percent" ? `（${formatFeePercent(selectedMethodObj.fee_amount ?? 0)}）` : ""}</span>
+                  <span>+{formatAmount(fee)}</span>
+                </div>
+                <div className="flex justify-between font-medium pt-1 border-t">
+                  <span>实付金额</span>
+                  <span>{formatAmount(totalAmount)}</span>
+                </div>
+              </div>
+            )}
+
             <Button
               className="w-full"
               disabled={submitting || effectiveAmount <= 0}
@@ -217,7 +242,7 @@ export function RechargeDialog({
                   创建支付中...
                 </>
               ) : (
-                `充值 ${effectiveAmount > 0 ? formatAmount(effectiveAmount) : ""}`
+                `充值 ${effectiveAmount > 0 ? formatAmount(fee > 0 ? totalAmount : effectiveAmount) : ""}`
               )}
             </Button>
           </div>

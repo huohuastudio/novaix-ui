@@ -8,7 +8,10 @@ import {
 } from "@/api/@tanstack/react-query.gen"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { refreshSiteSettings } from "@/hooks/use-site-settings"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
+
+const EMPTY_DATA: Record<string, string> = {}
 
 export function useSettings(group: string) {
   const queryClient = useQueryClient()
@@ -46,6 +49,7 @@ export function useSettings(group: string) {
             ? { ...old, data: { ...(old.data as Record<string, string> | undefined ?? {}), ...items } }
             : old,
         )
+        refreshSiteSettings()
         return true
       }
       toast.error(res?.message ?? "保存失败")
@@ -70,5 +74,20 @@ export function useSettings(group: string) {
     })
   }, [group, queryClient])
 
-  return { data, loading: query.isPending, saving, save, update, reload }
+  // 保存成功后，仅清除仍等于提交值的 overrides，保留请求期间产生的新编辑
+  const commitOverrides = useCallback((submitted: Record<string, string>) => {
+    setOverrides((prev) => {
+      const next: Record<string, string> = {}
+      for (const [key, value] of Object.entries(prev)) {
+        if (!(key in submitted) || value !== submitted[key]) {
+          next[key] = value
+        }
+      }
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [])
+
+  const dirty = Object.keys(overrides).length > 0
+
+  return { data, savedData: serverData ?? EMPTY_DATA, loading: query.isPending, saving, save, update, reload, dirty, commitOverrides }
 }

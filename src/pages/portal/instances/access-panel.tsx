@@ -104,10 +104,19 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
         {/* NAT 端口范围 */}
         {nat && nat.port_start != null && nat.port_end != null && (
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-[13px] text-muted-foreground">可用端口</span>
-            <span className="text-[13px] font-medium font-mono">
-              {nat.port_start + 1} - {nat.port_end}
+            <span className="text-[13px] text-muted-foreground">
+              {nat.mode === "quota" ? "公共可选范围" : "可用端口"}
             </span>
+            <div className="text-right">
+              <span className="text-[13px] font-medium font-mono">
+                {nat.mode === "quota" ? nat.port_start : nat.port_start + 1} - {nat.port_end}
+              </span>
+              {nat.mode === "quota" && nat.port_quota != null && nat.port_quota > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  额度 {nat.port_used ?? 0}/{nat.port_quota}，需添加转发规则后使用
+                </p>
+              )}
+            </div>
           </div>
         )}
 

@@ -51,6 +51,7 @@ import {
 import { InstanceEditInline } from "./edit-inline"
 import { FirewallSection } from "./sections/firewall"
 import { PortForwardSection } from "./sections/port-forward"
+import { toNATPortRange } from "@/components/port-forward-rule-dialog"
 import { useAdminPath } from "@/hooks/use-site-settings"
 const TABS = ["overview", "config", "firewall", "port-forward", "snapshots", "terminal"] as const
 type TabValue = (typeof TABS)[number]
@@ -190,6 +191,7 @@ export default function InstanceDetail() {
   const isStopped = instance.status === "stopped"
   const isFrozen = instance.status === "frozen"
   const isRescue = instance.status === "rescue"
+  const isError = instance.status === "error"
   const isVM = instance.type === "virtual-machine"
   const isTerminalTab = activeTab === "terminal"
   return (
@@ -204,13 +206,16 @@ export default function InstanceDetail() {
                 {status.label}
               </Badge>
             </div>
+            {instance.remark && (
+              <p className="text-sm text-muted-foreground mt-0.5">{instance.remark}</p>
+            )}
             <p className="text-sm text-muted-foreground mt-0.5">
               {instance.ip_address || instance.ipv6_address || "无 IP"} · {instance.node_name || "未知节点"}
               {instance.arch ? ` · ${instance.arch}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {(isStopped || isFrozen) && (
+            {(isStopped || isFrozen || isError) && (
               <Button onClick={() => doPower("start")} disabled={busy}>
                 {busy ? <Spinner /> : <Play className="size-4" />}
                 启动
@@ -240,7 +245,7 @@ export default function InstanceDetail() {
                 )}
               </>
             )}
-            {(isRunning || isFrozen) && (
+            {(isRunning || isFrozen || isError) && (
               <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => doPower("force-stop")} disabled={busy}>
                 {busy ? <Spinner /> : <Zap className="size-4" />}
                 <span className="hidden sm:inline">强制停止</span>
@@ -327,7 +332,7 @@ export default function InstanceDetail() {
           )}
           {visitedTabs.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardSection instanceId={Number(id)} isNAT={!!instance.nat_info} isIPv6Only={isIPv6OnlyInstance(instance)} />
+              <PortForwardSection instanceId={Number(id)} natPortRange={toNATPortRange(instance.nat_info)} isIPv6Only={isIPv6OnlyInstance(instance)} />
             </div>
           )}
           {visitedTabs.has("snapshots") && (

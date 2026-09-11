@@ -2,10 +2,11 @@ import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, Zap, Loader2, Import, Globe } from "lucide-react"
+import { Plus, Pencil, Trash2, Zap, Loader2, Import, Globe, Check, X } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +16,7 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -41,17 +43,21 @@ import {
   getAdminIpPools,
   postAdminIpPools,
   putAdminIpPoolsById,
+  putAdminIpsById,
   deleteAdminIpPoolsById,
+  deleteAdminIpsById,
+  deleteAdminIpPoolsByIdFreeIps,
   postAdminIpPoolsByIdGenerate,
   getAdminNodes,
 } from "@/api"
-import type { IppoolIpPoolItem, IncusIPv6ConfigResult } from "@/api"
-import { getAdminIpPoolsQueryKey } from "@/api/@tanstack/react-query.gen"
+import type { IppoolIpPoolItem, IppoolIpItem, IncusIPv6ConfigResult } from "@/api"
+import { getAdminIpPoolsQueryKey, getAdminIpsOptions } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { invalidateGeneratedQueries } from "@/lib/query-keys"
 import { incus } from "@/lib/incus"
 import { PaginatedSelect } from "@/components/paginated-select"
 import type { IncusNetworkDetail } from "@/types/incus"
@@ -68,6 +74,7 @@ const poolSchema = z.object({
   dns2: z.string().default("8.8.4.4"),
   vlan: z.coerce.number<number | string>().int().min(0).default(0),
   network_name: z.string().default(""),
+  node_id: z.coerce.number().int().positive().nullable().default(null),
 })
 
 type PoolFormInput = z.input<typeof poolSchema>
@@ -83,6 +90,7 @@ const poolDefaults: PoolFormValues = {
   dns2: "8.8.4.4",
   vlan: 0,
   network_name: "",
+  node_id: null,
 }
 
 const generateSchema = z.object({
@@ -176,7 +184,8 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
         }
       }
     }
-    toast.success(`已填充网桥「${net.name}」的配置`)
+    form.setValue("node_id", Number(nodeHelper.selectedNodeId))
+    toast.success(`已填充网桥「${net.name}」的配置并绑定节点`)
   }
 
   return (
@@ -361,6 +370,37 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           )}
         />
       </div>
+
+      <FormField
+        control={form.control}
+        name="node_id"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>绑定节点</FormLabel>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <PaginatedSelect
+                  value={field.value ? String(field.value) : ""}
+                  onChange={(v) => field.onChange(v ? Number(v) : null)}
+                  fetchFn={fetchNodeOptions}
+                  placeholder="待确认（需绑定后才可使用）"
+                  searchPlaceholder="搜索节点..."
+                  emptyText="无匹配节点"
+                />
+              </div>
+              {field.value != null && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => field.onChange(null)}>
+                  清除
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              绑定后此池对该节点可用并自动配置网桥。不绑定时池处于待确认状态，不可自动分配
+            </p>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   )
 }
@@ -387,7 +427,7 @@ function PoolCreateDialog({
 
   const onSubmit = async (values: PoolFormValues) => {
     try {
-      const { data: res } = await postAdminIpPools({ body: values })
+      const { data: res } = await postAdminIpPools({ body: { ...values, node_id: values.node_id ?? undefined } })
       if (res?.code !== 0) {
         toast.error(res?.message ?? "创建失败")
         return
@@ -466,6 +506,7 @@ function PoolEditDialog({
         dns2: pool.dns2 ?? "8.8.4.4",
         vlan: pool.vlan ?? 0,
         network_name: pool.network_name ?? "",
+        node_id: ((pool as Record<string, unknown>).node_id as number | null) ?? null,
       })
     }
   }, [open, pool, form])
@@ -480,7 +521,22 @@ function PoolEditDialog({
         toast.error(res?.message ?? "更新失败")
         return
       }
-      toast.success("IP 池已更新")
+      // IPv6 池绑定后显示网桥配置结果
+      const configResults = (res?.data as Record<string, unknown>)?.ipv6_config_results as IncusIPv6ConfigResult[] | undefined
+      if (configResults && configResults.length > 0) {
+        const failed = configResults.filter(r => r.status === "failed")
+        const skipped = configResults.filter(r => r.status === "skipped")
+        const formatResult = (r: IncusIPv6ConfigResult) => r.node_name ? `${r.node_name}（${r.message}）` : (r.message ?? "")
+        if (failed.length > 0) {
+          toast.warning(`绑定已保存，但节点 IPv6 配置失败：${failed.map(formatResult).join("、")}。请在节点管理中重新同步`)
+        } else if (skipped.length > 0) {
+          toast.info(`绑定已保存。${skipped.map(r => r.message ?? "").join("；")}`)
+        } else {
+          toast.success("IP 池已更新，节点网桥 IPv6 已自动配置")
+        }
+      } else {
+        toast.success("IP 池已更新")
+      }
       onOpenChange(false)
       onSuccess()
     } catch (err) {
@@ -630,11 +686,358 @@ function GenerateIPsDialog({
   )
 }
 
+// ── IP 列表展开行 ──
+
+const ipStatusLabels: Record<number, { label: string; variant: "secondary" | "default" | "outline" }> = {
+  0: { label: "空闲", variant: "secondary" },
+  1: { label: "已分配", variant: "default" },
+  2: { label: "保留", variant: "outline" },
+}
+
+function PoolIPsExpanded({ pool }: { pool: IppoolIpPoolItem }) {
+  const queryClient = useQueryClient()
+  const { confirm, ConfirmDialog: IpConfirmDialog } = useConfirm()
+  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editNote, setEditNote] = useState("")
+  const [savingNote, setSavingNote] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deletingFree, setDeletingFree] = useState(false)
+  const [addIpValue, setAddIpValue] = useState("")
+  const [addingIp, setAddingIp] = useState(false)
+  const [togglingId, setTogglingId] = useState<number | null>(null)
+
+  const statusParam = statusFilter === "all" ? undefined : Number(statusFilter) as 0 | 1 | 2
+  const ipsQueryOpts = { query: { pool_id: pool.id!, page, page_size: 20, ...(statusParam != null ? { status: statusParam } : {}) } }
+
+  const { data, isLoading, error: queryError, refetch } = useQuery({
+    ...getAdminIpsOptions(ipsQueryOpts),
+    select: (res) => {
+      const d = res?.data as Record<string, unknown> | undefined
+      return {
+        items: (d?.items ?? []) as IppoolIpItem[],
+        total: (d?.total as number) ?? 0,
+      }
+    },
+  })
+
+  const items = data?.items ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.ceil(total / 20)
+
+  const addSingleIp = async () => {
+    const addr = addIpValue.trim()
+    if (!addr) return
+    setAddingIp(true)
+    try {
+      const { data: res } = await postAdminIpPoolsByIdGenerate({
+        path: { id: pool.id! },
+        body: { start_ip: addr, end_ip: addr },
+      })
+      if (res?.code !== 0) {
+        toast.error(res?.message ?? "添加失败")
+        return
+      }
+      const created = (res.data as Record<string, unknown>)?.created as number ?? 0
+      if (created === 0) {
+        toast.warning("该 IP 已存在")
+      } else {
+        toast.success(`IP ${addr} 已添加`)
+        setAddIpValue("")
+      }
+      invalidateIps()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "添加失败"))
+    } finally {
+      setAddingIp(false)
+    }
+  }
+
+  const toggleStatus = async (ip: IppoolIpItem) => {
+    const newStatus = ip.status === 0 ? 2 : 0
+    setTogglingId(ip.id!)
+    try {
+      const { data: res } = await putAdminIpsById({ path: { id: ip.id! }, body: { status: newStatus } })
+      if (res?.code === 0) {
+        toast.success(newStatus === 2 ? "已标记为保留" : "已标记为空闲")
+        if (statusFilter !== "all" && items.length <= 1 && page > 1) setPage(p => p - 1)
+        invalidateIps()
+      } else {
+        toast.error(res?.message ?? "操作失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "操作失败"))
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  const invalidateIps = () => {
+    invalidateAllIps(queryClient)
+    queryClient.invalidateQueries({ queryKey: getAdminIpPoolsQueryKey() })
+  }
+
+  const saveNote = async (ipId: number) => {
+    setSavingNote(true)
+    try {
+      const { data: res } = await putAdminIpsById({ path: { id: ipId }, body: { note: editNote } })
+      if (res?.code === 0) {
+        toast.success("备注已保存")
+        setEditingId(null)
+        invalidateIps()
+      } else {
+        toast.error(res?.message ?? "保存失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "保存失败"))
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  const deleteIp = async (ip: IppoolIpItem) => {
+    const ok = await confirm({
+      title: "删除 IP",
+      description: `确定要删除 IP「${ip.address}」吗？此操作不可恢复。`,
+      confirmText: "删除",
+      destructive: true,
+    })
+    if (!ok) return
+    setDeletingId(ip.id!)
+    try {
+      const { data: res } = await deleteAdminIpsById({ path: { id: ip.id! } })
+      if (res?.code === 0) {
+        toast.success(`IP ${ip.address} 已删除`)
+        if (items.length <= 1 && page > 1) setPage(p => p - 1)
+        invalidateIps()
+      } else {
+        toast.error(res?.message ?? "删除失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "删除失败"))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const deleteFreeIps = async () => {
+    const ok = await confirm({
+      title: "删除所有空闲 IP",
+      description: `确定要删除 IP 池「${pool.name}」中所有空闲 IP 吗？此操作不可恢复。`,
+      confirmText: "全部删除",
+      destructive: true,
+    })
+    if (!ok) return
+    setDeletingFree(true)
+    try {
+      const { data: res } = await deleteAdminIpPoolsByIdFreeIps({ path: { id: pool.id! } })
+      if (res?.code === 0) {
+        const count = (res.data as Record<string, unknown>)?.deleted as number ?? 0
+        toast.success(`已删除 ${count} 个空闲 IP`)
+        setPage(1)
+        invalidateIps()
+      } else {
+        toast.error(res?.message ?? "删除失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "删除失败"))
+    } finally {
+      setDeletingFree(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-2">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-3/4" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+            <SelectTrigger className="h-8 w-28 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="0">空闲</SelectItem>
+              <SelectItem value="1">已分配</SelectItem>
+              <SelectItem value="2">保留</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{total} 条</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Input
+              value={addIpValue}
+              onChange={(e) => setAddIpValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addSingleIp() }}
+              className="h-8 w-36 text-xs"
+              placeholder="输入 IP 地址"
+              disabled={addingIp}
+            />
+            <Button size="sm" className="text-xs" disabled={addingIp || !addIpValue.trim()} onClick={addSingleIp}>
+              {addingIp ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+              添加
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs text-destructive hover:text-destructive"
+            disabled={deletingFree}
+            onClick={deleteFreeIps}
+          >
+            {deletingFree ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
+            删除所有空闲
+          </Button>
+        </div>
+      </div>
+
+      {queryError ? (
+        <div className="py-6 text-center space-y-2">
+          <p className="text-sm text-destructive">加载失败：{getErrorMessage(queryError, "请稍后重试")}</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>重试</Button>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-6 text-center text-sm text-muted-foreground">暂无 IP</div>
+      ) : (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-3 py-2 text-left font-medium">ID</th>
+                <th className="px-3 py-2 text-left font-medium">地址</th>
+                <th className="px-3 py-2 text-left font-medium">状态</th>
+                <th className="px-3 py-2 text-left font-medium">实例 ID</th>
+                <th className="px-3 py-2 text-left font-medium">主 IP</th>
+                <th className="px-3 py-2 text-left font-medium">备注</th>
+                <th className="px-3 py-2 text-left font-medium">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((ip) => {
+                const st = ipStatusLabels[ip.status ?? 0] ?? ipStatusLabels[0]
+                const isEditing = editingId === ip.id
+                return (
+                  <tr key={ip.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                    <td className="px-3 py-2 tabular-nums">{ip.id}</td>
+                    <td className="px-3 py-2 font-mono">{ip.address}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={st.variant}>{st.label}</Badge>
+                    </td>
+                    <td className="px-3 py-2 tabular-nums">{ip.instance_id || "-"}</td>
+                    <td className="px-3 py-2">{ip.is_primary ? "是" : "-"}</td>
+                    <td className="px-3 py-2">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={editNote}
+                            onChange={(e) => setEditNote(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveNote(ip.id!)
+                              if (e.key === "Escape") setEditingId(null)
+                            }}
+                            className="h-7 text-xs w-40"
+                            maxLength={256}
+                            disabled={savingNote}
+                            autoFocus
+                          />
+                          <Button variant="ghost" size="icon" className="size-6" onClick={() => saveNote(ip.id!)} disabled={savingNote}>
+                            <Check className="size-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-6" onClick={() => setEditingId(null)}>
+                            <X className="size-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 group">
+                          <span className="truncate max-w-[160px]" title={ip.note}>{ip.note || "-"}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => { setEditNote(ip.note ?? ""); setEditingId(ip.id!) }}
+                          >
+                            <Pencil className="size-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-0.5">
+                        {ip.status !== 1 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={togglingId === ip.id}
+                                onClick={() => toggleStatus(ip)}
+                              >
+                                {togglingId === ip.id ? <Loader2 className="size-3 animate-spin" /> : null}
+                                {ip.status === 0 ? "保留" : "释放"}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{ip.status === 0 ? "标记为保留，阻止自动分配" : "标记为空闲，允许自动分配"}</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {ip.status !== 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-destructive hover:text-destructive"
+                            disabled={deletingId === ip.id}
+                            onClick={() => deleteIp(ip)}
+                          >
+                            {deletingId === ip.id ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+            上一页
+          </Button>
+          <span className="text-xs text-muted-foreground">{page} / {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+            下一页
+          </Button>
+        </div>
+      )}
+      {IpConfirmDialog}
+    </div>
+  )
+}
+
 // ── Main page ──
+
+function invalidateAllIps(qc: ReturnType<typeof useQueryClient>) {
+  invalidateGeneratedQueries(qc, "getAdminIps")
+}
 
 export default function IPs() {
   useBreadcrumb([{ label: "IP 池管理" }])
   const formatDate = useFormatDate()
+  const mainQueryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingPool, setEditingPool] = useState<IppoolIpPoolItem | null>(null)
   const [generatePool, setGeneratePool] = useState<IppoolIpPoolItem | null>(null)
@@ -740,6 +1143,18 @@ export default function IPs() {
       ),
     },
     {
+      id: "node",
+      header: "绑定节点",
+      cell: ({ row }) => {
+        const nodeId = (row.original as Record<string, unknown>).node_id as number | undefined
+        const nodeName = (row.original as Record<string, unknown>).node_name as string | undefined
+        if (!nodeId) {
+          return <Badge variant="outline" className="text-muted-foreground">待确认</Badge>
+        }
+        return <Badge variant="secondary">{nodeName || `节点 ${nodeId}`}</Badge>
+      },
+    },
+    {
       id: "usage",
       header: "IP 使用",
       cell: ({ row }) => {
@@ -839,6 +1254,8 @@ export default function IPs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        getRowId={(row) => String(row.id)}
+        renderExpanded={(row) => <PoolIPsExpanded pool={row} />}
         emptyIcon={Globe}
         emptyTitle="暂无 IP 池"
         emptyDescription="创建 IP 池并添加 IP 地址"
@@ -874,6 +1291,7 @@ export default function IPs() {
           onSuccess={() => {
             setGeneratePool(null)
             table.refresh()
+            invalidateAllIps(mainQueryClient)
           }}
         />
       )}

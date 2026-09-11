@@ -68,7 +68,7 @@ function OAuthProviderForm({ descriptor }: { descriptor: ProviderDescriptor }) {
 
   const nonEnabledFields = fields.filter((f) => f.key !== "enabled")
 
-  const fieldValues: Record<string, string> = {}
+  const fieldValues: Record<string, string> = { enabled: enabled ? "true" : "false" }
   for (const f of nonEnabledFields) {
     fieldValues[f.key ?? ""] = data[`${group}_${f.key}`] ?? f.default ?? ""
   }

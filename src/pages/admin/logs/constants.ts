@@ -67,6 +67,7 @@ export const actionMap: Record<string, { label: string; variant: "default" | "se
   instance_batch_action: { label: "批量操作实例", variant: "secondary" },
   instance_add_nat_dedicated_ip: { label: "添加独享 IP", variant: "default" },
   instance_remove_nat_dedicated_ip: { label: "移除独享 IP", variant: "destructive" },
+  order_batch_cancel: { label: "批量取消订单", variant: "destructive" },
   order_batch_refund: { label: "批量退款", variant: "secondary" },
   order_batch_reject_refund: { label: "批量拒绝退款", variant: "destructive" },
   banner_create: { label: "创建 Banner", variant: "default" },

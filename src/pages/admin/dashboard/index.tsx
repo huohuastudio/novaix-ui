@@ -25,8 +25,8 @@ import {
   getAdminDashboardStatsOptions,
 } from "@/api/@tanstack/react-query.gen"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
-import { useSiteName, useAdminPath } from "@/hooks/use-site-settings"
-import { formatAmount, orderStatusMap, orderTypeMap } from "@/lib/order-constants"
+import { useSiteName, useAdminPath, useFormatAmount, useCurrencySymbol } from "@/hooks/use-site-settings"
+import { orderStatusMap, orderTypeMap } from "@/lib/order-constants"
 import { formatPercent } from "@/lib/chart-utils"
 import { formatMemory, formatDisk } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
@@ -112,6 +112,8 @@ export default function Dashboard() {
   useBreadcrumb([{ label: "仪表盘" }])
   const siteName = useSiteName()
   const adminPath = useAdminPath()
+  const formatAmount = useFormatAmount()
+  const currencySymbol = useCurrencySymbol()
   const statsQuery = useQuery(getAdminDashboardStatsOptions())
   const recentQuery = useQuery(getAdminDashboardRecentOptions())
   const stats: DashboardStatsResponse | null =
@@ -289,7 +291,7 @@ export default function Dashboard() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={4}
-                    tickFormatter={(v) => `¥${v}`}
+                    tickFormatter={(v) => `${currencySymbol}${v}`}
                     width={48}
                     style={{ fontSize: 10 }}
                     className="fill-muted-foreground"
@@ -297,7 +299,7 @@ export default function Dashboard() {
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
-                        formatter={(value) => [`¥${Number(value).toFixed(2)}`, "收入"]}
+                        formatter={(value) => [`${currencySymbol}${Number(value).toFixed(2)}`, "收入"]}
                       />
                     }
                   />

@@ -1,4 +1,4 @@
-import type { ServicePortForwardRuleItem, ServicePortForwardRuleInput } from "@/api"
+import type { ServicePortForwardRuleItem, ServicePortForwardRuleInput, ServiceNatAllocationInfo } from "@/api"
 import { protocolOptions } from "@/hooks/use-port-forward-rules"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,27 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+export interface NATPortRange {
+  portStart: number
+  portEnd: number
+  mode: string
+  sshPort: number
+  portQuota: number
+  portUsed: number
+}
+
+export function toNATPortRange(info?: ServiceNatAllocationInfo): NATPortRange | undefined {
+  if (info?.port_start == null || info?.port_end == null) return undefined
+  return {
+    portStart: info.port_start,
+    portEnd: info.port_end,
+    mode: info.mode || "block",
+    sshPort: info.ssh_port ?? info.port_start,
+    portQuota: info.port_quota ?? 0,
+    portUsed: info.port_used ?? 0,
+  }
+}
+
 interface PortForwardRuleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -38,7 +59,7 @@ interface PortForwardRuleFormDialogProps {
   setFormData: React.Dispatch<React.SetStateAction<ServicePortForwardRuleInput>>
   submitting: boolean
   onSubmit: () => void
-  isNAT?: boolean
+  natPortRange?: NATPortRange
 }
 
 export function PortForwardRuleFormDialog({
@@ -49,8 +70,9 @@ export function PortForwardRuleFormDialog({
   setFormData,
   submitting,
   onSubmit,
-  isNAT,
+  natPortRange,
 }: PortForwardRuleFormDialogProps) {
+  const isNAT = !!natPortRange
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -81,6 +103,18 @@ export function PortForwardRuleFormDialog({
                 value={formData.listen_port ?? ""}
                 onChange={(e) => setFormData((prev) => ({ ...prev, listen_port: e.target.value }))}
               />
+              {natPortRange && (
+                <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    可用范围：{natPortRange.mode === "quota" ? natPortRange.portStart : natPortRange.portStart + 1} - {natPortRange.portEnd}
+                  </p>
+                  {natPortRange.mode === "quota" && natPortRange.portQuota > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      端口额度：{natPortRange.portUsed}/{natPortRange.portQuota}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>目标端口</Label>

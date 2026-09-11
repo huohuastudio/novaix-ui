@@ -146,7 +146,8 @@ function PluginConfigSheet({
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const fieldValues: Record<string, string> = {}
+  const enabledKey = `${group}_enabled`
+  const fieldValues: Record<string, string> = { enabled: settings.data[enabledKey] === "true" ? "true" : "false" }
   for (const f of configFields) {
     fieldValues[f.key ?? ""] = settings.data[`${group}_${f.key}`] ?? f.default ?? ""
   }

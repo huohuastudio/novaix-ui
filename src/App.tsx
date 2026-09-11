@@ -70,6 +70,7 @@ const PortalAgent = lazy(() => import('@/pages/portal/agent'))
 const PortalVPCs = lazy(() => import('@/pages/portal/vpcs'))
 const PortalInvoices = lazy(() => import('@/pages/portal/invoices'))
 const PortalTransfers = lazy(() => import('@/pages/portal/transfers'))
+const PortalTransferInvite = lazy(() => import('@/pages/portal/transfers/invite'))
 const PortalImpersonate = lazy(() => import('@/pages/portal/impersonate'))
 import Home from './pages/Home'
 const Legal = lazy(() => import('./pages/Legal'))
@@ -201,6 +202,7 @@ function AppRoutes() {
         <Route path="wallet" element={<PortalWallet />} />
         <Route path="invoices" element={<PortalInvoices />} />
         <Route path="transfers" element={<PortalTransfers />} />
+        <Route path="transfer/invite/:token" element={<PortalTransferInvite />} />
         <Route path="profile" element={<PortalProfile />} />
         <Route path="notifications" element={<PortalNotifications />} />
         <Route path="purchase" element={<PortalPurchase />} />

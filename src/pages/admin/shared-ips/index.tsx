@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Plus, Pencil, Trash2, Loader2, Globe } from "lucide-react"
+import { Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import {
   Tooltip,
   TooltipContent,
@@ -18,6 +20,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
+import { UserPopover } from "@/components/user-popover"
 import {
   Select,
   SelectContent,
@@ -48,8 +52,8 @@ import {
   deleteAdminSharedIpsById,
   getAdminNodes,
 } from "@/api"
-import type { ServiceSharedIpItem } from "@/api"
-import { getAdminSharedIpsQueryKey } from "@/api/@tanstack/react-query.gen"
+import type { ServiceSharedIpItem, ServiceNatRuleItem } from "@/api"
+import { getAdminSharedIpsQueryKey, getAdminSharedIpsByIdNatRulesOptions } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirmChoice } from "@/hooks/use-confirm-choice"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -458,6 +462,115 @@ function SharedIpEditDialog({
   )
 }
 
+// ── NAT 规则展开行 ──
+
+const sourceLabels: Record<string, { label: string; variant: "secondary" | "default" | "outline" }> = {
+  nat_range: { label: "整段分配", variant: "secondary" },
+  default_ssh: { label: "默认SSH", variant: "default" },
+  custom: { label: "自定义", variant: "outline" },
+}
+
+function NATRulesExpanded({ sharedIpId }: { sharedIpId: number }) {
+  const { data: rawData, isLoading, error } = useQuery(
+    getAdminSharedIpsByIdNatRulesOptions({ path: { id: sharedIpId } })
+  )
+  const data = (rawData?.data ?? []) as ServiceNatRuleItem[]
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-2">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-3/4" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-sm text-destructive">
+        加载失败：{getErrorMessage(error, "请稍后重试")}
+      </div>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="p-8 text-center text-sm text-muted-foreground">
+        暂无端口分配
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4">
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-3 py-2 text-left font-medium">来源</th>
+              <th className="px-3 py-2 text-left font-medium">监听端口</th>
+              <th className="px-3 py-2 text-left font-medium">协议</th>
+              <th className="px-3 py-2 text-left font-medium">目标</th>
+              <th className="px-3 py-2 text-left font-medium">用户</th>
+              <th className="px-3 py-2 text-left font-medium">实例</th>
+              <th className="px-3 py-2 text-left font-medium">状态</th>
+              <th className="px-3 py-2 text-left font-medium">描述</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((rule, idx) => {
+              const src = sourceLabels[rule.source ?? "custom"] ?? sourceLabels.custom
+              const target = rule.target_address
+                ? rule.connect_port ? `${rule.target_address}:${rule.connect_port}` : rule.target_address
+                : "-"
+              return (
+                <tr key={rule.id ? `rule-${rule.id}` : `${rule.source}-${idx}`} className="border-b last:border-b-0">
+                  <td className="px-3 py-2">
+                    <Badge variant={src.variant}>{src.label}</Badge>
+                  </td>
+                  <td className="px-3 py-2 font-mono">{rule.listen_port}</td>
+                  <td className="px-3 py-2">{rule.protocol?.toUpperCase()}</td>
+                  <td className="px-3 py-2 font-mono text-muted-foreground">{target}</td>
+                  <td className="px-3 py-2">
+                    {rule.user_id ? (
+                      <UserPopover userId={rule.user_id} username={rule.username} />
+                    ) : "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {rule.instance_id ? (
+                      <Link
+                        to={`/admin/instances/${rule.instance_id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {rule.instance_name || `#${rule.instance_id}`}
+                      </Link>
+                    ) : "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {!rule.enabled ? (
+                      <Badge variant="outline">
+                        {rule.source === "custom" ? "禁用" : "待同步"}
+                      </Badge>
+                    ) : rule.source === "custom" ? (
+                      <Badge variant="default">已配置</Badge>
+                    ) : (
+                      <Badge variant="secondary">已配置</Badge>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+                    {rule.description || "-"}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── 主页面 ──
 
 export default function SharedIPs() {
@@ -653,6 +766,8 @@ export default function SharedIPs() {
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
+        getRowId={(row) => String(row.id)}
+        renderExpanded={(row) => <NATRulesExpanded sharedIpId={row.id!} />}
         emptyIcon={Globe}
         emptyTitle="暂无共享 IP"
         emptyDescription="创建共享 IP 以支持 NAT 模式"

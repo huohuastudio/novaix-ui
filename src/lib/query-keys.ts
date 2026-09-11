@@ -2,6 +2,17 @@
 // 单接口读取一律使用 @/api/@tanstack/react-query.gen 生成的 xxxQueryKey()
 // （接口的 query 参数直接传入生成函数，而非手工追加判别符），
 // 只有聚合多接口或走通配 proxy（无生成 SDK）的查询才允许手工构造 key，且必须集中登记在此。
+import type { QueryClient } from "@tanstack/react-query"
+
+export function invalidateGeneratedQueries(qc: QueryClient, operationId: string) {
+  qc.invalidateQueries({
+    predicate: (q) => {
+      const k = q.queryKey[0]
+      return typeof k === "object" && k !== null && (k as Record<string, unknown>)._id === operationId
+    },
+  })
+}
+
 export const queryKeys = {
   /** 节点镜像列表（走 lib/incus.ts 通配 proxy，无生成 SDK） */
   nodeImages: (nodeId: number) => ["node-images", nodeId] as const,

@@ -43,6 +43,7 @@ interface SiteSettings {
   agent_enabled: string
   agent_application_enabled: string
   push_transfer_enabled: string
+  vpc_enabled: string
   edition: string
   features: string
 }
@@ -88,6 +89,7 @@ const defaultSettings: SiteSettings = {
   agent_enabled: "false",
   agent_application_enabled: "false",
   push_transfer_enabled: "false",
+  vpc_enabled: "false",
   edition: "free",
   features: "[]",
 }
@@ -109,6 +111,12 @@ function setOrRemoveMeta(name: string, content: string) {
 const SiteSettingsContext = createContext<SiteSettings>(defaultSettings)
 
 let _adminBasePath = "/admin"
+let _refreshSiteSettings: (() => void) | null = null
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function refreshSiteSettings() {
+  _refreshSiteSettings?.()
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function getAdminBasePath() {
@@ -118,10 +126,18 @@ export function getAdminBasePath() {
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings>(defaultSettings)
   const [loaded, setLoaded] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
+    _refreshSiteSettings = () => setRefreshKey(k => k + 1)
+    return () => { _refreshSiteSettings = null }
+  }, [])
+
+  useEffect(() => {
+    let stale = false
     getSettingsPublic()
       .then(({ data: res }) => {
+        if (stale) return
         if (res?.code === 0 && res.data) {
           const data = res.data as Record<string, string>
           const merged = { ...defaultSettings, ...data }
@@ -132,8 +148,9 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {})
-      .finally(() => setLoaded(true))
-  }, [])
+      .finally(() => { if (!stale) setLoaded(true) })
+    return () => { stale = true }
+  }, [refreshKey])
 
   useEffect(() => {
     if (settings.site_favicon) {

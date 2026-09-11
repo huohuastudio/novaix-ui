@@ -216,6 +216,19 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       ),
     },
     {
+      accessorKey: "remark",
+      header: "备注",
+      cell: ({ row }) => {
+        const remark = row.original.remark
+        if (!remark) return <span className="text-muted-foreground">-</span>
+        return (
+          <span className="text-sm text-muted-foreground max-w-[200px] truncate block" title={remark}>
+            {remark}
+          </span>
+        )
+      },
+    },
+    {
       accessorKey: "username",
       header: "用户",
       cell: ({ row }) => (

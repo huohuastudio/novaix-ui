@@ -47,6 +47,7 @@ import { FormSheet } from "@/components/form-sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PaginatedMultiSelect, type PaginatedMultiSelectItem } from "@/components/paginated-multi-select"
 import { billingCycleMap } from "@/lib/order-constants"
+import { useCurrencySymbol } from "@/hooks/use-site-settings"
 
 const BILLING_CYCLES = Object.entries(billingCycleMap).map(([value, label]) => ({ value, label }))
 
@@ -83,6 +84,7 @@ const schema = z.object({
   extra_ip_price: z.coerce.number<number | string>().int().min(0).default(0),
   max_extra_ips: z.coerce.number<number | string>().int().min(0).default(0),
   nat_mode: z.boolean().default(false),
+  nat_port_mode: z.enum(["block", "quota"]).default("block"),
   ipv6_enabled: z.boolean().default(false),
   port_count: z.coerce.number<number | string>().int().min(1).default(20),
   cpu_allowance: z.coerce.number<number | string>().int().min(0).max(100).default(0),
@@ -131,6 +133,7 @@ const defaultValues: FormValues = {
   extra_ip_price: 0,
   max_extra_ips: 0,
   nat_mode: false,
+  nat_port_mode: "block" as const,
   ipv6_enabled: false,
   port_count: 20,
   cpu_allowance: 0,
@@ -168,6 +171,7 @@ const PAGE_SIZE = 20
 
 export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, plan, onSuccess }: Props) {
   const isEdit = !!plan
+  const currencySymbol = useCurrencySymbol()
   const [serverError, setServerError] = useState("")
   const onOpenChange = useCallback((v: boolean) => {
     if (v) setServerError("")
@@ -228,6 +232,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
   const planType = useWatch({ control: form.control, name: "type" })
   const isVM = planType === "vm"
   const natMode = useWatch({ control: form.control, name: "nat_mode" })
+  const natPortMode = useWatch({ control: form.control, name: "nat_port_mode" })
   const ipv6Enabled = useWatch({ control: form.control, name: "ipv6_enabled" })
   const ipCount = useWatch({ control: form.control, name: "ip_count" })
 
@@ -268,6 +273,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         extra_ip_price: (plan as Record<string, unknown>).extra_ip_price as number ?? 0,
         max_extra_ips: (plan as Record<string, unknown>).max_extra_ips as number ?? 0,
         nat_mode: (plan as Record<string, unknown>).nat_mode as boolean ?? false,
+        nat_port_mode: ((plan as Record<string, unknown>).nat_port_mode as string) === "quota" ? "quota" as const : "block" as const,
         ipv6_enabled: (plan as Record<string, unknown>).ipv6_enabled as boolean ?? false,
         port_count: (plan as Record<string, unknown>).port_count as number ?? 20,
         cpu_allowance: (plan as Record<string, unknown>).cpu_allowance as number ?? 0,
@@ -313,6 +319,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         extra_ip_price: values.extra_ip_price,
         max_extra_ips: values.max_extra_ips,
         nat_mode: values.nat_mode,
+        nat_port_mode: values.nat_port_mode,
         ipv6_enabled: values.ipv6_enabled,
         port_count: values.port_count,
         cpu_allowance: values.cpu_allowance,
@@ -503,17 +510,46 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                 </div>
               </div>
               {natMode && (
-                <FormField
-                  control={form.control}
-                  name="port_count"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>端口数量</FormLabel>
-                      <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <>
+                  <FormField
+                    control={form.control}
+                    name="nat_port_mode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>端口分配模式</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="block">固定端口段</SelectItem>
+                            <SelectItem value="quota">按需选端口</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {field.value === "quota"
+                            ? "实例从共享 IP 公共范围中按需选取端口，以数量额度为限"
+                            : "每个实例分配一段连续端口，端口范围固定"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="port_count"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{natPortMode === "quota" ? "端口额度" : "端口数量"}</FormLabel>
+                        <FormControl><Input type="number" placeholder="20" {...field} /></FormControl>
+                        <FormDescription>
+                          {natPortMode === "quota"
+                            ? "每个实例最多可添加的自定义端口转发规则数"
+                            : "每个实例分配的连续端口数"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
               <div className="flex items-center gap-3 py-2">
                 <Switch
@@ -621,7 +657,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
 
           <section data-tour="plan-form-price">
             <h3 className="text-sm font-medium">定价</h3>
-            <p className="text-xs text-muted-foreground mt-1">勾选启用的计费周期，价格单位为分（如 2000 = ¥20.00），价格为 0 表示免费</p>
+            <p className="text-xs text-muted-foreground mt-1">勾选启用的计费周期，价格单位为分（如 2000 = {currencySymbol}20.00），价格为 0 表示免费</p>
             <div className="mt-4 flex flex-col gap-4">
               <FormField
                 control={form.control}

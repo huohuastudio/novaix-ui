@@ -41,6 +41,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogViewer } from "@/components/log-viewer"
 import NodeImageTable, { ImageTableSkeleton } from "@/components/node-image-table"
 import NodeInstanceTable from "@/components/node-instance-table"
+import NodeRetirePanel from "@/components/node-retire-panel"
 import NodeNetworkTable, { NetworkTableSkeleton } from "@/components/node-network-table"
 import NodeProfileTable, { ProfileTableSkeleton } from "@/components/node-profile-table"
 import NodeSettings from "@/components/node-settings"
@@ -217,6 +218,13 @@ function OverviewTab({ node }: { node: NodeNodeItem }) {
 
   return (
     <div className="space-y-0">
+      {node.status === NODE_STATUS.RETIRED && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 mb-6 space-y-2">
+          <p className="font-medium">该节点已停用，不再接受新实例</p>
+          <p>请在「实例」标签页中处理现有实例：通过后台删除不再需要的实例，或联系用户迁移数据后再删除。由于网络资源（IP 池、共享 IP）绑定在节点上，跨节点迁移需先在目标节点配置好对应的网络资源。</p>
+          <p>所有实例处理完毕后，方可删除该节点。</p>
+        </div>
+      )}
       <section className="space-y-5">
         <div>
           <h3 className="text-lg font-semibold">概览</h3>
@@ -722,15 +730,19 @@ export default function NodeDetail() {
           {/* eslint-disable-next-line react-hooks/refs */}
           {visitedRef.current.has("instances") && (
             <div className={activeTab !== "instances" ? "hidden" : undefined}>
-              <NodeInstanceTable
-                nodeId={Number(id)}
-                toolbar={
-                  <Button onClick={() => setInstanceSheetOpen(true)}>
-                    <Plus className="size-4" />
-                    创建实例
-                  </Button>
-                }
-              />
+              {node.status === NODE_STATUS.RETIRED ? (
+                <NodeRetirePanel nodeId={Number(id)} />
+              ) : (
+                <NodeInstanceTable
+                  nodeId={Number(id)}
+                  toolbar={
+                    <Button onClick={() => setInstanceSheetOpen(true)}>
+                      <Plus className="size-4" />
+                      创建实例
+                    </Button>
+                  }
+                />
+              )}
             </div>
           )}
           {/* eslint-disable-next-line react-hooks/refs */}
@@ -748,7 +760,7 @@ export default function NodeDetail() {
           {/* eslint-disable-next-line react-hooks/refs */}
           {visitedRef.current.has("network") && (
             <div className={activeTab !== "network" ? "hidden" : undefined}>
-              <NodeNetworkTable nodeId={Number(id)} />
+              <NodeNetworkTable nodeId={Number(id)} activeNetworkName={node?.network_name} />
             </div>
           )}
           {/* eslint-disable-next-line react-hooks/refs */}

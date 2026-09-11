@@ -8,7 +8,7 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useFormatAmount, useFormatDate } from "@/hooks/use-site-settings"
-import { paymentStatusMap } from "@/lib/payment"
+import { paymentStatusMap, renderAmountWithFee } from "@/lib/payment"
 import { useProviderMap } from "@/hooks/use-provider-map"
 
 export function PaymentsTab({ userId }: { userId: number }) {
@@ -60,7 +60,10 @@ export function PaymentsTab({ userId }: { userId: number }) {
       accessorKey: "amount",
       header: "金额",
       enableSorting: true,
-      cell: ({ row }) => formatAmount(row.original.amount ?? 0),
+      cell: ({ row }) => {
+        const r = renderAmountWithFee(row.original.amount ?? 0, row.original.fee_amount ?? 0, formatAmount)
+        return r.title ? <span title={r.title}>{r.text}</span> : r.text
+      },
     },
     {
       accessorKey: "status",

@@ -1,4 +1,4 @@
-export const NODE_STATUS = { OFFLINE: 0, ONLINE: 1, DEPLOYING: 2, ERROR: 3, UNREACHABLE: 4, MAINTENANCE: 5 } as const
+export const NODE_STATUS = { OFFLINE: 0, ONLINE: 1, DEPLOYING: 2, ERROR: 3, UNREACHABLE: 4, MAINTENANCE: 5, RETIRED: 6 } as const
 
 export const statusMap: Record<number, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   [NODE_STATUS.OFFLINE]: { label: "离线", variant: "secondary" },
@@ -7,6 +7,7 @@ export const statusMap: Record<number, { label: string; variant: "default" | "se
   [NODE_STATUS.ERROR]: { label: "错误", variant: "destructive" },
   [NODE_STATUS.UNREACHABLE]: { label: "不可达", variant: "destructive" },
   [NODE_STATUS.MAINTENANCE]: { label: "维护中", variant: "outline" },
+  [NODE_STATUS.RETIRED]: { label: "已停用", variant: "destructive" },
 }
 
 export const statusFilterOptions = Object.entries(statusMap).map(([value, { label }]) => ({ label, value }))

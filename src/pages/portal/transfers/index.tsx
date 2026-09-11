@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { ArrowLeftRight, Loader2, Send, Download as ReceiveIcon } from 'lucide-react'
+import { ArrowLeftRight, Loader2, Send, Download as ReceiveIcon, Mail } from 'lucide-react'
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { toast } from 'sonner'
 
@@ -141,6 +141,10 @@ export default function PortalTransfers() {
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('')
   const [creating, setCreating] = useState(false)
   const [createdCode, setCreatedCode] = useState<string | null>(null)
+  const [inviteMethod, setInviteMethod] = useState<'code' | 'email'>('code')
+  const [receiverEmail, setReceiverEmail] = useState('')
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+  const [createdEmailSent, setCreatedEmailSent] = useState(false)
 
   const instancesQuery = useQuery({
     queryKey: ['portalInstances', 'forTransfer'],
@@ -152,6 +156,10 @@ export default function PortalTransfers() {
   const openCreate = () => {
     setSelectedInstanceId('')
     setCreatedCode(null)
+    setInviteMethod('code')
+    setReceiverEmail('')
+    setCreatedEmail(null)
+    setCreatedEmailSent(false)
     setCreateOpen(true)
   }
 
@@ -160,15 +168,33 @@ export default function PortalTransfers() {
       toast.error('请选择要转移的实例')
       return
     }
+    if (inviteMethod === 'email' && !receiverEmail.trim()) {
+      toast.error('请输入接收方邮箱')
+      return
+    }
     setCreating(true)
     try {
       const res = await postPortalPushTransfers({
-        body: { instance_id: Number(selectedInstanceId) },
+        body: {
+          instance_id: Number(selectedInstanceId),
+          ...(inviteMethod === 'email' && receiverEmail.trim() ? { receiver_email: receiverEmail.trim() } : {}),
+        },
       })
-      const body = res.data as { code?: number; data?: PortalPushTransferResponse }
+      const body = res.data as { code?: number; data?: PortalPushTransferResponse & { email_sent?: boolean } }
       const code = body?.data?.code ?? ''
       setCreatedCode(code)
-      toast.success('转移请求已创建')
+      if (inviteMethod === 'email') {
+        const emailSent = !!body?.data?.email_sent
+        setCreatedEmail(receiverEmail.trim())
+        setCreatedEmailSent(emailSent)
+        if (emailSent) {
+          toast.success(`邀请邮件已发送到 ${receiverEmail.trim()}`)
+        } else {
+          toast.warning(`邀请已创建，但邮件发送失败。请将转移码手动发送给对方`, { duration: 8000 })
+        }
+      } else {
+        toast.success('转移请求已创建')
+      }
       queryClient.invalidateQueries({ queryKey: getPortalPushTransfersQueryKey() })
     } catch (err) {
       toast.error(getErrorMessage(err, '创建失败'))
@@ -264,9 +290,15 @@ export default function PortalTransfers() {
       <div key={item.id} className="rounded-md border px-4 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-mono text-sm font-medium tracking-wider">{item.code}</span>
+            <span className="font-mono text-xs font-medium tracking-wider truncate max-w-[200px]" title={item.code}>{item.code}</span>
             <CopyButton value={item.code ?? ''} />
             <Badge variant={st.variant}>{st.label}</Badge>
+            {item.receiver_email && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`邀请邮箱: ${item.receiver_email}`}>
+                <Mail className="size-3" />
+                {item.receiver_email}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
             {(item.fee_amount ?? 0) > 0 && (
@@ -317,7 +349,7 @@ export default function PortalTransfers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">实例转移</h1>
-          <p className="mt-1 text-sm text-muted-foreground">通过转移码将实例转让给其他用户，或接收他人转入的实例</p>
+          <p className="mt-1 text-sm text-muted-foreground">通过转移码或邮箱邀请将实例转让给其他用户，或接收他人转入的实例</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={openReceive}>
@@ -382,18 +414,34 @@ export default function PortalTransfers() {
           <DialogHeader>
             <DialogTitle>发起实例转移</DialogTitle>
             <DialogDescription>
-              选择要转移的实例，确认后将生成转移码
+              选择要转移的实例，通过转移码或邮箱邀请转让给其他用户
             </DialogDescription>
           </DialogHeader>
 
           {createdCode ? (
             <div className="py-4 text-center">
-              <p className="text-sm text-muted-foreground mb-2">转移码已生成，请将此码发送给接收方：</p>
-              <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/50 px-6 py-4">
-                <span className="font-mono text-2xl font-bold tracking-[0.3em]">{createdCode}</span>
-                <CopyButton value={createdCode} className="size-8" />
+              {createdEmail ? (
+                createdEmailSent ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-2">邀请邮件已发送到 <span className="font-medium text-foreground">{createdEmail}</span></p>
+                    <p className="text-xs text-muted-foreground mb-4">对方可通过邮件中的链接直接接收实例。如邮件未收到，也可使用以下转移码：</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">邮箱邀请已创建，但邮件发送失败</p>
+                    <p className="text-xs text-muted-foreground mb-4">请手动将以下转移码发送给 <span className="font-medium text-foreground">{createdEmail}</span>：</p>
+                  </>
+                )
+              ) : (
+                <p className="text-sm text-muted-foreground mb-2">转移码已生成，请将此码发送给接收方：</p>
+              )}
+              <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/50 px-4 py-4">
+                <span className="font-mono text-sm font-bold tracking-wider break-all select-all">{createdCode}</span>
+                <CopyButton value={createdCode} className="size-8 shrink-0" />
               </div>
-              <p className="text-xs text-muted-foreground mt-3">接收方在「接收转移」中输入此码即可接收实例</p>
+              {!createdEmail && (
+                <p className="text-xs text-muted-foreground mt-3">接收方在「接收转移」中输入此码即可接收实例</p>
+              )}
             </div>
           ) : (
             <div className="space-y-4 py-2">
@@ -412,6 +460,32 @@ export default function PortalTransfers() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>邀请方式</Label>
+                <Select value={inviteMethod} onValueChange={(v) => setInviteMethod(v as 'code' | 'email')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="code">转移码</SelectItem>
+                    <SelectItem value="email">邮箱邀请</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {inviteMethod === 'code' ? '生成转移码后手动发送给接收方' : '系统自动发送邀请邮件，接收方点击链接即可接收'}
+                </p>
+              </div>
+              {inviteMethod === 'email' && (
+                <div className="space-y-2">
+                  <Label>接收方邮箱</Label>
+                  <Input
+                    type="email"
+                    placeholder="请输入接收方的邮箱地址"
+                    value={receiverEmail}
+                    onChange={(e) => setReceiverEmail(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -447,10 +521,10 @@ export default function PortalTransfers() {
                 <Label>转移码</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="输入 8 位转移码"
+                    placeholder="输入转移码"
                     value={transferCode}
                     onChange={(e) => setTransferCode(e.target.value.toUpperCase())}
-                    maxLength={8}
+                    maxLength={32}
                     className="font-mono tracking-wider uppercase"
                     onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
                   />

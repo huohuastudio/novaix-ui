@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { login, clearAuth } from '@/lib/auth'
 import { getErrorMessage } from '@/lib/utils'
 
-export function useLoginForm(redirectPath: string, requiredRole?: string) {
+export function useLoginForm(defaultRedirectPath: string, requiredRole?: string) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
+  const redirectPath = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : defaultRedirectPath
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')

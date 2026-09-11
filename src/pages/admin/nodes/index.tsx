@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
-import { Plus, Pencil, Trash2, Rocket, MoreHorizontal, Wrench, ArrowRightFromLine, RotateCcw, Server, Plug } from "lucide-react"
+import { Plus, Pencil, Trash2, Rocket, MoreHorizontal, Wrench, ArrowRightFromLine, RotateCcw, Server, Plug, Power, PowerOff } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,8 @@ import {
   postAdminNodesByIdRestore,
   postAdminNodesByIdEvacuate,
   postAdminNodesByIdTestConnection,
+  postAdminNodesByIdRetire,
+  postAdminNodesByIdActivate,
 } from "@/api"
 import type { NodeNodeItem } from "@/api"
 import { getAdminNodesQueryKey } from "@/api/@tanstack/react-query.gen"
@@ -59,7 +61,7 @@ function NodeList() {
         page_size: pageSize,
         keyword: (filters.name as string) || undefined,
         region_id: filters.region_id !== undefined ? Number(filters.region_id) : undefined,
-        status: filters.status !== undefined ? Number(filters.status) as 0 | 1 | 2 | 3 | 4 : undefined,
+        status: filters.status !== undefined ? Number(filters.status) as 0 | 1 | 2 | 3 | 4 | 5 | 6 : undefined,
         sort,
         order,
       },
@@ -137,6 +139,28 @@ function NodeList() {
   }, [])
 
   const handleDelete = useCallback(async (node: NodeNodeItem) => {
+    const isRetired = node.status === NODE_STATUS.RETIRED
+    if (isRetired) {
+      const ok = await confirm({
+        title: "删除节点",
+        description: `确定要删除停用节点「${node.name}」吗？停用节点必须先处理完所有实例才能删除。`,
+        confirmText: "删除",
+      })
+      if (!ok) return
+      try {
+        const { data: res } = await deleteAdminNodesById({ path: { id: node.id! } })
+        if (res?.code !== 0) {
+          toast.error(res?.message ?? "删除失败")
+          return
+        }
+        toast.success("节点已删除")
+        table.refresh()
+      } catch (err) {
+        toast.error(getErrorMessage(err, "删除失败"))
+      }
+      return
+    }
+
     const choice = await confirmChoice({
       title: "删除节点",
       description: `确定要删除节点「${node.name}」吗？此操作不可撤销。`,
@@ -160,7 +184,7 @@ function NodeList() {
     } catch (err) {
       toast.error(getErrorMessage(err, "删除失败"))
     }
-  }, [table, confirmChoice])
+  }, [table, confirm, confirmChoice])
 
   const handleMaintenance = useCallback(async (node: NodeNodeItem) => {
     const ok = await confirm({
@@ -222,6 +246,44 @@ function NodeList() {
     }
     table.refresh()
   }, [table, confirm, addTask])
+
+  const handleRetire = useCallback(async (node: NodeNodeItem) => {
+    const ok = await confirm({
+      title: "停用节点",
+      description: `确定要停用节点「${node.name}」吗？停用后不再在该节点上创建新实例，现有实例不受影响。`,
+      confirmText: "停用",
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await postAdminNodesByIdRetire({ path: { id: node.id! } })
+      toast.success("节点已停用")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "操作失败"))
+    }
+    table.refresh()
+  }, [table, confirm])
+
+  const handleActivate = useCallback(async (node: NodeNodeItem) => {
+    const ok = await confirm({
+      title: "恢复节点",
+      description: `确定要将节点「${node.name}」恢复为在线状态吗？系统将同步测试节点连接。`,
+      confirmText: "恢复",
+    })
+    if (!ok) return
+    try {
+      const { data: res } = await postAdminNodesByIdActivate({ path: { id: node.id! } })
+      const returned = res?.data
+      if (returned?.status === NODE_STATUS.UNREACHABLE) {
+        toast.warning(`节点已解除停用，但当前不可达：${returned.status_message || "连接测试失败"}`)
+      } else {
+        toast.success("节点已恢复在线")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "操作失败"))
+    }
+    table.refresh()
+  }, [table, confirm])
 
   const handleFormSuccess = () => {
     setSheetOpen(false)
@@ -347,6 +409,8 @@ function NodeList() {
         const isDeploying = node.status === NODE_STATUS.DEPLOYING
         const isOnline = node.status === NODE_STATUS.ONLINE
         const isMaintenance = node.status === NODE_STATUS.MAINTENANCE
+        const isUnreachable = node.status === NODE_STATUS.UNREACHABLE
+        const isRetired = node.status === NODE_STATUS.RETIRED
         const hasGroup = !!node.node_group_id
         return (
           <div className="flex items-center gap-1" data-tour="node-actions">
@@ -384,6 +448,18 @@ function NodeList() {
                     退出维护
                   </DropdownMenuItem>
                 )}
+                {(isOnline || isUnreachable) && (
+                  <DropdownMenuItem onClick={() => handleRetire(node)}>
+                    <PowerOff className="size-4 mr-2" />
+                    停用
+                  </DropdownMenuItem>
+                )}
+                {isRetired && (
+                  <DropdownMenuItem onClick={() => handleActivate(node)}>
+                    <Power className="size-4 mr-2" />
+                    恢复
+                  </DropdownMenuItem>
+                )}
                 {hasGroup && (
                   <DropdownMenuItem onClick={() => handleEvacuate(node)}>
                     <ArrowRightFromLine className="size-4 mr-2" />
@@ -401,7 +477,7 @@ function NodeList() {
         )
       },
     },
-  ], [handleEdit, handleDelete, handleInit, handleTestConnection, handleMaintenance, handleRestore, handleEvacuate, formatDate, adminPath])
+  ], [handleEdit, handleDelete, handleInit, handleTestConnection, handleMaintenance, handleRestore, handleRetire, handleActivate, handleEvacuate, formatDate, adminPath])
 
   return (
     <>

@@ -18,10 +18,14 @@ import {
   getPortalInstancesQueryKey,
 } from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem } from "@/api"
+import { putPortalInstancesByIdRemark } from "@/api"
 import { portalStatusConfig, isIPv6OnlyInstance } from "@/lib/instance-constants"
 import { usePortalInstanceActions } from "@/hooks/use-portal-instance-actions"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 import type { PortalPowerAction } from "@/hooks/use-portal-instance-actions"
+import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WebTerminal } from "@/components/web-terminal"
@@ -36,11 +40,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ChartLine, Shield, ArrowUpDown } from "lucide-react"
+import { ChartLine, Shield, ArrowUpDown, Pencil, Check, X as XIcon } from "lucide-react"
 import { InstanceStatsChart } from "@/components/instance-stats-chart"
 // SPICE 协议与 noVNC (RFB) 不兼容，控制台功能暂时移除
 import { FirewallTab } from "./firewall-tab"
 import { PortForwardTab } from "./port-forward-tab"
+import { toNATPortRange } from "@/components/port-forward-rule-dialog"
 import { OverviewTab } from "./overview-tab"
 import { SnapshotsTab } from "./snapshots-tab"
 import { useSiteName } from "@/hooks/use-site-settings"
@@ -133,6 +138,31 @@ export default function PortalInstanceDetail() {
   const busy = loadingId === Number(id) || instance?.active_task_id != null
   // 追踪当前正在执行的操作，仅在对应按钮上显示 Spinner
   const [activeAction, setActiveAction] = useState<PortalPowerAction | null>(null)
+  const [editingRemark, setEditingRemark] = useState(false)
+  const [remarkValue, setRemarkValue] = useState("")
+  const [savingRemark, setSavingRemark] = useState(false)
+
+  const saveRemark = async () => {
+    const trimmed = remarkValue.trim()
+    setSavingRemark(true)
+    try {
+      const { data: res } = await putPortalInstancesByIdRemark({
+        path: { id: Number(id) },
+        body: { remark: trimmed },
+      })
+      if (res?.code === 0) {
+        toast.success("备注已更新")
+        setEditingRemark(false)
+        refreshInstance()
+      } else {
+        toast.error(res?.message || "保存失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "保存失败"))
+    } finally {
+      setSavingRemark(false)
+    }
+  }
 
   const navigateToTab = useCallback(
     (tab: string) => {
@@ -181,6 +211,7 @@ export default function PortalInstanceDetail() {
   const cfg = portalStatusConfig[status] ?? { label: "未知", color: "text-zinc-400", dot: "bg-zinc-400" }
   const isRunning = status === "running"
   const isStopped = status === "stopped" || status === "frozen"
+  const isError = status === "error"
   const isRescue = status === "rescue"
   const isVM = instance.type === "virtual-machine"
   const isTerminalTab = activeTab === "terminal"
@@ -208,6 +239,45 @@ export default function PortalInstanceDetail() {
                 <span className="font-mono">{instance.ip_address || instance.ipv6_address || "未分配 IP"}</span>
                 {instance.os_type && <> · {instance.os_type}</>}
               </p>
+              {editingRemark ? (
+                <div className="flex items-center gap-1 mt-1">
+                  <Input
+                    value={remarkValue}
+                    onChange={(e) => setRemarkValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveRemark()
+                      if (e.key === "Escape") setEditingRemark(false)
+                    }}
+                    className="h-7 text-sm w-48"
+                    maxLength={256}
+                    placeholder="输入备注..."
+                    disabled={savingRemark}
+                    autoFocus
+                  />
+                  <Button variant="ghost" size="icon" className="size-7" onClick={saveRemark} disabled={savingRemark}>
+                    <Check className="size-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditingRemark(false)}>
+                    <XIcon className="size-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 mt-0.5 group/remark">
+                  {instance.remark ? (
+                    <span className="text-[13px] text-muted-foreground">{instance.remark}</span>
+                  ) : (
+                    <span className="text-[13px] text-muted-foreground/50">添加备注</span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5 opacity-0 group-hover/remark:opacity-100 transition-opacity"
+                    onClick={() => { setRemarkValue(instance.remark ?? ""); setEditingRemark(true) }}
+                  >
+                    <Pencil className="size-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap ml-11 sm:ml-0" data-tour="instance-power">
@@ -282,7 +352,7 @@ export default function PortalInstanceDetail() {
 
           {visitedTabs.has("port-forward") && (
             <div className={activeTab !== "port-forward" ? "hidden" : undefined}>
-              <PortForwardTab instanceId={Number(id)} instanceBusy={busy} isNAT={!!instance.nat_info} isIPv6Only={isIPv6OnlyInstance(instance)} />
+              <PortForwardTab instanceId={Number(id)} instanceBusy={busy} natPortRange={toNATPortRange(instance.nat_info)} isIPv6Only={isIPv6OnlyInstance(instance)} />
             </div>
           )}
 
@@ -312,7 +382,7 @@ export default function PortalInstanceDetail() {
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Terminal className="size-10 text-muted-foreground/25 mb-3" />
                 <p className="text-[13px] text-muted-foreground">云服务器未运行，无法连接终端</p>
-                {isStopped && (
+                {(isStopped || isError) && (
                   <Button className="mt-4" onClick={() => doPower("start")} disabled={busy}>
                     <Play className="size-3.5" />
                     启动云服务器

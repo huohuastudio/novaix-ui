@@ -33,6 +33,7 @@ import {
 import { FormSheet } from "@/components/form-sheet"
 import { PaginatedMultiSelect, type PaginatedMultiSelectItem } from "@/components/paginated-multi-select"
 import { trafficPackageTypeMap } from "@/lib/traffic-package-constants"
+import { useCurrencySymbol } from "@/hooks/use-site-settings"
 
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
@@ -82,6 +83,7 @@ const PAGE_SIZE = 20
 
 export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSuccess }: Props) {
   const isEdit = !!pkg
+  const currencySymbol = useCurrencySymbol()
   const [serverError, setServerError] = useState("")
 
   // 编辑已有限定套餐时，拉取套餐列表用于回显名称；弹窗打开且存在关联套餐时才请求
@@ -243,7 +245,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
 
           <section>
             <h3 className="text-sm font-medium">定价与销售</h3>
-            <p className="text-xs text-muted-foreground mt-1">价格单位为分（如 1000 = ¥10.00）</p>
+            <p className="text-xs text-muted-foreground mt-1">价格单位为分（如 1000 = {currencySymbol}10.00）</p>
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid grid-cols-3 gap-4 items-start">
                 <FormField
