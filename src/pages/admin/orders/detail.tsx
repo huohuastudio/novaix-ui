@@ -134,11 +134,16 @@ export default function OrderDetail() {
     })
     if (!ok) return
     try {
-      await postAdminOrdersByIdPay({ path: { id: order.id! } })
-      toast.success("支付成功")
+      const { data: res } = await postAdminOrdersByIdPay({ path: { id: order.id! } })
+      if (res?.code === 0) {
+        toast.success("支付成功")
+      } else {
+        toast.error(res?.message || "支付失败")
+      }
       fetchOrder()
     } catch (err) {
       toast.error(getErrorMessage(err, "支付失败"))
+      fetchOrder()
     }
   }, [order, confirm, fetchOrder, formatAmount])
 

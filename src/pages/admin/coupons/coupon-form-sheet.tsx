@@ -2,9 +2,12 @@ import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { Dices } from "lucide-react"
 import { postAdminCoupons, putAdminCouponsById } from "@/api"
 import type { CouponCouponItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { serverToDatetimeLocal as toLocal, datetimeLocalToServer as toServer } from "@/lib/datetime"
+import { useTimezone } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -36,10 +39,18 @@ const formSchema = z.object({
   usage_limit: z.coerce.number<number | string>().int().min(0).default(0),
   per_user_limit: z.coerce.number<number | string>().int().min(0).default(1),
   applicable_types: z.string().default(""),
+  duration: z.enum(["once", "recurring"]).default("once"),
   enabled: z.boolean().default(true),
   starts_at: z.string().optional(),
   expires_at: z.string().optional(),
 })
+
+const COUPON_CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ3456789"
+function generateRandomCode(length = 8): string {
+  const arr = new Uint8Array(length)
+  crypto.getRandomValues(arr)
+  return Array.from(arr, (b) => COUPON_CODE_CHARSET[b % COUPON_CODE_CHARSET.length]).join("")
+}
 
 type FormInput = z.input<typeof formSchema>
 type FormValues = z.output<typeof formSchema>
@@ -53,6 +64,7 @@ const defaultValues: FormValues = {
   usage_limit: 0,
   per_user_limit: 1,
   applicable_types: "",
+  duration: "once",
   enabled: true,
   starts_at: undefined,
   expires_at: undefined,
@@ -72,9 +84,14 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
         render={({ field }) => (
           <FormItem>
             <FormLabel required>优惠码</FormLabel>
-            <FormControl>
-              <Input placeholder="例如 WELCOME50" className="font-mono uppercase" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
-            </FormControl>
+            <div className="flex gap-2">
+              <FormControl>
+                <Input placeholder="例如 WELCOME50" className="font-mono uppercase" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+              </FormControl>
+              <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => field.onChange(generateRandomCode())} title="随机生成">
+                <Dices className="h-4 w-4" />
+              </Button>
+            </div>
             <FormMessage />
           </FormItem>
         )}
@@ -205,6 +222,30 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
           </FormItem>
         )}
       />
+      <FormField
+        control={form.control}
+        name="duration"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>折扣模式</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="once">单次</SelectItem>
+                <SelectItem value="recurring">持续</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>
+              {field.value === "recurring" ? "首次使用后绑定实例，后续续费自动享受折扣" : "折扣仅作用于当次订单"}
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
       <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
@@ -252,16 +293,6 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
   )
 }
 
-function datetimeLocalToServer(val?: string): string | undefined {
-  if (!val) return undefined
-  return val.replace("T", " ") + ":00"
-}
-
-function serverToDatetimeLocal(val?: string | null): string | undefined {
-  if (!val) return undefined
-  return val.slice(0, 16).replace(" ", "T")
-}
-
 export function CouponCreateSheet({
   open,
   onOpenChange,
@@ -271,6 +302,7 @@ export function CouponCreateSheet({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -292,8 +324,8 @@ export function CouponCreateSheet({
       const { data: res } = await postAdminCoupons({
         body: {
           ...values,
-          starts_at: datetimeLocalToServer(values.starts_at),
-          expires_at: datetimeLocalToServer(values.expires_at),
+          starts_at: toServer(values.starts_at, tz),
+          expires_at: toServer(values.expires_at, tz),
         },
       })
       if (res?.code !== 0) {
@@ -344,6 +376,7 @@ export function CouponEditSheet({
   coupon: CouponCouponItem
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -364,12 +397,13 @@ export function CouponEditSheet({
         usage_limit: coupon.usage_limit ?? 0,
         per_user_limit: coupon.per_user_limit ?? 1,
         applicable_types: coupon.applicable_types ?? "",
+        duration: (coupon.duration as "once" | "recurring") ?? "once",
         enabled: coupon.enabled ?? true,
-        starts_at: serverToDatetimeLocal(coupon.starts_at),
-        expires_at: serverToDatetimeLocal(coupon.expires_at),
+        starts_at: toLocal(coupon.starts_at, tz),
+        expires_at: toLocal(coupon.expires_at, tz),
       })
     }
-  }, [open, coupon, form])
+  }, [open, coupon, form, tz])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
@@ -378,8 +412,8 @@ export function CouponEditSheet({
         path: { id: coupon.id! },
         body: {
           ...values,
-          starts_at: datetimeLocalToServer(values.starts_at),
-          expires_at: datetimeLocalToServer(values.expires_at),
+          starts_at: toServer(values.starts_at, tz),
+          expires_at: toServer(values.expires_at, tz),
         },
       })
       if (res?.code !== 0) {

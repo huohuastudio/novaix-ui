@@ -5,6 +5,8 @@ import { z } from "zod"
 import { postAdminChangelogs, putAdminChangelogsById } from "@/api"
 import type { CmschangelogCmsChangelogItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { serverToDatetimeLocal as toLocal, datetimeLocalToServer as toServer } from "@/lib/datetime"
+import { useTimezone } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -43,11 +45,6 @@ const defaultValues: FormValues = {
 }
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
-
-function toDatetimeLocal(value?: string): string {
-  if (!value) return ""
-  return value.replace(" ", "T").slice(0, 16)
-}
 
 function ChangelogFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
@@ -127,6 +124,7 @@ export function ChangelogCreateSheet({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -150,7 +148,7 @@ export function ChangelogCreateSheet({
           version: values.version,
           content: values.content,
           status: values.status,
-          published_at: values.published_at ? values.published_at.replace("T", " ") + ":00" : undefined,
+          published_at: toServer(values.published_at, tz),
         },
       })
       if (res?.code !== 0) {
@@ -201,6 +199,7 @@ export function ChangelogEditSheet({
   changelog: CmschangelogCmsChangelogItem
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -216,10 +215,10 @@ export function ChangelogEditSheet({
         version: changelog.version ?? "",
         content: changelog.content ?? "",
         status: changelog.status ?? 1,
-        published_at: toDatetimeLocal(changelog.published_at),
+        published_at: toLocal(changelog.published_at, tz),
       })
     }
-  }, [open, changelog, form])
+  }, [open, changelog, form, tz])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
@@ -230,7 +229,7 @@ export function ChangelogEditSheet({
           version: values.version,
           content: values.content,
           status: values.status,
-          published_at: values.published_at ? values.published_at.replace("T", " ") + ":00" : null,
+          published_at: toServer(values.published_at, tz) ?? null,
         },
       })
       if (res?.code !== 0) {

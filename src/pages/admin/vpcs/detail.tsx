@@ -1,7 +1,7 @@
 "use no memo";
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
-import { useAdminPath } from "@/hooks/use-site-settings"
+import { useAdminPath, useFormatDate } from "@/hooks/use-site-settings"
 import { useCallback, useState } from "react"
 import { useParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -79,6 +79,7 @@ export default function VPCDetailPage() {
   const id = Number(idStr)
 
   const queryClient = useQueryClient()
+  const formatDate = useFormatDate()
 
   const vpcQuery = useQuery(getAdminVpcsByIdOptions({ path: { id } }))
   const detail = vpcQuery.data?.data as Record<string, unknown> | undefined
@@ -239,7 +240,7 @@ export default function VPCDetailPage() {
         </div>
         <div>
           <p className="text-xs text-muted-foreground">创建时间</p>
-          <p className="text-sm">{vpc.created_at}</p>
+          <p className="text-sm">{formatDate(vpc.created_at)}</p>
         </div>
       </div>
 
@@ -340,7 +341,7 @@ export default function VPCDetailPage() {
                 <TableCell>{subnet?.name ?? a.subnet_id}</TableCell>
                 <TableCell className="font-mono text-sm">{a.private_ip}</TableCell>
                 <TableCell className="font-mono text-sm">{a.device_name}</TableCell>
-                <TableCell className="text-sm">{a.created_at}</TableCell>
+                <TableCell className="text-sm">{formatDate(a.created_at)}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" onClick={() => handleDetach(a.id)}>
                     <Trash2 className="h-4 w-4" />

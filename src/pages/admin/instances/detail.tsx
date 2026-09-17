@@ -131,6 +131,10 @@ export default function InstanceDetail() {
   const instanceQuery = useQuery({
     ...getAdminInstancesByIdOptions({ path: { id: Number(id) } }),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const inst = query.state.data?.code === 0 ? query.state.data.data as InstanceInstanceItem | undefined : undefined
+      return inst?.traffic_limit ? 15_000 : false
+    },
   })
   const instance: InstanceInstanceItem | null =
     instanceQuery.data?.code === 0 && instanceQuery.data.data

@@ -1,13 +1,15 @@
 import { useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Ticket } from "lucide-react"
+import { ArrowLeft, Ticket, Link2 } from "lucide-react"
 import { getAdminCouponsByIdUsages } from "@/api"
 import type { CouponCouponItem, CouponUsageItem } from "@/api"
 import {
   getAdminCouponsByIdOptions,
   getAdminCouponsByIdUsagesQueryKey,
+  getAdminCouponsByIdBoundInstancesOptions,
 } from "@/api/@tanstack/react-query.gen"
+import { getStatusInfo } from "@/lib/instance-constants"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -77,6 +79,12 @@ export default function CouponDetail() {
     fetchFn: fetchUsages,
     queryKey: getAdminCouponsByIdUsagesQueryKey({ path: { id: Number(id) } }),
   })
+
+  const boundQuery = useQuery({
+    ...getAdminCouponsByIdBoundInstancesOptions({ path: { id: Number(id) } }),
+    enabled: !!coupon && coupon.duration === "recurring",
+  })
+  const boundInstances = (boundQuery.data?.code === 0 && Array.isArray(boundQuery.data.data) ? boundQuery.data.data : []) as Array<{ id: number; name: string; status: string; user_id: number }>
 
   const usageColumns: ColumnDef<CouponUsageItem>[] = useMemo(() => [
     {
@@ -184,6 +192,12 @@ export default function CouponDetail() {
             </div>
           </div>
           <div>
+            <div className="text-muted-foreground">折扣模式</div>
+            <div className="font-medium mt-0.5">
+              {coupon.duration === "recurring" ? "持续" : "单次"}
+            </div>
+          </div>
+          <div>
             <div className="text-muted-foreground">创建时间</div>
             <div className="font-medium mt-0.5">{formatDate(coupon.created_at)}</div>
           </div>
@@ -201,6 +215,38 @@ export default function CouponDetail() {
           </div>
         </div>
       </section>
+
+      {coupon.duration === "recurring" && (
+        <>
+          <Separator />
+          <section>
+            <div className="flex items-center gap-2">
+              <Link2 className="size-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">绑定实例</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">使用该持续折扣优惠券的实例，续费时将自动享受折扣</p>
+            {boundInstances.length === 0 ? (
+              <p className="text-sm text-muted-foreground mt-4">暂无绑定的实例</p>
+            ) : (
+              <div className="mt-4 space-y-2 max-w-2xl">
+                {boundInstances.map((inst) => {
+                  const statusInfo = getStatusInfo(inst.status)
+                  return (
+                    <Link
+                      key={inst.id}
+                      to={`${adminPath}/instances/${inst.id}`}
+                      className="flex items-center justify-between rounded-md border px-4 py-2.5 hover:bg-accent transition-colors"
+                    >
+                      <span className="font-medium text-sm">{inst.name}</span>
+                      <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
       <Separator />
 

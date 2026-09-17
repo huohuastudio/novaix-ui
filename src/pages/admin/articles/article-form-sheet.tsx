@@ -5,6 +5,8 @@ import { z } from "zod"
 import { postAdminArticles, putAdminArticlesById } from "@/api"
 import type { ArticleArticleItem, ArticlecategoryArticleCategoryItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { serverToDatetimeLocal as toLocal, datetimeLocalToServer as toServer } from "@/lib/datetime"
+import { useTimezone } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -310,6 +312,7 @@ export function ArticleCreateSheet({
   onSuccess: () => void
   categories: ArticlecategoryArticleCategoryItem[]
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -340,7 +343,7 @@ export function ArticleCreateSheet({
           status: values.status,
           is_pinned: values.is_pinned,
           sort_order: values.sort_order,
-          published_at: values.published_at || undefined,
+          published_at: toServer(values.published_at, tz),
         },
       })
       if (res?.code !== 0) {
@@ -393,6 +396,7 @@ export function ArticleEditSheet({
   onSuccess: () => void
   categories: ArticlecategoryArticleCategoryItem[]
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -415,12 +419,10 @@ export function ArticleEditSheet({
         status: article.status ?? 1,
         is_pinned: article.is_pinned ?? false,
         sort_order: article.sort_order ?? 0,
-        published_at: article.published_at
-          ? article.published_at.slice(0, 16)
-          : "",
+        published_at: toLocal(article.published_at, tz),
       })
     }
-  }, [open, article, form])
+  }, [open, article, form, tz])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
@@ -438,7 +440,7 @@ export function ArticleEditSheet({
           status: values.status,
           is_pinned: values.is_pinned,
           sort_order: values.sort_order,
-          published_at: values.published_at || null,
+          published_at: toServer(values.published_at, tz) ?? null,
         },
       })
       if (res?.code !== 0) {

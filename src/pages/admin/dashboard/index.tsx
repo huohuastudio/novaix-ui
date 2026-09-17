@@ -25,7 +25,7 @@ import {
   getAdminDashboardStatsOptions,
 } from "@/api/@tanstack/react-query.gen"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
-import { useSiteName, useAdminPath, useFormatAmount, useCurrencySymbol } from "@/hooks/use-site-settings"
+import { useSiteName, useAdminPath, useFormatAmount, useCurrencySymbol, useFormatShortDate, useFormatCompactDateTime } from "@/hooks/use-site-settings"
 import { orderStatusMap, orderTypeMap } from "@/lib/order-constants"
 import { formatPercent } from "@/lib/chart-utils"
 import { formatMemory, formatDisk } from "@/lib/utils"
@@ -114,6 +114,8 @@ export default function Dashboard() {
   const adminPath = useAdminPath()
   const formatAmount = useFormatAmount()
   const currencySymbol = useCurrencySymbol()
+  const formatShortDate = useFormatShortDate()
+  const formatCompactDateTime = useFormatCompactDateTime()
   const statsQuery = useQuery(getAdminDashboardStatsOptions())
   const recentQuery = useQuery(getAdminDashboardRecentOptions())
   const stats: DashboardStatsResponse | null =
@@ -586,7 +588,7 @@ export default function Dashboard() {
                   <div className="shrink-0 ml-3 text-right">
                     <p className="text-xs font-medium tabular-nums">{daysUntil(inst.expire_at ?? "")}</p>
                     <p className="text-2xs text-muted-foreground tabular-nums">
-                      {(inst.expire_at ?? "").slice(5, 10)}
+                      {formatShortDate(inst.expire_at)}
                     </p>
                   </div>
                 </Link>
@@ -621,7 +623,7 @@ export default function Dashboard() {
                     <div className="pb-4 min-w-0">
                       <p className="text-sm leading-snug truncate">{event.detail}</p>
                       <p className="text-2xs text-muted-foreground">
-                        {event.username} · {(event.created_at ?? "").slice(5, 16)}
+                        {event.username} · {formatCompactDateTime(event.created_at)}
                       </p>
                     </div>
                   </div>

@@ -107,6 +107,10 @@ export default function PortalInstanceDetail() {
   const instanceQuery = useQuery({
     ...getPortalInstancesByIdOptions({ path: { id: Number(id) } }),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const inst = query.state.data?.code === 0 ? query.state.data.data as PortalPortalInstanceItem | undefined : undefined
+      return inst?.traffic_limit ? 15_000 : false
+    },
   })
   const instanceRes = instanceQuery.data
   const instance = instanceRes?.code === 0 && instanceRes.data

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react"
 import type { PortalPortalInstanceItem } from "@/api"
-import { formatBytes, formatMemory, formatDisk } from "@/lib/utils"
+import { formatBytes, formatMemory, formatDisk, formatTraffic } from "@/lib/utils"
 import { usePortalInstanceState } from "@/hooks/use-portal-instance-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useFormatDate } from "@/hooks/use-site-settings"
@@ -130,7 +130,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
                 )}
               </span>
               <span className="text-xs tabular-nums">
-                {formatDisk(instance.traffic_used ?? 0)} / {formatDisk(trafficTotal)}
+                {formatTraffic(instance.traffic_used ?? 0)} / {formatTraffic(trafficTotal)}
               </span>
             </div>
             <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
@@ -157,6 +157,9 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
           } />
           <InfoRow label="计费周期" value={billingCycleMap[instance.billing_cycle ?? ''] ?? instance.billing_cycle ?? '-'} />
           <InfoRow label="到期时间" value={formatDate(instance.expire_at)} />
+          {instance.coupon_code && (
+            <InfoRow label="持续折扣" value={instance.coupon_code} />
+          )}
           <InfoRow label="创建时间" value={formatDate(instance.created_at)} />
           {state?.os_info?.kernel_version && (
             <InfoRow label="内核版本" value={state.os_info.kernel_version} />

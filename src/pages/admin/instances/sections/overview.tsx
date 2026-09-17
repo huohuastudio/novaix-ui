@@ -17,7 +17,7 @@ import {
 } from "@/api"
 import type { InstanceInstanceItem, IppoolFreeIpItem } from "@/api"
 import { getAdminInstancesByIdIpsQueryKey } from "@/api/@tanstack/react-query.gen"
-import { formatBytes, formatMemory, formatDisk, getErrorMessage} from "@/lib/utils"
+import { formatBytes, formatMemory, formatDisk, formatTraffic, getErrorMessage} from "@/lib/utils"
 import { MetricBar } from "@/components/metric-bar"
 import { useInstanceState } from "@/hooks/use-instance-state"
 import { useTasks } from "@/hooks/use-tasks"
@@ -281,7 +281,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                 )}
               </span>
               <span className="text-sm tabular-nums font-medium">
-                {formatDisk(instance.traffic_used ?? 0)} / {formatDisk(instance.traffic_limit ?? 0)}
+                {formatTraffic(instance.traffic_used ?? 0)} / {formatTraffic(instance.traffic_limit ?? 0)}
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -550,6 +550,12 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
             <div className="text-muted-foreground">到期时间</div>
             <div className="font-medium mt-0.5">{instance.expire_at ? formatDate(instance.expire_at) : "永不过期"}</div>
           </div>
+          {instance.coupon_code && (
+            <div>
+              <div className="text-muted-foreground">持续折扣</div>
+              <div className="font-medium mt-0.5 font-mono">{instance.coupon_code}</div>
+            </div>
+          )}
         </div>
       </section>
     </div>

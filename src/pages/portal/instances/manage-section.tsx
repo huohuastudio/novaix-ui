@@ -520,9 +520,21 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
             <p className="text-xs text-muted-foreground">续费订单创建后需要前往订单页面支付</p>
             <div className="space-y-2">
               <Label>优惠码（可选）</Label>
+              {instance.coupon_code && !renewCoupon.code.trim() && (() => {
+                const discount = ({ monthly: instance.coupon_discount_monthly, quarterly: instance.coupon_discount_quarterly, yearly: instance.coupon_discount_yearly } as Record<string, number | undefined>)[renewCycle] ?? 0
+                return discount > 0 ? (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    持续折扣 <span className="font-mono font-medium">{instance.coupon_code}</span>：-{formatPrice(discount)}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground line-through">
+                    持续折扣 <span className="font-mono font-medium">{instance.coupon_code}</span> 不适用当前周期
+                  </p>
+                )
+              })()}
               <div className="flex gap-2">
                 <Input
-                  placeholder="输入优惠码"
+                  placeholder={instance.coupon_code ? "手动输入可覆盖持续折扣" : "输入优惠码"}
                   value={renewCoupon.code}
                   onChange={(e) => renewCoupon.updateCode(e.target.value)}
                 />

@@ -18,9 +18,11 @@ import {
 } from "@/api"
 import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
 import { useFormatAmount } from "@/hooks/use-site-settings"
-import { cn, getErrorMessage } from "@/lib/utils"
+import { cn, getErrorMessage, getErrorCode } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
 import { calculateFee, formatFeePercent } from "@/lib/payment"
+
+const ORDER_AMOUNT_CHANGED_CODE = 21210
 
 interface PayDialogProps {
   open: boolean
@@ -28,9 +30,10 @@ interface PayDialogProps {
   orderId: number
   amount: number
   onSuccess?: () => void
+  onAmountChanged?: () => void
 }
 
-export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: PayDialogProps) {
+export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAmountChanged }: PayDialogProps) {
   const formatAmount = useFormatAmount()
   const [payMode, setPayMode] = useState<"balance" | "online">("balance")
   const [selectedProvider, setSelectedProvider] = useState("")
@@ -77,11 +80,21 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess }: Pa
         toast.success("支付成功")
         onSuccess?.()
         onOpenChange(false)
+      } else if (res?.code === ORDER_AMOUNT_CHANGED_CODE) {
+        toast.warning(res.message || "订单金额已变更，请确认后重新支付")
+        onAmountChanged?.()
+        onOpenChange(false)
       } else {
         toast.error(res?.message || "支付失败")
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "支付失败"))
+      if (getErrorCode(err) === ORDER_AMOUNT_CHANGED_CODE) {
+        toast.warning(getErrorMessage(err, "订单金额已变更，请确认后重新支付"))
+        onAmountChanged?.()
+        onOpenChange(false)
+      } else {
+        toast.error(getErrorMessage(err, "支付失败"))
+      }
     } finally {
       setSubmitting(false)
     }

@@ -5,6 +5,8 @@ import { z } from "zod"
 import { postAdminBanners, putAdminBannersById } from "@/api"
 import type { BannerBannerItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { serverToDatetimeLocal as toLocal, datetimeLocalToServer as toServer } from "@/lib/datetime"
+import { useTimezone } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -57,15 +59,6 @@ const defaultValues: FormValues = {
 
 const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
-function toServerDatetime(value: string): string | undefined {
-  if (!value) return undefined
-  return value.replace("T", " ") + ":00"
-}
-
-function toInputDatetime(value?: string): string {
-  if (!value) return ""
-  return value.slice(0, 16).replace(" ", "T")
-}
 
 function BannerFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   return (
@@ -235,6 +228,7 @@ export function BannerCreateSheet({
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -263,8 +257,8 @@ export function BannerCreateSheet({
           target: values.target,
           status: values.status,
           sort_order: values.sort_order,
-          start_at: toServerDatetime(values.start_at ?? ""),
-          end_at: toServerDatetime(values.end_at ?? ""),
+          start_at: toServer(values.start_at, tz),
+          end_at: toServer(values.end_at, tz),
         },
       })
       if (res?.code !== 0) {
@@ -315,6 +309,7 @@ export function BannerEditSheet({
   banner: BannerBannerItem
   onSuccess: () => void
 }) {
+  const tz = useTimezone()
   const [serverError, setServerError] = useState("")
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -335,11 +330,11 @@ export function BannerEditSheet({
         location: banner.location ?? "",
         status: banner.status ?? 1,
         sort_order: banner.sort_order ?? 0,
-        start_at: toInputDatetime(banner.start_at),
-        end_at: toInputDatetime(banner.end_at),
+        start_at: toLocal(banner.start_at, tz),
+        end_at: toLocal(banner.end_at, tz),
       })
     }
-  }, [open, banner, form])
+  }, [open, banner, form, tz])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
@@ -355,8 +350,8 @@ export function BannerEditSheet({
           target: values.target,
           status: values.status,
           sort_order: values.sort_order,
-          start_at: toServerDatetime(values.start_at ?? "") ?? null,
-          end_at: toServerDatetime(values.end_at ?? "") ?? null,
+          start_at: toServer(values.start_at, tz) ?? null,
+          end_at: toServer(values.end_at, tz) ?? null,
         },
       })
       if (res?.code !== 0) {

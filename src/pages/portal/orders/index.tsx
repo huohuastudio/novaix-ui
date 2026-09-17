@@ -26,6 +26,7 @@ import {
   getPortalOrdersOptions,
   getPortalOrdersQueryKey,
   getPortalOrdersByIdQueryKey,
+  getPortalInstancesByIdQueryKey,
 } from '@/api/@tanstack/react-query.gen'
 import { PayDialog } from './pay-dialog'
 import type { PortalPortalOrderItem } from '@/api'
@@ -231,6 +232,13 @@ export default function PortalOrders() {
           orderId={payOrder.id}
           amount={payOrder.amount ?? 0}
           onSuccess={() => {
+            invalidateOrders(payOrder.id)
+            if (payOrder.type === 'traffic_package' && payOrder.instance_id) {
+              queryClient.invalidateQueries({ queryKey: getPortalInstancesByIdQueryKey({ path: { id: payOrder.instance_id } }) })
+            }
+            setPayOrder(null)
+          }}
+          onAmountChanged={() => {
             invalidateOrders(payOrder.id)
             setPayOrder(null)
           }}

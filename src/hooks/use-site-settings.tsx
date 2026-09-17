@@ -216,6 +216,11 @@ export function useDemoMode() {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+export function useTimezone() {
+  return useContext(SiteSettingsContext).timezone
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFormatDate() {
   const tz = useContext(SiteSettingsContext).timezone
   return useCallback(
@@ -224,6 +229,40 @@ export function useFormatDate() {
       return new Date(dateStr).toLocaleString("zh-CN", {
         timeZone: tz,
         year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    },
+    [tz],
+  )
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useFormatShortDate() {
+  const tz = useContext(SiteSettingsContext).timezone
+  return useCallback(
+    (dateStr: string | undefined | null) => {
+      if (!dateStr || dateStr === "0001-01-01T00:00:00Z") return "-"
+      return new Date(dateStr).toLocaleString("zh-CN", {
+        timeZone: tz,
+        month: "2-digit",
+        day: "2-digit",
+      })
+    },
+    [tz],
+  )
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useFormatCompactDateTime() {
+  const tz = useContext(SiteSettingsContext).timezone
+  return useCallback(
+    (dateStr: string | undefined | null) => {
+      if (!dateStr || dateStr === "0001-01-01T00:00:00Z") return "-"
+      return new Date(dateStr).toLocaleString("zh-CN", {
+        timeZone: tz,
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",

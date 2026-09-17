@@ -36,6 +36,11 @@ export function formatDisk(gb: number): string {
   return `${gb} GB`
 }
 
+export function formatTraffic(gb: number): string {
+  if (gb >= 1024) return `${(gb / 1024).toFixed(1)} TB`
+  return `${gb.toFixed(1)} GB`
+}
+
 export function parseJSON<T>(json: string | undefined, fallback: T): T {
   try { return json ? JSON.parse(json) as T : fallback } catch { return fallback }
 }

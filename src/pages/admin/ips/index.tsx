@@ -75,6 +75,9 @@ const poolSchema = z.object({
   vlan: z.coerce.number<number | string>().int().min(0).default(0),
   network_name: z.string().default(""),
   node_id: z.coerce.number().int().positive().nullable().default(null),
+  alloc_mode: z.enum(["sequential", "random", "on_demand"]),
+  alloc_range_start: z.string().max(64).default(""),
+  alloc_range_end: z.string().max(64).default(""),
 })
 
 type PoolFormInput = z.input<typeof poolSchema>
@@ -91,6 +94,9 @@ const poolDefaults: PoolFormValues = {
   vlan: 0,
   network_name: "",
   node_id: null,
+  alloc_mode: "sequential",
+  alloc_range_start: "",
+  alloc_range_end: "",
 }
 
 const generateSchema = z.object({
@@ -401,6 +407,62 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
           </FormItem>
         )}
       />
+
+      <FormField
+        control={form.control}
+        name="alloc_mode"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>IP 分配策略</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="sequential">顺序分配（按顺序递增）</SelectItem>
+                <SelectItem value="random">随机分配（从空闲 IP 中随机选取）</SelectItem>
+                <SelectItem value="on_demand">按需分配（无需预生成，从 CIDR 随机生成）</SelectItem>
+              </SelectContent>
+            </Select>
+            {field.value === "on_demand" && (
+              <p className="text-xs text-muted-foreground">
+                创建实例时自动从 CIDR 范围内随机生成地址，无需提前批量生成 IP。适合 IPv6 等大地址空间场景
+              </p>
+            )}
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="alloc_range_start"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>分配区间起始</FormLabel>
+              <FormControl><Input placeholder="留空则不限制" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="alloc_range_end"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>分配区间结束</FormLabel>
+              <FormControl><Input placeholder="留空则不限制" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground -mt-2">
+        设置后自动分配仅在区间内选取 IP，区间外的 IP 不会被自动分配。留空表示不限制
+      </p>
     </>
   )
 }
@@ -507,6 +569,9 @@ function PoolEditDialog({
         vlan: pool.vlan ?? 0,
         network_name: pool.network_name ?? "",
         node_id: ((pool as Record<string, unknown>).node_id as number | null) ?? null,
+        alloc_mode: (pool.alloc_mode as "sequential" | "random" | "on_demand") ?? "sequential",
+        alloc_range_start: pool.alloc_range_start ?? "",
+        alloc_range_end: pool.alloc_range_end ?? "",
       })
     }
   }, [open, pool, form])
@@ -1155,6 +1220,15 @@ export default function IPs() {
       },
     },
     {
+      id: "alloc_mode",
+      header: "分配策略",
+      cell: ({ row }) => {
+        const mode = row.original.alloc_mode
+        const label = mode === "on_demand" ? "按需" : mode === "random" ? "随机" : "顺序"
+        return <Badge variant="outline">{label}</Badge>
+      },
+    },
+    {
       id: "usage",
       header: "IP 使用",
       cell: ({ row }) => {
@@ -1186,19 +1260,21 @@ export default function IPs() {
         const pool = row.original
         return (
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => setGeneratePool(pool)}
-                >
-                  <Zap className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>批量生成 IP</TooltipContent>
-            </Tooltip>
+            {pool.alloc_mode !== "on_demand" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => setGeneratePool(pool)}
+                  >
+                    <Zap className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>批量生成 IP</TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
