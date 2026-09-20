@@ -14,8 +14,9 @@ import {
   postAdminInstancesByIdIps,
   putAdminInstancesByIdHa,
   putAdminInstancesByIdRemark,
+  putAdminInstancesById,
 } from "@/api"
-import type { InstanceInstanceItem, IppoolFreeIpItem } from "@/api"
+import type { InstanceInstanceItem, InstanceUpdateRequest, IppoolFreeIpItem } from "@/api"
 import { getAdminInstancesByIdIpsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { formatBytes, formatMemory, formatDisk, formatTraffic, getErrorMessage} from "@/lib/utils"
 import { MetricBar } from "@/components/metric-bar"
@@ -27,13 +28,15 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CopyButton } from "@/components/copy-button"
-import { useFormatDate } from "@/hooks/use-site-settings"
+import { useFormatDate, useTimezone } from "@/hooks/use-site-settings"
 import { Input } from "@/components/ui/input"
 import { AdminIpList } from "../components/ip-list"
 import { FreeIpPickerDialog } from "../components/free-ip-picker-dialog"
 import { getStatusInfo, getTypeLabel } from "@/lib/instance-constants"
+import { serverToDatetimeLocal, datetimeLocalToServer } from "@/lib/datetime"
 export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanceItem; onRefresh: () => void }) {
   const formatDate = useFormatDate()
+  const siteTz = useTimezone()
   const queryClient = useQueryClient()
   const [changeIPOpen, setChangeIPOpen] = useState(false)
   const [addIpOpen, setAddIpOpen] = useState(false)
@@ -41,6 +44,11 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
   const [editingRemark, setEditingRemark] = useState(false)
   const [remarkValue, setRemarkValue] = useState(instance.remark ?? "")
   const [savingRemark, setSavingRemark] = useState(false)
+  const [editingExpire, setEditingExpire] = useState(false)
+  const [expireValue, setExpireValue] = useState(() =>
+    instance.expire_at ? serverToDatetimeLocal(instance.expire_at, siteTz) : ""
+  )
+  const [savingExpire, setSavingExpire] = useState(false)
   const status = getStatusInfo(instance.status)
   const isRunning = instance.status === "running"
   const state = useInstanceState(instance.id, isRunning)
@@ -74,6 +82,29 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
       toast.error(getErrorMessage(err, "保存失败"))
     } finally {
       setSavingRemark(false)
+    }
+  }
+  const saveExpire = async (clearExpire?: boolean) => {
+    setSavingExpire(true)
+    try {
+      const body: InstanceUpdateRequest = clearExpire
+        ? { clear_expire: true }
+        : { expire_at: new Date(datetimeLocalToServer(expireValue, siteTz)!.replace(" ", "T") + "Z").toISOString() }
+      const { data: res } = await putAdminInstancesById({
+        path: { id: instance.id! },
+        body,
+      })
+      if (res?.code === 0) {
+        toast.success(clearExpire ? "已设为永不过期" : "到期时间已更新")
+        setEditingExpire(false)
+        onRefresh()
+      } else {
+        toast.error(res?.message || "保存失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "保存失败"))
+    } finally {
+      setSavingExpire(false)
     }
   }
   const handleChangeIP = async (ip: IppoolFreeIpItem) => {
@@ -548,7 +579,57 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           </div>
           <div>
             <div className="text-muted-foreground">到期时间</div>
-            <div className="font-medium mt-0.5">{instance.expire_at ? formatDate(instance.expire_at) : "永不过期"}</div>
+            {editingExpire ? (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Input
+                  type="datetime-local"
+                  value={expireValue}
+                  onChange={e => setExpireValue(e.target.value)}
+                  className="h-7 text-sm w-52"
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-6" onClick={() => saveExpire()} disabled={savingExpire || !expireValue}>
+                      {savingExpire ? <Spinner className="size-3" /> : <Check className="size-3" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>保存</TooltipContent>
+                </Tooltip>
+                {instance.expire_at && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-6" onClick={() => saveExpire(true)} disabled={savingExpire}>
+                        永不过期
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>清除到期时间，设为永不过期</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-6" onClick={() => setEditingExpire(false)} disabled={savingExpire}>
+                      <X className="size-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>取消</TooltipContent>
+                </Tooltip>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="font-medium">{instance.expire_at ? formatDate(instance.expire_at) : "永不过期"}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-5" onClick={() => {
+                      setExpireValue(instance.expire_at ? serverToDatetimeLocal(instance.expire_at, siteTz) : "")
+                      setEditingExpire(true)
+                    }}>
+                      <Pencil className="size-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>修改到期时间</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
           </div>
           {instance.coupon_code && (
             <div>

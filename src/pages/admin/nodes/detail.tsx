@@ -760,7 +760,7 @@ export default function NodeDetail() {
           {/* eslint-disable-next-line react-hooks/refs */}
           {visitedRef.current.has("network") && (
             <div className={activeTab !== "network" ? "hidden" : undefined}>
-              <NodeNetworkTable nodeId={Number(id)} activeNetworkName={node?.network_name} />
+              <NodeNetworkTable nodeId={Number(id)} activeNetworkName={node?.network_name} parentInterface={node?.parent_interface} />
             </div>
           )}
           {/* eslint-disable-next-line react-hooks/refs */}

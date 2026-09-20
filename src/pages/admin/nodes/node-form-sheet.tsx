@@ -2,10 +2,10 @@ import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort, getAdminRegionsAll } from "@/api"
+import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort, getAdminRegionsAll, getAdminNodesByIdNetworksDetect } from "@/api"
 import type { NodeNodeItem, ServiceTestConnectionResponse, RegionRegionItem } from "@/api"
 import { useQuery } from "@tanstack/react-query"
-import { getAdminRegionsAllQueryKey } from "@/api/@tanstack/react-query.gen"
+import { getAdminRegionsAllQueryKey, getAdminNodesByIdNetworksDetectQueryKey } from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { HelpLink } from "@/components/help-doc"
 import { getErrorMessage } from "@/lib/utils"
@@ -74,6 +74,7 @@ const editSchema = z.object({
   cluster_member_name: z.string().max(128).optional().default(""),
   network_name: z.string().max(64).optional().default(""),
   storage_pool: z.string().max(64).optional().default(""),
+  parent_interface: z.string().max(15).optional().default(""),
 })
 
 type NodeFormInput = z.input<typeof createSchema>
@@ -94,6 +95,7 @@ const defaultValues: EditFormValues = {
   cluster_member_name: "",
   network_name: "",
   storage_pool: "",
+  parent_interface: "",
   monitor_port: 9100,
   cpu_overcommit: 0,
   mem_overcommit: 0,
@@ -420,7 +422,7 @@ function ConnectionTestResults({ result }: { result: ServiceTestConnectionRespon
 
 // ── 构建请求 body ──
 
-function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name" | "network_name" | "storage_pool">>) {
+function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluster_member_name" | "network_name" | "storage_pool" | "parent_interface">>) {
   return {
     name: values.name,
     region_id: values.region_id || undefined,
@@ -434,6 +436,7 @@ function buildBody(values: NodeFormValues & Partial<Pick<EditFormValues, "cluste
     cluster_member_name: values.cluster_member_name ?? values.name,
     network_name: values.network_name || undefined,
     storage_pool: values.storage_pool || undefined,
+    parent_interface: values.parent_interface ?? "",
     monitor_port: values.monitor_port,
     cpu_overcommit: 1 + values.cpu_overcommit / 100,
     mem_overcommit: 1 + values.mem_overcommit / 100,
@@ -582,6 +585,17 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
   const { data: regions = [] } = useRegions()
 
+  const detectQuery = useQuery({
+    queryKey: getAdminNodesByIdNetworksDetectQueryKey({ path: { id: node.id! } }),
+    queryFn: async () => {
+      const { data: res } = await getAdminNodesByIdNetworksDetect({ path: { id: node.id! } })
+      return res?.data ?? { bridges: [], interfaces: [] }
+    },
+    retry: false,
+    enabled: open && !!node.id,
+  })
+  const physicalInterfaces = detectQuery.data?.interfaces ?? []
+
   const form = useForm<EditFormInput, unknown, EditFormValues>({
     resolver: zodResolver(editSchema),
     defaultValues,
@@ -632,6 +646,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
         cluster_member_name: node.cluster_member_name ?? "",
         network_name: node.network_name ?? "",
         storage_pool: node.storage_pool ?? "",
+        parent_interface: node.parent_interface ?? "",
         monitor_port: node.monitor_port ?? 9100,
         cpu_overcommit: Math.round(((node.cpu_overcommit ?? 1) - 1) * 100),
         mem_overcommit: Math.round(((node.mem_overcommit ?? 1) - 1) * 100),
@@ -710,6 +725,38 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="parent_interface"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>上联网卡</FormLabel>
+                    {physicalInterfaces.length > 0 ? (
+                      <Select onValueChange={(v) => field.onChange(v === "_none" ? "" : v)} value={field.value || "_none"}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="选择上联网卡" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="_none">不指定</SelectItem>
+                          {physicalInterfaces.map((iface) => (
+                            <SelectItem key={iface.name} value={iface.name!}>
+                              {iface.name} {iface.addresses?.length ? `(${iface.addresses[0]})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <FormControl>
+                        <Input placeholder="如 ens160（检测不到时手动输入）" {...field} />
+                      </FormControl>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      用于 IPv6 routed 模式，连接公网的物理网卡。NAT 模式下的 IPv6 池也需要此配置
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <OvercommitFields form={form} />
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
             </form>

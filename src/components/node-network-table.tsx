@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,13 +23,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
 import { formatBytes, getErrorMessage } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import type { IncusNetworkDetail } from "@/types/incus"
 import { queryKeys } from "@/lib/query-keys"
-import { postAdminNodesByIdNetworksSetup, getAdminNodesByIdNetworksDetect } from "@/api"
+import { postAdminNodesByIdNetworksSetup, postAdminNodesByIdNetworksSyncIpv6Nic, getAdminNodesByIdNetworksDetect } from "@/api"
 import { getAdminNodesByIdQueryKey, getAdminNodesByIdNetworksDetectQueryKey } from "@/api/@tanstack/react-query.gen"
 import type { ServiceDetectedNetwork, ServicePhysicalInterface } from "@/api"
 import { toast } from "sonner"
@@ -45,6 +46,7 @@ import {
 interface Props {
   nodeId: number
   activeNetworkName?: string
+  parentInterface?: string
 }
 
 interface NetworkState {
@@ -63,12 +65,17 @@ interface DHCPLease {
   type: string
 }
 
-function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChange }: {
+function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChange, existingParentInterface, isActiveWithResources, ipPoolCount, sharedIPCount, bridgeConfig }: {
   nodeId: number
   networkName: string
   interfaces: ServicePhysicalInterface[]
   open: boolean
   onOpenChange: (open: boolean) => void
+  existingParentInterface?: string
+  isActiveWithResources?: boolean
+  ipPoolCount?: number
+  sharedIPCount?: number
+  bridgeConfig?: Record<string, string>
 }) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<"nat" | "public">("nat")
@@ -79,6 +86,20 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
   const [dns2, setDns2] = useState("8.8.4.4")
   const [parentInterface, setParentInterface] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParentInterface(existingParentInterface ?? "")
+    setSharedIP("")
+    setSubmitting(false)
+    setGateway("")
+    setCidr("")
+    setDns1("8.8.8.8")
+    setDns2("8.8.4.4")
+    const isPublic = bridgeConfig?.["ipv4.nat"] === "false"
+    setMode(isPublic ? "public" : "nat")
+  }, [open, existingParentInterface, bridgeConfig])
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -115,6 +136,13 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
           <DialogTitle>配置网络 {networkName}</DialogTitle>
           <DialogDescription>选择网络模式并填写必要信息</DialogDescription>
         </DialogHeader>
+        {isActiveWithResources && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              此网络已有{(ipPoolCount ?? 0) > 0 ? ` ${ipPoolCount} 个 IP 池` : ""}{(ipPoolCount ?? 0) > 0 && (sharedIPCount ?? 0) > 0 ? "、" : ""}{(sharedIPCount ?? 0) > 0 ? `${sharedIPCount} 个共享 IP` : ""}，切换模式可能影响现有实例网络配置
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="space-y-4 py-2">
           <div className="space-y-3">
             <Label>网络模式</Label>
@@ -222,21 +250,45 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
   )
 }
 
-function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces }: {
+function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces, parentInterface }: {
   net: IncusNetworkDetail
   nodeId: number
   activeNetworkName?: string
   detectInfo?: ServiceDetectedNetwork
   interfaces: ServicePhysicalInterface[]
+  parentInterface?: string
 }) {
+  const queryClient = useQueryClient()
   const [setupOpen, setSetupOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const isActive = activeNetworkName === net.name
 
   const ipPoolCount = detectInfo?.ip_pool_count ?? 0
   const sharedIPCount = detectInfo?.shared_ip_count ?? 0
   const hasResources = ipPoolCount + sharedIPCount > 0
-  const showSetupButton = !isActive || !hasResources
   const buttonLabel = isActive ? "配置网络" : "使用此网络"
+
+  const handleSyncIPv6NIC = async () => {
+    if (!confirm("将把节点上所有 bridged IPv6 NIC 转换为 routed 模式（使用上联网卡），是否继续？")) return
+    setSyncing(true)
+    try {
+      const { data: res } = await postAdminNodesByIdNetworksSyncIpv6Nic({ path: { id: nodeId } })
+      if (res?.code !== 0) {
+        toast.error(res?.message ?? "同步失败")
+        return
+      }
+      const r = res.data
+      let msg = `同步完成：${r?.converted ?? 0} 个已转换，${r?.skipped ?? 0} 个已跳过`
+      if (r?.failed) msg += `，${r.failed} 个失败`
+      if (r?.need_restart) msg += `。${r.need_restart} 个运行中的实例需要重启后生效`
+      toast.success(msg)
+      queryClient.invalidateQueries({ queryKey: queryKeys.nodeNetworks(nodeId) })
+    } catch (err) {
+      toast.error(getErrorMessage(err, "同步失败"))
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const detailQuery = useQuery({
     queryKey: queryKeys.nodeNetworkState(nodeId, net.name, !!net.managed),
@@ -270,17 +322,22 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{net.used_by?.length ?? 0} 个引用</span>
-          {showSetupButton ? (
-            <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
-              <Settings className="size-3.5 mr-1.5" />
-              {buttonLabel}
-            </Button>
-          ) : (
+          {isActive && hasResources && (
             <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800">
               <Check className="size-3" />
               已配置
             </Badge>
           )}
+          {isActive && parentInterface && (
+            <Button variant="outline" size="sm" onClick={handleSyncIPv6NIC} disabled={syncing}>
+              {syncing ? <Spinner className="size-3.5 mr-1.5" /> : null}
+              同步 IPv6 NIC
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
+            <Settings className="size-3.5 mr-1.5" />
+            {buttonLabel}
+          </Button>
         </div>
       </div>
 
@@ -409,6 +466,11 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
         networkName={net.name}
         interfaces={interfaces}
         open={setupOpen}
+        existingParentInterface={parentInterface}
+        isActiveWithResources={isActive && hasResources}
+        ipPoolCount={ipPoolCount}
+        sharedIPCount={sharedIPCount}
+        bridgeConfig={net.config as Record<string, string> | undefined}
         onOpenChange={setSetupOpen}
       />
     </div>
@@ -460,7 +522,7 @@ export function NetworkTableSkeleton() {
   )
 }
 
-export default function NodeNetworkTable({ nodeId, activeNetworkName }: Props) {
+export default function NodeNetworkTable({ nodeId, activeNetworkName, parentInterface }: Props) {
   const query = useQuery({
     queryKey: queryKeys.nodeNetworks(nodeId),
     queryFn: async () => {
@@ -520,6 +582,7 @@ export default function NodeNetworkTable({ nodeId, activeNetworkName }: Props) {
             activeNetworkName={activeNetworkName}
             detectInfo={detectMap.get(net.name)}
             interfaces={physicalInterfaces}
+            parentInterface={parentInterface}
           />
         </div>
       ))}

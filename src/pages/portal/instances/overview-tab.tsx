@@ -1,10 +1,13 @@
 import { useState, useCallback } from "react"
 import type { PortalPortalInstanceItem } from "@/api"
-import { formatBytes, formatMemory, formatDisk, formatTraffic } from "@/lib/utils"
+import { postPortalInstancesByIdAutoRenew } from "@/api"
+import { formatBytes, formatMemory, formatDisk, formatTraffic, getErrorMessage } from "@/lib/utils"
 import { usePortalInstanceState } from "@/hooks/use-portal-instance-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { billingCycleMap } from "@/lib/order-constants"
+import { toast } from "sonner"
 import { AccessPanel } from "./access-panel"
 import { ManageSection } from "./manage-section"
 import { NetworkSection } from "./network-section"
@@ -45,6 +48,26 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
   const state = usePortalInstanceState(instance.id, isRunning)
   const [passwordVersion, setPasswordVersion] = useState(0)
   const invalidatePassword = useCallback(() => setPasswordVersion(v => v + 1), [])
+  const [togglingAutoRenew, setTogglingAutoRenew] = useState(false)
+  const handleToggleAutoRenew = async (checked: boolean) => {
+    setTogglingAutoRenew(true)
+    try {
+      const { data: res } = await postPortalInstancesByIdAutoRenew({
+        path: { id: instance.id! },
+        body: { enabled: checked },
+      })
+      if (res?.code === 0) {
+        toast.success(checked ? "已开启自动续费" : "已关闭自动续费")
+        onRefresh()
+      } else {
+        toast.error(res?.message || "操作失败")
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "操作失败"))
+    } finally {
+      setTogglingAutoRenew(false)
+    }
+  }
 
   const memPercent = state?.mem_total ? ((state.mem_used ?? 0) / state.mem_total) * 100 : 0
   const diskUsed = state?.disk_used ?? 0
@@ -157,6 +180,16 @@ export function OverviewTab({ instance, onRefresh }: { instance: PortalPortalIns
           } />
           <InfoRow label="计费周期" value={billingCycleMap[instance.billing_cycle ?? ''] ?? instance.billing_cycle ?? '-'} />
           <InfoRow label="到期时间" value={formatDate(instance.expire_at)} />
+          {instance.billing_cycle !== "hourly" && instance.expire_at && (
+            <div className="flex items-center justify-between px-5 py-3.5">
+              <span className="text-xs text-muted-foreground">自动续费</span>
+              <Switch
+                checked={instance.auto_renew ?? false}
+                onCheckedChange={handleToggleAutoRenew}
+                disabled={togglingAutoRenew}
+              />
+            </div>
+          )}
           {instance.coupon_code && (
             <InfoRow label="持续折扣" value={instance.coupon_code} />
           )}
