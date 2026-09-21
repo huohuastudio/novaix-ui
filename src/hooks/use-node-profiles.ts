@@ -27,6 +27,7 @@ export function useNodeProfiles(nodeId: number | undefined): NodeProfiles {
   // 写操作成功后失效缓存触发重取（保持原对外签名不变）
   const refetch = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.nodeProfiles(nodeId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.nodeResources(nodeId) })
   }, [queryClient, nodeId])
 
   return {

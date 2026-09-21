@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Disc3, Download, Trash2 } from "lucide-react"
-import { postAdminNodesByIdPullImage } from "@/api"
+import { deleteAdminNodesByIdImagesByFingerprint, postAdminNodesByIdPullImage } from "@/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -262,18 +262,18 @@ export default function NodeImageTable({ nodeId }: Props) {
   const handleDelete = useCallback(async (img: IncusImage) => {
     const label = getImageLabel(img)
     const ok = await confirm({
-      title: "删除镜像",
-      description: `确定要删除镜像「${label}」(${img.fingerprint.slice(0, 12)}) 吗？此操作不可撤销。`,
+      title: "删除镜像缓存",
+      description: `确定要清理镜像「${label}」(${img.fingerprint.slice(0, 12)}) 的缓存吗？此操作不会删除镜像模板或已有实例。`,
       confirmText: "删除",
       destructive: true,
     })
     if (!ok) return
     try {
-      await incus(nodeId, `1.0/images/${img.fingerprint}`, { method: "DELETE" })
-      toast.success("镜像已删除")
+      await deleteAdminNodesByIdImagesByFingerprint({ path: { id: nodeId, fingerprint: img.fingerprint } })
+      toast.success("镜像缓存已删除")
       fetchImages()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "删除镜像失败"))
+      toast.error(getErrorMessage(err, "删除镜像失败"))
     }
   }, [nodeId, confirm, fetchImages])
 
@@ -360,6 +360,7 @@ export default function NodeImageTable({ nodeId }: Props) {
                           variant="ghost"
                           size="icon"
                           className="size-7 text-destructive hover:text-destructive"
+                          aria-label="删除镜像缓存"
                           onClick={() => handleDelete(img)}
                         >
                           <Trash2 className="size-3.5" />

@@ -2,7 +2,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { incus, incusErrorMessage } from "@/lib/incus"
+import { postAdminNodesByIdProfiles } from "@/api"
+import { getErrorMessage } from "@/lib/utils"
 import { useNodeResources } from "@/hooks/use-node-resources"
 import {
   profileFormSchema,
@@ -76,11 +77,11 @@ function ProfileCreateForm({
   const onSubmit = async (values: ProfileFormValues) => {
     try {
       const body = buildProfileBody(values)
-      await incus(nodeId, "1.0/profiles", { method: "POST", body })
+      await postAdminNodesByIdProfiles({ path: { id: nodeId }, body })
       toast.success("配置文件已创建")
       onSuccess()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "创建配置文件失败"))
+      toast.error(getErrorMessage(err, "创建配置文件失败"))
     }
   }
 

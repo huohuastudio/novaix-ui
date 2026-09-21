@@ -1,8 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { incus, incusErrorMessage } from "@/lib/incus"
+import { postAdminNodesByIdProfiles } from "@/api"
+import { getErrorMessage } from "@/lib/utils"
 import { useNodeResources } from "@/hooks/use-node-resources"
 import { profileFormSchema, defaultValues, buildProfileBody } from "../schema"
 import { asIncusConfigForm } from "@/types/incus-config"
@@ -32,6 +35,7 @@ export default function CreateProfile() {
     { label: "创建配置文件" },
   ])
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const nodeId = Number(searchParams.get("node_id"))
   const nodeResources = useNodeResources(nodeId || undefined)
@@ -48,11 +52,13 @@ export default function CreateProfile() {
     }
     try {
       const body = buildProfileBody(values)
-      await incus(nodeId, "1.0/profiles", { method: "POST", body })
+      await postAdminNodesByIdProfiles({ path: { id: nodeId }, body })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nodeProfiles(nodeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nodeResources(nodeId) })
       toast.success("配置文件已创建")
       navigate(`${adminPath}/nodes/${nodeId}/profiles`)
     } catch (err) {
-      toast.error(incusErrorMessage(err, "创建配置文件失败"))
+      toast.error(getErrorMessage(err, "创建配置文件失败"))
     }
   }
 

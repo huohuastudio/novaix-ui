@@ -42,7 +42,8 @@ import {
 } from "@/components/ui/table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
-import { formatBytes } from "@/lib/utils"
+import { postAdminNodesByIdStoragePoolsByPoolVolumes, deleteAdminNodesByIdStoragePoolsByPoolVolumesByName } from "@/api"
+import { formatBytes, getErrorMessage } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusStoragePoolDetail, IncusStorageVolume } from "@/types/incus"
@@ -109,19 +110,15 @@ function CreateVolumeDialog({
 
   const onSubmit = async (values: VolumeFormValues) => {
     try {
-      await incus(nodeId, `1.0/storage-pools/${poolName}/volumes/custom`, {
-        method: "POST",
-        body: {
-          name: values.name,
-          content_type: values.content_type,
-          config: { size: values.size },
-        },
+      await postAdminNodesByIdStoragePoolsByPoolVolumes({
+        path: { id: nodeId, pool: poolName },
+        body: values,
       })
       toast.success(`卷 ${values.name} 已创建`)
       onOpenChange(false)
       onSuccess()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "创建存储卷失败"))
+      toast.error(getErrorMessage(err, "创建存储卷失败"))
     }
   }
 
@@ -214,11 +211,11 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
     })
     if (!ok) return
     try {
-      await incus(nodeId, `1.0/storage-pools/${pool.name}/volumes/${vol.type}/${vol.name}`, { method: "DELETE" })
+      await deleteAdminNodesByIdStoragePoolsByPoolVolumesByName({ path: { id: nodeId, pool: pool.name, name: vol.name } })
       toast.success("存储卷已删除")
       fetchData()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "删除存储卷失败"))
+      toast.error(getErrorMessage(err, "删除存储卷失败"))
     }
   }, [nodeId, pool.name, confirm, fetchData])
 
@@ -320,6 +317,7 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
                           variant="ghost"
                           size="icon"
                           className="size-7 text-destructive hover:text-destructive"
+                          aria-label="删除存储卷"
                           onClick={() => handleDeleteVolume(v)}
                           disabled={(v.used_by?.length ?? 0) > 0}
                         >

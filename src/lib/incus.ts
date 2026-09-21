@@ -39,12 +39,9 @@ export async function incus<T = unknown>(
   nodeId: number,
   path: string,
   options?: {
-    method?: string
-    body?: unknown
     params?: Record<string, string>
   },
 ): Promise<T> {
-  const method = options?.method ?? "GET"
   const url = `/admin/nodes/${nodeId}/proxy/${path}`
 
   const searchParams = new URLSearchParams(options?.params)
@@ -53,9 +50,8 @@ export async function incus<T = unknown>(
   let resp
   try {
     resp = await client.instance.request<IncusResponse<T>>({
-      method,
+      method: "GET",
       url: fullUrl,
-      data: options?.body,
     })
   } catch (err) {
     const axiosErr = err as AxiosError

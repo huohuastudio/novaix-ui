@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useNodeProfiles } from "@/hooks/use-node-profiles"
-import { incus, incusErrorMessage } from "@/lib/incus"
+import { deleteAdminNodesByIdProfilesByName } from "@/api"
+import { getErrorMessage } from "@/lib/utils"
 import { toast } from "sonner"
 import {
   Table,
@@ -87,11 +88,11 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
     })
     if (!ok) return
     try {
-      await incus(nodeId, `1.0/profiles/${profile.name}`, { method: "DELETE" })
+      await deleteAdminNodesByIdProfilesByName({ path: { id: nodeId, name: profile.name } })
       toast.success("配置文件已删除")
       refetch()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "删除配置文件失败"))
+      toast.error(getErrorMessage(err, "删除配置文件失败"))
     }
   }, [nodeId, confirm, refetch])
 
@@ -173,6 +174,7 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
                         variant="ghost"
                         size="icon"
                         className="size-8"
+                        aria-label="编辑配置文件"
                         onClick={() => setEditState({ open: true, profileName: p.name! })}
                       >
                         <Pencil className="size-4" />
@@ -181,6 +183,7 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
                         variant="ghost"
                         size="icon"
                         className="size-8 text-destructive hover:text-destructive"
+                        aria-label="删除配置文件"
                         onClick={() => handleDelete(p)}
                         disabled={p.name === "default"}
                       >

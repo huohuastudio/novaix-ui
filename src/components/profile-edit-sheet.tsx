@@ -3,7 +3,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { incus, incusErrorMessage } from "@/lib/incus"
+import { incus } from "@/lib/incus"
+import { putAdminNodesByIdProfilesByName } from "@/api"
+import { getErrorMessage } from "@/lib/utils"
 import { useNodeResources } from "@/hooks/use-node-resources"
 import {
   profileFormSchema,
@@ -152,14 +154,18 @@ function ProfileEditForm({
   const onSubmit = async (values: ProfileFormValues) => {
     try {
       const body = buildProfileBody(values)
-      await incus(nodeId, `1.0/profiles/${profile.name}`, {
-        method: "PUT",
+      const original = buildProfileBody(profileToFormValues(profile))
+      // 未修改的配置保留节点原值，避免仅编辑描述时触发表单默认值转换。
+      if (JSON.stringify(body.config) === JSON.stringify(original.config)) body.config = profile.config ?? {}
+      if (JSON.stringify(body.devices) === JSON.stringify(original.devices)) body.devices = profile.devices ?? {}
+      await putAdminNodesByIdProfilesByName({
+        path: { id: nodeId, name: profile.name },
         body: { description: body.description, config: body.config, devices: body.devices },
       })
       toast.success("配置文件已保存")
       onSuccess()
     } catch (err) {
-      toast.error(incusErrorMessage(err, "更新配置文件失败"))
+      toast.error(getErrorMessage(err, "更新配置文件失败"))
     }
   }
 

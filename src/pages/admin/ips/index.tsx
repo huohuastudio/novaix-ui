@@ -59,6 +59,7 @@ import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 import { invalidateGeneratedQueries } from "@/lib/query-keys"
 import { incus } from "@/lib/incus"
+import { parsePoolNetwork } from "@/lib/ip-pool"
 import { PaginatedSelect } from "@/components/paginated-select"
 import type { IncusNetworkDetail } from "@/types/incus"
 
@@ -68,8 +69,14 @@ const poolSchema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   description: z.string().max(512).default(""),
   type: z.enum(["ipv4", "ipv6"]),
-  gateway: z.string().min(1, "请输入网关"),
-  cidr: z.string().min(1, "请输入 CIDR"),
+  gateway: z.string().trim().min(1, "请输入网关").refine(
+    value => z.ipv4().safeParse(value).success || z.ipv6().safeParse(value).success,
+    "网关地址格式不正确",
+  ),
+  cidr: z.string().trim().min(1, "请输入 CIDR").refine(
+    value => z.cidrv4().safeParse(value).success || z.cidrv6().safeParse(value).success,
+    "CIDR 格式不正确，请填写 IP 地址和前缀长度",
+  ),
   dns1: z.string().default("8.8.8.8"),
   dns2: z.string().default("8.8.4.4"),
   vlan: z.coerce.number<number | string>().int().min(0).default(0),
@@ -162,34 +169,22 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
     ? { name: "公网 IPv6", cidr: "2001:db8::/64", gw: "2001:db8::1", dns1: "2606:4700:4700::1111", dns2: "2606:4700:4700::1001" }
     : { name: "公网 IPv4", cidr: "192.168.1.0/24", gw: "192.168.1.1", dns1: "8.8.8.8", dns2: "8.8.4.4" }
 
-  const handleSelectNetwork = (networkName: string) => {
-    nodeHelper.setSelectedNetwork(networkName)
+  const handleSelectNetwork = (networkName: string, type = poolType) => {
     const net = nodeHelper.networks.find(n => n.name === networkName)
     if (!net) return
-    form.setValue("network_name", net.name)
-    if (isIPv6) {
-      const ipv6Addr = net.config?.["ipv6.address"]
-      if (ipv6Addr && ipv6Addr !== "none" && ipv6Addr !== "auto") {
-        const [gateway, prefix] = ipv6Addr.split("/")
-        form.setValue("gateway", gateway ?? "")
-        if (gateway && prefix) {
-          form.setValue("cidr", `${gateway.replace(/:?[^:]+$/, "::")}/${prefix}`)
-        }
-      }
-    } else {
-      const ipv4Addr = net.config?.["ipv4.address"]
-      if (ipv4Addr && ipv4Addr !== "none" && ipv4Addr !== "auto") {
-        const [gateway] = ipv4Addr.split("/")
-        form.setValue("gateway", gateway ?? "")
-        const prefix = ipv4Addr.split("/")[1]
-        if (gateway && prefix) {
-          const parts = gateway.split(".").map(Number)
-          const mask = ~((1 << (32 - Number(prefix))) - 1) >>> 0
-          const netAddr = [(parts[0] & (mask >>> 24)), (parts[1] & ((mask >>> 16) & 255)), (parts[2] & ((mask >>> 8) & 255)), (parts[3] & (mask & 255))]
-          form.setValue("cidr", `${netAddr.join(".")}/${prefix}`)
-        }
-      }
+    const address = net.config?.[`${type}.address`]
+    const network = address ? parsePoolNetwork(address, type) : null
+    if (!network) {
+      nodeHelper.setSelectedNetwork("")
+      form.setValue("gateway", "")
+      form.setValue("cidr", "")
+      toast.error(`该网桥没有有效的 ${type === "ipv6" ? "IPv6" : "IPv4"} 地址配置，请手动填写或选择其他网桥`)
+      return
     }
+    nodeHelper.setSelectedNetwork(networkName)
+    form.setValue("network_name", net.name)
+    form.setValue("gateway", network.gateway, { shouldValidate: true })
+    form.setValue("cidr", network.cidr, { shouldValidate: true })
     form.setValue("node_id", Number(nodeHelper.selectedNodeId))
     toast.success(`已填充网桥「${net.name}」的配置并绑定节点`)
   }
@@ -214,7 +209,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
             />
             <Select
               value={nodeHelper.selectedNetwork}
-              onValueChange={handleSelectNetwork}
+              onValueChange={value => handleSelectNetwork(value)}
               disabled={!nodeHelper.selectedNodeId || nodeHelper.loadingNetworks}
             >
               <SelectTrigger>
@@ -265,6 +260,9 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
               <FormLabel required>类型</FormLabel>
               <Select onValueChange={(v) => {
                 field.onChange(v)
+                if (nodeHelper.selectedNetwork && (v === "ipv4" || v === "ipv6")) {
+                  handleSelectNetwork(nodeHelper.selectedNetwork, v)
+                }
                 if (v === "ipv6") {
                   form.setValue("dns1", "2606:4700:4700::1111")
                   form.setValue("dns2", "2606:4700:4700::1001")
