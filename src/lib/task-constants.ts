@@ -3,6 +3,7 @@
 export const TASK_TYPE_LABELS: Record<string, string> = {
   create_instance: "创建实例",
   delete_instance: "删除实例",
+  rebuild_instance: "重建实例",
   reinstall_instance: "重装实例",
   start_instance: "启动实例",
   stop_instance: "停止实例",

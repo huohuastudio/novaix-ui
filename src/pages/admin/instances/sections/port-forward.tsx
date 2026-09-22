@@ -1,3 +1,4 @@
+import type { NATPortRange } from "@/lib/nat-port-range"
 import { useMemo } from "react"
 import { ArrowUpDown, Plus, Pencil, Trash2 } from "lucide-react"
 import {
@@ -7,7 +8,7 @@ import {
   deleteAdminInstancesByIdPortForwardRulesByRuleId,
 } from "@/api"
 import { usePortForwardRules } from "@/hooks/use-port-forward-rules"
-import { PortForwardRuleFormDialog, PortForwardDeleteDialog, type NATPortRange } from "@/components/port-forward-rule-dialog"
+import { PortForwardRuleFormDialog, PortForwardDeleteDialog } from "@/components/port-forward-rule-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"

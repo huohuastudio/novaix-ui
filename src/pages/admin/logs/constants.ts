@@ -16,6 +16,8 @@ export const actionMap: Record<string, { label: string; variant: "default" | "se
   node_group_remove_node: { label: "节点移出组", variant: "secondary" },
   instance_create: { label: "创建实例", variant: "default" },
   instance_delete: { label: "删除实例", variant: "destructive" },
+  node_storage_resize: { label: "存储池扩容", variant: "default" },
+  instance_rebuild: { label: "重建实例", variant: "destructive" },
   instance_start: { label: "启动实例", variant: "default" },
   instance_stop: { label: "停止实例", variant: "secondary" },
   instance_restart: { label: "重启实例", variant: "secondary" },

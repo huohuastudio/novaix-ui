@@ -45,7 +45,7 @@ import { InstanceStatsChart } from "@/components/instance-stats-chart"
 // SPICE 协议与 noVNC (RFB) 不兼容，控制台功能暂时移除
 import { FirewallTab } from "./firewall-tab"
 import { PortForwardTab } from "./port-forward-tab"
-import { toNATPortRange } from "@/components/port-forward-rule-dialog"
+import { toNATPortRange } from "@/lib/nat-port-range"
 import { OverviewTab } from "./overview-tab"
 import { SnapshotsTab } from "./snapshots-tab"
 import { useSiteName } from "@/hooks/use-site-settings"

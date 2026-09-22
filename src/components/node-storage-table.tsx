@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { HardDrive, Plus, Trash2 } from "lucide-react"
+import { HardDrive, Plus, Trash2, Expand } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +48,8 @@ import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusStoragePoolDetail, IncusStorageVolume } from "@/types/incus"
 import { queryKeys } from "@/lib/query-keys"
+
+import { StoragePoolResizeDialog } from "@/components/storage-pool-resize-dialog"
 
 interface Props {
   nodeId: number
@@ -176,6 +178,7 @@ function CreateVolumeDialog({
 function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: number }) {
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
+  const [resizeOpen, setResizeOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
   // 单个存储池的卷列表 + 容量用量聚合查询（走通用 proxy），与原实现一致：单项失败降级为空数据
@@ -226,13 +229,13 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
     <>
       <div className="space-y-6">
         {/* Pool header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold">{pool.name}</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h3 className="break-all text-lg font-semibold">{pool.name}</h3>
             <Badge variant="outline">{pool.driver}</Badge>
             <Badge variant={pool.status === "Created" ? "default" : "secondary"}>{pool.status}</Badge>
           </div>
-          <span className="text-sm text-muted-foreground">{pool.used_by?.length ?? 0} 个引用</span>
+          <div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{pool.used_by?.length ?? 0} 个引用</span><Button variant="outline" onClick={() => setResizeOpen(true)}><Expand className="size-4" />扩容</Button></div>
         </div>
 
         {pool.description && (
@@ -339,6 +342,7 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
         </div>
       </div>
 
+      {resizeOpen && <StoragePoolResizeDialog nodeId={nodeId} poolName={pool.name} onClose={() => setResizeOpen(false)} />}
       <CreateVolumeDialog
         open={createOpen}
         onOpenChange={setCreateOpen}

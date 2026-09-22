@@ -1,4 +1,4 @@
-import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, RefreshCw } from "lucide-react"
+import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, RefreshCw, RotateCcw } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -12,6 +12,7 @@ interface InstanceActionCellProps {
   onPowerAction: (inst: InstanceInstanceItem, action: PowerAction) => void
   onEdit: (inst: InstanceInstanceItem) => void
   onDelete: (inst: InstanceInstanceItem) => void
+  onRebuild?: (inst: InstanceInstanceItem) => void
   onRetry?: (inst: InstanceInstanceItem) => void
   onRenew?: (inst: InstanceInstanceItem) => void
 }
@@ -35,6 +36,7 @@ function ActionButton({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
+          aria-label={label}
           variant="ghost"
           size="icon"
           className={cn("size-8", destructive && "text-destructive hover:text-destructive")}
@@ -57,6 +59,7 @@ export function InstanceActionCell({
   onPowerAction,
   onEdit,
   onDelete,
+  onRebuild,
   onRetry,
   onRenew,
 }: InstanceActionCellProps) {
@@ -82,6 +85,9 @@ export function InstanceActionCell({
       )}
       {(inst.status === "running" || inst.status === "frozen" || inst.status === "error") && (
         <ActionButton label="强制停止" icon={Zap} busy={busy} destructive onClick={() => onPowerAction(inst, "force-stop")} />
+      )}
+      {(inst.status === "stopped" || inst.status === "error") && onRebuild && (
+        <ActionButton label="重建" icon={RotateCcw} busy={busy} destructive onClick={() => onRebuild(inst)} />
       )}
       {inst.status === "error" && onRetry && (
         <ActionButton label="重试" icon={RotateCw} busy={false} onClick={() => onRetry(inst)} />

@@ -129,7 +129,7 @@ export function useInstanceActions(onRefresh: () => void) {
       toast.error(getErrorMessage(err, "请求失败"))
       return false
     }
-  }, [onRefresh, confirmChoice])
+  }, [onRefresh, confirmChoice, addTask])
 
   const handlePowerAction = useCallback(async (
     instance: InstanceInstanceItem,

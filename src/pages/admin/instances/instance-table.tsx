@@ -27,6 +27,7 @@ import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useInstanceActions } from "@/hooks/use-instance-actions"
 import { useBatchActions, type BatchAction } from "@/hooks/use-batch-actions"
 import { useConfirm as useConfirmRenew } from "@/hooks/use-confirm"
+import { RebuildDialog } from "./components/rebuild-dialog"
 import InstanceRetryDialog from "@/components/instance-retry-dialog"
 import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
@@ -46,6 +47,7 @@ interface InstanceTableProps {
 export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
   const formatDate = useFormatDate()
   const adminPath = useAdminPath()
+  const [rebuildInstance, setRebuildInstance] = useState<InstanceInstanceItem | null>(null)
   const [retryInstance, setRetryInstance] = useState<InstanceInstanceItem | null>(null)
   const { confirm: confirmRenew, ConfirmDialog: RenewConfirmDialog } = useConfirmRenew()
   const [editInstanceId, setEditInstanceId] = useState<number | null>(null)
@@ -315,6 +317,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
           onPowerAction={handlePowerAction}
           onEdit={(inst) => setEditInstanceId(inst.id!)}
           onDelete={handleDelete}
+          onRebuild={setRebuildInstance}
           onRetry={(inst) => setRetryInstance(inst)}
           onRenew={handleRenew}
         />
@@ -392,6 +395,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {rebuildInstance && <RebuildDialog instance={rebuildInstance} onClose={() => setRebuildInstance(null)} />}
       <InstanceRetryDialog
         instance={retryInstance}
         onOpenChange={(open) => { if (!open) setRetryInstance(null) }}

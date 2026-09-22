@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getStatusInfo, isIPv6OnlyInstance } from "@/lib/instance-constants"
+import { RebuildDialog } from "./components/rebuild-dialog"
 import { MigrateDialog } from "./components/migrate-dialog"
 import { OverviewTab, InstanceOverviewSkeleton } from "./sections/overview"
 import { SnapshotsTab, InstanceSnapshotsSkeleton } from "./sections/snapshots-tab"
@@ -51,7 +52,7 @@ import {
 import { InstanceEditInline } from "./edit-inline"
 import { FirewallSection } from "./sections/firewall"
 import { PortForwardSection } from "./sections/port-forward"
-import { toNATPortRange } from "@/components/port-forward-rule-dialog"
+import { toNATPortRange } from "@/lib/nat-port-range"
 import { useAdminPath } from "@/hooks/use-site-settings"
 const TABS = ["overview", "config", "firewall", "port-forward", "snapshots", "terminal"] as const
 type TabValue = (typeof TABS)[number]
@@ -123,6 +124,7 @@ export default function InstanceDetail() {
   const queryClient = useQueryClient()
   const [terminalStatus, setTerminalStatus] = useState<ConnectionStatus>("connecting")
   const [pendingTab, setPendingTab] = useState<string | null>(null)
+  const [rebuildOpen, setRebuildOpen] = useState(false)
   const [migrateOpen, setMigrateOpen] = useState(false)
   const activeTab = id ? resolveTab(location.pathname, id, adminPath) : "overview"
   const [visitedTabs, setVisitedTabs] = useState<Set<TabValue>>(() => new Set(["overview", activeTab]))
@@ -267,6 +269,11 @@ export default function InstanceDetail() {
                 <span className="hidden sm:inline">救援模式</span>
               </Button>
             )}
+            {(isStopped || isError) && (
+              <Button variant="outline" disabled={busy} onClick={() => setRebuildOpen(true)}>
+                <RotateCw className="size-4" />重建
+              </Button>
+            )}
             {isStopped && (
               <Button variant="outline" onClick={() => setMigrateOpen(true)} disabled={busy}>
                 {busy ? <Spinner /> : <MoveRight className="size-4" />}
@@ -373,6 +380,7 @@ export default function InstanceDetail() {
       </div>
       {ConfirmDialog}
       {ConfirmChoiceDialog}
+      {rebuildOpen && <RebuildDialog instance={instance} onClose={() => setRebuildOpen(false)} />}
       <MigrateDialog
         open={migrateOpen}
         onOpenChange={setMigrateOpen}

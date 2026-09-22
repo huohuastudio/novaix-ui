@@ -23,6 +23,7 @@ export const portalStatusConfig: Record<string, { label: string; color: string; 
   starting: { label: "启动中", color: transitionalColor, dot: transitionalDot },
   stopping: { label: "停止中", color: transitionalColor, dot: transitionalDot },
   restarting: { label: "重启中", color: transitionalColor, dot: transitionalDot },
+  rebuilding: { label: "重建中", color: transitionalColor, dot: transitionalDot },
   reinstalling: { label: "重装中", color: transitionalColor, dot: transitionalDot },
   entering_rescue: { label: "进入救援中", color: transitionalColor, dot: transitionalDot },
   exiting_rescue: { label: "退出救援中", color: transitionalColor, dot: transitionalDot },
