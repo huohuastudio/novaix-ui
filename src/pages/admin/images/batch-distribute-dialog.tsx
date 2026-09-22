@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { postAdminImagesByIdDistribute } from "@/api"
 import type { ImageImageItem } from "@/api"
 import { useTasks } from "@/hooks/use-tasks"
+import { getErrorCode } from "@/lib/utils"
 import NodeSelectDialog from "./node-select-dialog"
 
 interface BatchDistributeDialogProps {
@@ -35,13 +36,15 @@ export default function BatchDistributeDialog({ open, onOpenChange, images, onSu
           const taskIds = res.data as number[]
           for (const tid of taskIds) addTask(tid, "distribute_image")
           succeeded.push(...taskIds)
-        } else if (res?.code === 20406) {
+        } else {
+          failedCount++
+        }
+      } catch (err) {
+        if (getErrorCode(err) === 20406) {
           conflicted.push(image)
         } else {
           failedCount++
         }
-      } catch {
-        failedCount++
       }
     }
 

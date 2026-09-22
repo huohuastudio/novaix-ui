@@ -349,7 +349,7 @@ function AdvancedFields({ form, groups }: { form: ImageBaseForm; groups: ImageGr
               />
             </div>
           </FormControl>
-          <p className="text-xs text-muted-foreground">cloud-config 格式，开通实例时与 SSH 公钥合并注入（需镜像启用 Cloud-Init）</p>
+          <p className="text-xs text-muted-foreground">cloud-config 格式，开通及重装为此镜像时执行（需镜像支持并启用 Cloud-Init）</p>
           <FormMessage />
         </FormItem>
       )} />

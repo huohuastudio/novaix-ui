@@ -278,7 +278,7 @@ export default function Images() {
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-8" onClick={() => setDistributeImage(image)} disabled={!canDistribute}>
+                <Button variant="ghost" size="icon" className="size-8" aria-label="分发到节点" onClick={() => setDistributeImage(image)} disabled={!canDistribute}>
                   <Send className="size-4" />
                 </Button>
               </TooltipTrigger>

@@ -3,7 +3,7 @@ import { toast } from "sonner"
 import { postAdminImagesByIdDistribute } from "@/api"
 import type { ImageImageItem } from "@/api"
 import { useTasks } from "@/hooks/use-tasks"
-import { getErrorMessage } from "@/lib/utils"
+import { getErrorCode, getErrorMessage } from "@/lib/utils"
 import NodeSelectDialog from "./node-select-dialog"
 
 interface DistributeDialogProps {
@@ -31,15 +31,19 @@ export default function DistributeDialog({ open, onOpenChange, image }: Distribu
           description: "可在任务列表中查看进度",
         })
         onOpenChange(false)
-      } else if (res?.code === 20406 && !force) {
-        toast("目标节点上已存在该镜像", {
-          action: { label: "覆盖分发", onClick: () => void submitDistribute(nodeIds, true) },
-        })
       } else {
         toast.error(res?.message ?? "分发失败")
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "请求失败，请重试"))
+      if (getErrorCode(err) === 20406 && !force) {
+        // 关闭模态遮罩，确保提示中的覆盖操作可点击。
+        onOpenChange(false)
+        toast("目标节点上已存在该镜像", {
+          action: { label: "覆盖分发", onClick: () => void submitDistribute(nodeIds, true) },
+        })
+      } else {
+        toast.error(getErrorMessage(err, "请求失败，请重试"))
+      }
     } finally {
       setSubmitting(false)
     }
