@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
+import { Link } from "react-router-dom"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { postAdminNodes, putAdminNodesById, postAdminNodesTestConnection, postAdminNodesByIdTestConnection, postAdminNodesCheckPort, getAdminRegionsAll, getAdminNodesByIdNetworksDetect } from "@/api"
@@ -8,6 +9,7 @@ import { useQuery } from "@tanstack/react-query"
 import { getAdminRegionsAllQueryKey, getAdminNodesByIdNetworksDetectQueryKey } from "@/api/@tanstack/react-query.gen"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
 import { HelpLink } from "@/components/help-doc"
+import { useAdminPath } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -124,6 +126,7 @@ function NameField({ form }: { form: UseFormReturn<NodeFormInput, unknown, NodeF
 }
 
 function RegionSelectField({ form, regions }: { form: UseFormReturn<NodeFormInput, unknown, NodeFormValues>; regions: RegionRegionItem[] }) {
+  const adminPath = useAdminPath()
   return (
     <FormField
       control={form.control}
@@ -143,6 +146,11 @@ function RegionSelectField({ form, regions }: { form: UseFormReturn<NodeFormInpu
               ))}
             </SelectContent>
           </Select>
+          {regions.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              暂无区域，可先前往<Link to={`${adminPath}/regions`} className="underline underline-offset-2 hover:text-foreground">区域管理</Link>创建，也可稍后再设置
+            </p>
+          )}
           <FormMessage />
         </FormItem>
       )}
@@ -192,7 +200,7 @@ function PortCheckButton({ host, port }: { host: string; port: number }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" onClick={check} disabled={!valid || current === "checking"} className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+        <button type="button" onClick={check} disabled={!valid || current === "checking"} className="flex text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
           <Icon className={`size-4 ${colors[current]}`} />
         </button>
       </TooltipTrigger>
@@ -221,9 +229,12 @@ function PortFields({ form }: { form: UseFormReturn<NodeFormInput, unknown, Node
           render={({ field }) => (
             <FormItem>
               <FormLabel>{label}</FormLabel>
-              <div className="flex items-center gap-2">
-                <FormControl><Input type="number" placeholder={placeholder} {...field} /></FormControl>
-                <PortCheckButton host={host} port={Number(field.value)} />
+              {/* 检测按钮放在输入框内，保持三个端口输入框等宽对齐 */}
+              <div className="relative">
+                <FormControl><Input type="number" placeholder={placeholder} className="pr-9" {...field} /></FormControl>
+                <div className="absolute inset-y-0 right-2.5 flex items-center">
+                  <PortCheckButton host={host} port={Number(field.value)} />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">{PORT_HINT_FIREWALL}</p>
               <FormMessage />

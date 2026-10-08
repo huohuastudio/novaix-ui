@@ -24,6 +24,8 @@ import {
   TICK_STYLE,
   AXIS_PROPS,
   CHART_MARGIN,
+  formatAxisBytes,
+  BYTES_AXIS_WIDTH,
 } from "@/lib/chart-utils"
 
 interface InstanceStatsChartProps {
@@ -173,7 +175,7 @@ export function InstanceStatsChart({ instanceId }: InstanceStatsChartProps) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                 <XAxis dataKey="time" tick={TICK_STYLE} {...AXIS_PROPS} />
-                <YAxis tick={TICK_STYLE} tickFormatter={(v) => formatBytes(v)} {...AXIS_PROPS} />
+                <YAxis width={BYTES_AXIS_WIDTH} tick={TICK_STYLE} tickFormatter={formatAxisBytes} {...AXIS_PROPS} />
                 <Tooltip
                   {...tooltipStyle}
                   formatter={(v, name) => [

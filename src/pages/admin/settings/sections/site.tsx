@@ -1,6 +1,7 @@
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ImageUploadField } from "@/components/image-upload-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { SettingSkeleton } from "./setting-skeleton"
@@ -46,23 +47,23 @@ export function SiteSection() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="site_logo">Logo URL</Label>
-        <Input
-          id="site_logo"
+        <Label>Logo</Label>
+        <ImageUploadField
           value={data.site_logo ?? ""}
-          onChange={(e) => update("site_logo", e.target.value)}
-          placeholder="https://example.com/logo.png"
+          onChange={(url) => update("site_logo", url)}
+          placeholder="输入 Logo 图片 URL 或点击上传"
         />
+        <p className="text-xs text-muted-foreground">显示在前台和登录页顶部，留空则显示站点名称，建议使用透明背景 PNG</p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="site_favicon">Favicon URL</Label>
-        <Input
-          id="site_favicon"
+        <Label>Favicon</Label>
+        <ImageUploadField
           value={data.site_favicon ?? ""}
-          onChange={(e) => update("site_favicon", e.target.value)}
-          placeholder="https://example.com/favicon.ico"
+          onChange={(url) => update("site_favicon", url)}
+          placeholder="输入 Favicon URL 或点击上传"
         />
+        <p className="text-xs text-muted-foreground">浏览器标签页图标，支持 ico / png</p>
       </div>
 
       <div className="space-y-2">

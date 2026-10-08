@@ -92,7 +92,7 @@ export default function TicketList() {
         const item = row.original
         return (
           <button
-            className="text-left text-primary hover:underline cursor-pointer truncate max-w-xs"
+            className="text-left font-medium text-primary hover:underline cursor-pointer truncate max-w-xs"
             onClick={() => navigate(`${adminPath}/tickets/${item.id}`)}
           >
             {item.subject}
@@ -202,6 +202,8 @@ export default function TicketList() {
       header: "回复",
       enableSorting: false,
       size: 60,
+      // reply_count 包含首条工单内容
+      cell: ({ row }) => Math.max(0, (row.original.reply_count ?? 0) - 1),
     },
     {
       accessorKey: "last_reply_at",

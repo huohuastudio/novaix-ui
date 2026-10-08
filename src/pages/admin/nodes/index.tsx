@@ -325,6 +325,27 @@ function NodeList() {
       },
     },
     {
+      accessorKey: "instance_count",
+      header: "实例数量",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link to={`${adminPath}/nodes/${row.original.id}/instances`} className="text-primary hover:underline tabular-nums">
+          {row.original.instance_count ?? 0} 台
+        </Link>
+      ),
+    },
+    {
+      id: "traffic_ranking",
+      header: "流量",
+      cell: ({ row }) => row.original.status === NODE_STATUS.RETIRED ? (
+        <span className="text-muted-foreground">已停用</span>
+      ) : (
+        <Link to={`${adminPath}/nodes/${row.original.id}/instances?sort=traffic_used&order=desc`} className="text-primary hover:underline">
+          查看排行
+        </Link>
+      ),
+    },
+    {
       accessorKey: "arch",
       header: "架构",
       cell: ({ row }) => {
@@ -371,6 +392,11 @@ function NodeList() {
               <TooltipContent className="max-w-xs">{node.status_message}</TooltipContent>
             </Tooltip>
           )
+        }
+
+        // 从未执行过初始化的新节点，提示下一步操作而不是显示“离线”
+        if (status === NODE_STATUS.OFFLINE && !node.init_task_id) {
+          return <Badge variant="outline">待初始化</Badge>
         }
 
         return <Badge variant={info.variant}>{info.label}</Badge>
@@ -420,7 +446,7 @@ function NodeList() {
                   {isDeploying ? <Spinner /> : <Rocket className="size-4" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isDeploying ? "正在初始化..." : "初始化"}</TooltipContent>
+              <TooltipContent>{isDeploying ? "正在初始化..." : node.init_task_id ? "重新初始化" : "初始化"}</TooltipContent>
             </Tooltip>
             <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(node)}>
               <Pencil className="size-4" />

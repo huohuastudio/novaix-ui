@@ -51,6 +51,8 @@ interface RichTextEditorProps {
   value: string
   onChange: (value: string) => void
   className?: string
+  /** 精简工具栏（工单等场景），隐藏标题、颜色、上下标、对齐 */
+  compact?: boolean
 }
 
 function ToolbarButton({
@@ -97,7 +99,7 @@ const TEXT_COLORS = [
   { label: "灰色", value: "#6b7280" },
 ]
 
-export function RichTextEditor({ value, onChange, className }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, className, compact }: RichTextEditorProps) {
   const colorPopoverCloseRef = useRef<HTMLButtonElement>(null)
 
   const editor = useEditor({
@@ -157,6 +159,8 @@ export function RichTextEditor({ value, onChange, className }: RichTextEditorPro
   return (
     <div className={cn("rounded-lg border", className)}>
       <div className="flex flex-wrap items-center gap-0.5 border-b px-2 py-1">
+        {!compact && (
+        <>
         {/* 标题 */}
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -182,6 +186,8 @@ export function RichTextEditor({ value, onChange, className }: RichTextEditorPro
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 
+        </>
+        )}
         {/* 文本样式 */}
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -228,6 +234,8 @@ export function RichTextEditor({ value, onChange, className }: RichTextEditorPro
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 
+        {!compact && (
+        <>
         {/* 文字颜色 */}
         <Popover>
           <Tooltip>
@@ -322,6 +330,8 @@ export function RichTextEditor({ value, onChange, className }: RichTextEditorPro
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 
+        </>
+        )}
         {/* 列表与块级 */}
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}

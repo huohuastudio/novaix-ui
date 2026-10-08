@@ -7,12 +7,21 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { SortableList } from "@/components/sortable-list"
 import { SettingSkeleton } from "./setting-skeleton"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Zap, Globe, Shield, Cpu, type LucideIcon } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { parseJSON, updateAt } from "@/lib/utils"
 import type {
   HeroConfig, StatItem, FeatureItem, StepItem,
   CtaConfig, FeatureIcon,
 } from "@/types/homepage"
+
+// 与首页 iconMap 保持一致的可选图标
+const FEATURE_ICON_OPTIONS: { value: FeatureIcon; label: string; icon: LucideIcon }[] = [
+  { value: "zap", label: "性能", icon: Zap },
+  { value: "globe", label: "全球", icon: Globe },
+  { value: "shield", label: "安全", icon: Shield },
+  { value: "cpu", label: "硬件", icon: Cpu },
+]
 
 function SectionTitle({ title, desc }: { title: string; desc?: string }) {
   return (
@@ -140,8 +149,14 @@ export function HomepageSection() {
             <div className="grid sm:grid-cols-[120px_1fr] gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">图标</Label>
-                <Input value={f.icon} onChange={(e) => setFeatures(updateAt(features, i, { icon: e.target.value as FeatureIcon }))} placeholder="zap" />
-                <p className="text-2xs text-muted-foreground">可选: zap, globe, shield, cpu</p>
+                <Select value={f.icon} onValueChange={(v) => setFeatures(updateAt(features, i, { icon: v as FeatureIcon }))}>
+                  <SelectTrigger><SelectValue placeholder="选择图标" /></SelectTrigger>
+                  <SelectContent>
+                    {FEATURE_ICON_OPTIONS.map(({ value, label, icon: Icon }) => (
+                      <SelectItem key={value} value={value}><Icon className="size-4" />{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">标题</Label>

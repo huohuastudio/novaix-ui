@@ -60,10 +60,10 @@ export function MultiSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
+          variant="field"
           role="combobox"
           aria-expanded={open}
-          className="min-h-8 h-auto w-full justify-start font-normal"
+          className="min-h-8 h-auto w-full justify-start pl-2.5 pr-2"
         >
           {selected.length > 0 ? (
             selected.length <= 2 ? (

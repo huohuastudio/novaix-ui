@@ -45,7 +45,8 @@ import type {
 } from "@/api"
 import { SimplePagination } from "@/components/simple-pagination"
 import { useConfirm } from "@/hooks/use-confirm"
-import { useSiteName } from "@/hooks/use-site-settings"
+import { useSiteName, useSiteSettings } from "@/hooks/use-site-settings"
+import { EmptyState } from "@/components/empty-state"
 import { getErrorMessage } from "@/lib/utils"
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { toast } from "sonner"
@@ -77,6 +78,8 @@ function VpcStatus({ status }: { status: string }) {
 export default function PortalVpcs() {
   const siteName = useSiteName()
   useDocumentTitle(`私有网络 - ${siteName}`)
+  // 管理员未开启私有网络时不请求接口，直接展示未开放状态
+  const vpcEnabled = useSiteSettings().vpc_enabled === "true"
 
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
@@ -86,6 +89,7 @@ export default function PortalVpcs() {
   const listQuery = useQuery({
     ...getPortalVpcsOptions({ query: { page, page_size: pageSize } }),
     placeholderData: keepPreviousData,
+    enabled: vpcEnabled,
   })
   const vpcs = listQuery.data?.data?.items ?? []
   const total = listQuery.data?.data?.total ?? 0
@@ -112,7 +116,7 @@ export default function PortalVpcs() {
   }, [detailQuery.isError, detailQuery.error])
 
   // 可用节点组
-  const nodeGroupsQuery = useQuery(getPortalVpcNodeGroupsOptions())
+  const nodeGroupsQuery = useQuery({ ...getPortalVpcNodeGroupsOptions(), enabled: vpcEnabled })
   const nodeGroups = (nodeGroupsQuery.data?.data as { id: number; name: string }[] | undefined) ?? []
 
   // 创建 VPC 对话框
@@ -334,6 +338,10 @@ export default function PortalVpcs() {
     } catch (err) {
       toast.error(getErrorMessage(err, "卸载失败"))
     }
+  }
+
+  if (!vpcEnabled) {
+    return <EmptyState icon={Network} title="私有网络暂未开放" description="如需使用请联系站点管理员" />
   }
 
   return (

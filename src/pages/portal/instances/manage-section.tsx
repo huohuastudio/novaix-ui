@@ -165,7 +165,7 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
       toast.error("无法获取续费价格，请刷新页面后重试")
       return
     }
-    await renewCoupon.validate(renewAmount, "renew")
+    await renewCoupon.validate(renewAmount, "renew", instance.plan_id)
   }
 
   const handleRenew = async () => {

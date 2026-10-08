@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, Send, Loader2, Download, AlertCircle, FolderTree, EyeOff, ImageIcon } from "lucide-react"
+import { Plus, Pencil, Trash2, Send, Loader2, Download, AlertCircle, FolderTree, EyeOff, ImageIcon, RotateCcw } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatBytes } from "@/lib/utils"
-import { getAdminImages, deleteAdminImagesById } from "@/api"
+import { getAdminImages, deleteAdminImagesById, postAdminImagesByIdRetryDownload } from "@/api"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 import type { ImageImageItem, ImageGroupItem } from "@/api"
@@ -123,6 +123,16 @@ export default function Images() {
     }
   }, [table, confirm])
 
+  const handleRetryDownload = useCallback(async (image: ImageImageItem) => {
+    try {
+      await postAdminImagesByIdRetryDownload({ path: { id: image.id! } })
+      toast.success("已重新提交下载任务")
+      table.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "重新下载失败"))
+    }
+  }, [table])
+
   const handleFormSuccess = () => {
     setSheetOpen(false)
     table.refresh()
@@ -236,7 +246,17 @@ export default function Images() {
               <Tooltip><TooltipTrigger><Loader2 className="size-3.5 animate-spin text-blue-500" /></TooltipTrigger><TooltipContent>正在下载</TooltipContent></Tooltip>
             )}
             {ds === "failed" && (
-              <Tooltip><TooltipTrigger><AlertCircle className="size-3.5 text-destructive" /></TooltipTrigger><TooltipContent>下载失败</TooltipContent></Tooltip>
+              <>
+                <Tooltip><TooltipTrigger><AlertCircle className="size-3.5 text-destructive" /></TooltipTrigger><TooltipContent>下载失败，可在任务管理中查看原因</TooltipContent></Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-xs" onClick={() => handleRetryDownload(img)}>
+                      <RotateCcw />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>重新下载</TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         )
@@ -299,7 +319,7 @@ export default function Images() {
         )
       },
     },
-  ], [handleEdit, handleDelete, formatDate, groups, groupNameMap])
+  ], [handleEdit, handleDelete, handleRetryDownload, formatDate, groups, groupNameMap])
 
   return (
     <div className="px-6 pt-6 space-y-6">

@@ -19,7 +19,7 @@ import {
 } from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem } from "@/api"
 import { putPortalInstancesByIdRemark } from "@/api"
-import { portalStatusConfig, isIPv6OnlyInstance } from "@/lib/instance-constants"
+import { portalStatusConfig, isIPv6OnlyInstance, instanceAccessAddress } from "@/lib/instance-constants"
 import { usePortalInstanceActions } from "@/hooks/use-portal-instance-actions"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 import type { PortalPowerAction } from "@/hooks/use-portal-instance-actions"
@@ -240,7 +240,7 @@ export default function PortalInstanceDetail() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                <span className="font-mono">{instance.ip_address || instance.ipv6_address || "未分配 IP"}</span>
+                <span className="font-mono">{instanceAccessAddress(instance) || "未分配 IP"}</span>
                 {instance.os_type && <> · {instance.os_type}</>}
               </p>
               {editingRemark ? (
@@ -285,18 +285,24 @@ export default function PortalInstanceDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap ml-11 sm:ml-0" data-tour="instance-power">
-            <Button onClick={() => doPower("start")} disabled={busy || isRunning || isRescue}>
-              {activeAction === "start" ? <Spinner /> : <Play className="size-3.5" />}
-              启动
-            </Button>
-            <Button variant="outline" className="bg-background" onClick={() => doPower("restart")} disabled={busy || !(isRunning || isRescue)}>
-              {activeAction === "restart" ? <Spinner /> : <RotateCw className="size-3.5" />}
-              重启
-            </Button>
-            <Button variant="outline" className="bg-background" onClick={() => doPower("stop")} disabled={busy || !(isRunning || isRescue)}>
-              {activeAction === "stop" ? <Spinner /> : <Square className="size-3.5" />}
-              停止
-            </Button>
+            {/* 运行中只展示重启/停止，未运行只展示启动，避免出现一排禁用按钮 */}
+            {isRunning || isRescue ? (
+              <>
+                <Button variant="outline" className="bg-background" onClick={() => doPower("restart")} disabled={busy}>
+                  {activeAction === "restart" ? <Spinner /> : <RotateCw className="size-3.5" />}
+                  重启
+                </Button>
+                <Button variant="outline" className="bg-background" onClick={() => doPower("stop")} disabled={busy}>
+                  {activeAction === "stop" ? <Spinner /> : <Square className="size-3.5" />}
+                  停止
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => doPower("start")} disabled={busy}>
+                {activeAction === "start" ? <Spinner /> : <Play className="size-3.5" />}
+                启动
+              </Button>
+            )}
             {isRescue ? (
               <Button variant="outline" className="bg-background" onClick={() => doPower("unrescue")} disabled={busy}>
                 {activeAction === "unrescue" ? <Spinner /> : <LifeBuoy className="size-3.5" />}
@@ -312,7 +318,8 @@ export default function PortalInstanceDetail() {
         </div>
 
         {/* Tab */}
-        <div className="flex gap-1 rounded-xl bg-background p-1 w-fit" data-tour="instance-tabs">
+        {/* 窄屏下横向滚动，避免标签文字被挤成竖排 */}
+        <div className="flex gap-1 rounded-xl bg-background p-1 w-fit max-w-full overflow-x-auto no-scrollbar" data-tour="instance-tabs">
           {([
             { key: "overview", icon: Activity, label: "概览" },
             { key: "monitor", icon: ChartLine, label: "监控" },
@@ -324,7 +331,7 @@ export default function PortalInstanceDetail() {
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 activeTab === tab.key
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground"

@@ -10,7 +10,7 @@ import { getAdminProvidersByKindOptions } from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import { SettingSkeleton } from "@/pages/admin/settings/sections/setting-skeleton"
 import { FieldGrid } from "@/components/provider-settings-form"
 import { isFieldVisible, validateField } from "@/lib/provider-field-utils"
@@ -119,10 +119,20 @@ function ChannelCard({ descriptor }: { descriptor: ProviderDescriptor }) {
 
   return (
     <div className="rounded-md border p-4 max-w-2xl">
-      <h4 className="text-sm font-medium">{descriptor.title}</h4>
+      {/* 启用开关放在标题右侧，与其他设置页的开关布局一致 */}
+      <div className="flex items-center justify-between gap-4">
+        <h4 className="text-sm font-medium">{descriptor.title}</h4>
+        {fields.some((f) => f.key === "enabled") && (
+          <Switch
+            checked={enabled}
+            onCheckedChange={(v) => settings.update(`${group}_enabled`, v ? "true" : "false")}
+            aria-label="启用该渠道"
+          />
+        )}
+      </div>
       <div className="mt-4 space-y-4">
         <FieldGrid
-          fields={fields}
+          fields={fields.filter((f) => f.key !== "enabled")}
           fieldValues={fieldValues}
           errors={errors}
           getValue={(f) => settings.data[`${group}_${f.key}`] ?? f.default ?? ""}
@@ -142,7 +152,6 @@ function ChannelCard({ descriptor }: { descriptor: ProviderDescriptor }) {
           </Button>
         </div>
       </div>
-      <Separator className="mt-4" />
     </div>
   )
 }

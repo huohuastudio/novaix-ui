@@ -66,12 +66,12 @@ export function PaginatedCombobox({
       <PopoverTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="field"
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full min-w-0 justify-between font-normal border border-input bg-transparent hover:bg-transparent aria-expanded:bg-transparent dark:bg-input/30 dark:hover:bg-input/50 dark:aria-expanded:bg-input/50",
+            "w-full min-w-0 justify-between pl-2.5 pr-2",
             !value && "text-muted-foreground"
           )}
         >
@@ -100,7 +100,7 @@ export function PaginatedCombobox({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         <Command shouldFilter={false} disablePointerSelection>
           <CommandInput
             placeholder={searchPlaceholder}

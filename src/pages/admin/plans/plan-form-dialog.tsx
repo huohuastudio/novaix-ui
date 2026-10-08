@@ -46,10 +46,17 @@ import { Switch } from "@/components/ui/switch"
 import { FormSheet } from "@/components/form-sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PaginatedMultiSelect, type PaginatedMultiSelectItem } from "@/components/paginated-multi-select"
-import { billingCycleMap } from "@/lib/order-constants"
+import { billingCycleMap, centsToYuan, yuanToCents, yuanField } from "@/lib/order-constants"
 import { useCurrencySymbol } from "@/hooks/use-site-settings"
 
 const BILLING_CYCLES = Object.entries(billingCycleMap).map(([value, label]) => ({ value, label }))
+
+const CYCLE_PRICE_PLACEHOLDER: Record<string, string> = {
+  hourly: "0.05",
+  monthly: "20",
+  quarterly: "54",
+  yearly: "192",
+}
 
 const imageTypeLabel = (t?: string) => t === "virtual-machine" ? "VM" : t === "container" ? "容器" : ""
 
@@ -77,11 +84,11 @@ const schema = z.object({
   storage_pool: z.string().max(64).default(""),
   network_name: z.string().max(64).default(""),
   enabled_cycles: z.array(z.string()).min(1, "请至少选择一个计费周期").default([]),
-  price_hourly: z.coerce.number<number | string>().int().min(0).default(0),
-  price_monthly: z.coerce.number<number | string>().int().min(0).default(0),
-  price_quarterly: z.coerce.number<number | string>().int().min(0).default(0),
-  price_yearly: z.coerce.number<number | string>().int().min(0).default(0),
-  extra_ip_price: z.coerce.number<number | string>().int().min(0).default(0),
+  price_hourly: yuanField().default(0),
+  price_monthly: yuanField().default(0),
+  price_quarterly: yuanField().default(0),
+  price_yearly: yuanField().default(0),
+  extra_ip_price: yuanField().default(0),
   max_extra_ips: z.coerce.number<number | string>().int().min(0).default(0),
   nat_mode: z.boolean().default(false),
   nat_port_mode: z.enum(["block", "quota"]).default("block"),
@@ -164,13 +171,17 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   plan?: ProductPlanItem
+  initialPlan?: ProductPlanItem
+  title?: string
+  description?: string
   onSuccess: () => void
 }
 
 const PAGE_SIZE = 20
 
-export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, plan, onSuccess }: Props) {
+export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, plan, initialPlan, title, description, onSuccess }: Props) {
   const isEdit = !!plan
+  const sourcePlan = plan ?? initialPlan
   const currencySymbol = useCurrencySymbol()
   const [serverError, setServerError] = useState("")
   const onOpenChange = useCallback((v: boolean) => {
@@ -185,13 +196,13 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
   })
   const groups = groupsQuery.data?.data?.items ?? []
 
-  // 编辑时已选节点/镜像的初始展示项：ids 经 options 进入 query key
-  const nodeIds = useMemo(() => parseIds(plan?.node_ids), [plan?.node_ids])
-  const imageIds = useMemo(() => parseIds(plan?.image_ids), [plan?.image_ids])
+  // 已选节点/镜像的初始展示项：ids 经 options 进入 query key。
+  const nodeIds = useMemo(() => parseIds(sourcePlan?.node_ids), [sourcePlan?.node_ids])
+  const imageIds = useMemo(() => parseIds(sourcePlan?.image_ids), [sourcePlan?.image_ids])
 
   const initialNodesQuery = useQuery({
     ...getAdminNodesOptions({ query: { page: 1, page_size: 100, ids: nodeIds.join(",") } }),
-    enabled: open && isEdit && nodeIds.length > 0,
+    enabled: open && nodeIds.length > 0,
   })
   const initialNodeItems = useMemo<PaginatedMultiSelectItem[]>(
     () =>
@@ -204,7 +215,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
 
   const initialImagesQuery = useQuery({
     ...getAdminImagesOptions({ query: { page: 1, page_size: 100, ids: imageIds.join(",") } }),
-    enabled: open && isEdit && imageIds.length > 0,
+    enabled: open && imageIds.length > 0,
   })
   const initialImageItems = useMemo<PaginatedMultiSelectItem[]>(
     () =>
@@ -249,6 +260,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
   useEffect(() => {
     if (!open) return
 
+    const plan = sourcePlan
     if (plan) {
       form.reset({
         name: plan.name ?? "",
@@ -265,12 +277,18 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         profile_name: plan.profile_name ?? "",
         storage_pool: plan.storage_pool ?? "",
         network_name: plan.network_name ?? "",
-        enabled_cycles: plan.enabled_cycles ? plan.enabled_cycles.split(',').filter(Boolean) : [],
-        price_hourly: plan.price_hourly ?? 0,
-        price_monthly: plan.price_monthly ?? 0,
-        price_quarterly: plan.price_quarterly ?? 0,
-        price_yearly: plan.price_yearly ?? 0,
-        extra_ip_price: (plan as Record<string, unknown>).extra_ip_price as number ?? 0,
+        // 旧套餐未显式记录周期时，与服务端一致，按非零价格推导。
+        enabled_cycles: plan.enabled_cycles ? plan.enabled_cycles.split(',').filter(Boolean) : Object.entries({
+          hourly: plan.price_hourly,
+          monthly: plan.price_monthly,
+          quarterly: plan.price_quarterly,
+          yearly: plan.price_yearly,
+        }).filter(([, price]) => (price ?? 0) > 0).map(([cycle]) => cycle),
+        price_hourly: centsToYuan(plan.price_hourly),
+        price_monthly: centsToYuan(plan.price_monthly),
+        price_quarterly: centsToYuan(plan.price_quarterly),
+        price_yearly: centsToYuan(plan.price_yearly),
+        extra_ip_price: centsToYuan((plan as Record<string, unknown>).extra_ip_price as number | undefined),
         max_extra_ips: (plan as Record<string, unknown>).max_extra_ips as number ?? 0,
         nat_mode: (plan as Record<string, unknown>).nat_mode as boolean ?? false,
         nat_port_mode: ((plan as Record<string, unknown>).nat_port_mode as string) === "quota" ? "quota" as const : "block" as const,
@@ -291,7 +309,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
     } else {
       form.reset(defaultValues)
     }
-  }, [open, plan, form, nodeIds, imageIds])
+  }, [open, sourcePlan, form, nodeIds, imageIds])
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
@@ -312,11 +330,11 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
         storage_pool: values.storage_pool || undefined,
         network_name: values.network_name || undefined,
         enabled_cycles: values.enabled_cycles.join(','),
-        price_hourly: values.price_hourly,
-        price_monthly: values.price_monthly,
-        price_quarterly: values.price_quarterly,
-        price_yearly: values.price_yearly,
-        extra_ip_price: values.extra_ip_price,
+        price_hourly: yuanToCents(values.price_hourly),
+        price_monthly: yuanToCents(values.price_monthly),
+        price_quarterly: yuanToCents(values.price_quarterly),
+        price_yearly: yuanToCents(values.price_yearly),
+        extra_ip_price: yuanToCents(values.extra_ip_price),
         max_extra_ips: values.max_extra_ips,
         nat_mode: values.nat_mode,
         nat_port_mode: values.nat_port_mode,
@@ -359,8 +377,8 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
     <FormSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "编辑套餐" : "添加套餐"}
-      description={isEdit ? "修改套餐的资源配置和定价" : "创建一个新的套餐，定义资源规格和价格"}
+      title={title ?? (isEdit ? "编辑套餐" : "添加套餐")}
+      description={description ?? (isEdit ? "修改套餐的资源配置和定价" : "创建一个新的套餐，定义资源规格和价格")}
       footer={
         <>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -489,7 +507,14 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                 />
               )}
               </div>
-              <div className="flex items-center gap-3 py-2">
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label>NAT 模式</Label>
+                    <HelpLink path="/novaix/shared-ip" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">启用后实例共享公网 IP，通过端口转发访问</p>
+                </div>
                 <Switch
                   checked={natMode}
                   onCheckedChange={(v) => {
@@ -501,16 +526,9 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                     }
                   }}
                 />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Label>NAT 模式</Label>
-                    <HelpLink path="/novaix/shared-ip" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">启用后实例共享公网 IP，通过端口转发访问</p>
-                </div>
               </div>
               {natMode && (
-                <>
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="nat_port_mode"
@@ -549,9 +567,17 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                       </FormItem>
                     )}
                   />
-                </>
+                </div>
               )}
-              <div className="flex items-center gap-3 py-2">
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label>分配独立 IPv6</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {natMode
+                      ? "每个实例分配独立的公网 IPv6 地址，需要在同一网络下创建 IPv6 地址池"
+                      : "启用后为纯 IPv6 套餐，实例仅分配 IPv6 地址，需要在同一网络下创建 IPv6 地址池"}
+                  </p>
+                </div>
                 <Switch
                   checked={ipv6Enabled}
                   onCheckedChange={(v) => {
@@ -561,19 +587,11 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                     }
                   }}
                 />
-                <div>
-                  <Label>分配独立 IPv6</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {natMode
-                      ? "每个实例分配独立的公网 IPv6 地址，需要在同一网络下创建 IPv6 地址池"
-                      : "启用后为纯 IPv6 套餐，实例仅分配 IPv6 地址，需要在同一网络下创建 IPv6 地址池"}
-                  </p>
-                </div>
               </div>
               {!natMode && ipv6Enabled && ipCount === 0 && (
                 <p className="text-xs text-amber-500 -mt-1">当前为纯 IPv6 套餐，实例将不分配 IPv4 地址</p>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="cpu"
@@ -585,22 +603,6 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                     </FormItem>
                   )}
                 />
-                {!isVM && (
-                <FormField
-                  control={form.control}
-                  name="cpu_allowance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CPU 使用率限制 (%)</FormLabel>
-                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                      <FormDescription>0 表示不限</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="memory"
@@ -624,7 +626,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                   )}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="bandwidth"
@@ -649,6 +651,20 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                     </FormItem>
                   )}
                 />
+                {!isVM && (
+                <FormField
+                  control={form.control}
+                  name="cpu_allowance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPU 使用率限制 (%)</FormLabel>
+                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                      <FormDescription>0 表示不限</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                )}
               </div>
             </div>
           </section>
@@ -657,7 +673,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
 
           <section data-tour="plan-form-price">
             <h3 className="text-sm font-medium">定价</h3>
-            <p className="text-xs text-muted-foreground mt-1">勾选启用的计费周期，价格单位为分（如 2000 = {currencySymbol}20.00），价格为 0 表示免费</p>
+            <p className="text-xs text-muted-foreground mt-1">勾选启用的计费周期并填写价格（单位：元），价格为 0 表示免费</p>
             <div className="mt-4 flex flex-col gap-4">
               <FormField
                 control={form.control}
@@ -666,81 +682,57 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                   const cycles = field.value ?? []
                   return (
                   <FormItem>
-                    <div className="flex items-center gap-6">
-                      {BILLING_CYCLES.map((cycle) => (
-                        <label key={cycle.value} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <Checkbox
-                            checked={cycles.includes(cycle.value)}
-                            onCheckedChange={(checked) => {
-                              const next = checked
-                                ? [...cycles, cycle.value]
-                                : cycles.filter((v: string) => v !== cycle.value)
-                              field.onChange(next)
-                            }}
-                          />
-                          {cycle.label}
-                        </label>
-                      ))}
+                    {/* 每个计费周期的勾选与价格放在一起，未勾选的价格输入框置灰 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {BILLING_CYCLES.map((cycle) => {
+                        const priceName = `price_${cycle.value}` as "price_hourly" | "price_monthly" | "price_quarterly" | "price_yearly"
+                        const checked = cycles.includes(cycle.value)
+                        return (
+                          <div key={cycle.value} className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  const next = v
+                                    ? [...cycles, cycle.value]
+                                    : cycles.filter((c: string) => c !== cycle.value)
+                                  field.onChange(next)
+                                }}
+                              />
+                              {cycle.label}
+                            </label>
+                            <FormField
+                              control={form.control}
+                              name={priceName}
+                              render={({ field: priceField }) => (
+                                <FormItem>
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">{currencySymbol}</span>
+                                    <FormControl>
+                                      <Input type="number" min={0} step="0.01" disabled={!checked} className="pl-7" placeholder={CYCLE_PRICE_PLACEHOLDER[cycle.value]} {...priceField} />
+                                    </FormControl>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )
+                      })}
                     </div>
                     <FormMessage />
                   </FormItem>
                   )
                 }}
               />
-              <div className="grid grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="price_hourly"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>时付 (分)</FormLabel>
-                      <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price_monthly"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>月付 (分)</FormLabel>
-                      <FormControl><Input type="number" min={0} placeholder="2000" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price_quarterly"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>季付 (分)</FormLabel>
-                      <FormControl><Input type="number" min={0} placeholder="5400" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price_yearly"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>年付 (分)</FormLabel>
-                      <FormControl><Input type="number" min={0} placeholder="19200" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="extra_ip_price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{natMode ? '独享 IP 月价 (分)' : '附加 IP 月价 (分)'}</FormLabel>
-                      <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
+                      <FormLabel>{natMode ? `独享 IP 月价 (${currencySymbol})` : `附加 IP 月价 (${currencySymbol})`}</FormLabel>
+                      <FormControl><Input type="number" min={0} step="0.01" placeholder="0" {...field} /></FormControl>
                       <FormDescription>{natMode ? '独享公网 IP（独立出口 + 全端口入站）的月费用，0 表示不支持' : '每个附加 IP 的月费用，0 表示不支持附加 IP'}</FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -766,14 +758,14 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
 
           <section>
             <h3 className="text-sm font-medium">运行环境配置</h3>
-            <p className="text-xs text-muted-foreground mt-1">Profile、存储池和网络，留空使用节点默认值</p>
+            <p className="text-xs text-muted-foreground mt-1">配置文件、存储池和网络，留空使用节点默认值</p>
             <div className="mt-4 grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="profile_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Profile</FormLabel>
+                    <FormLabel>配置文件</FormLabel>
                     <FormControl><Input placeholder="留空使用默认" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>

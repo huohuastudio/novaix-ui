@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { centsToYuan, yuanToCents, yuanField } from "@/lib/order-constants"
 import {
   postAdminTrafficPackages,
   putAdminTrafficPackagesById,
@@ -39,7 +40,7 @@ const schema = z.object({
   name: z.string().min(1, "请输入名称").max(128),
   type: z.enum(["topup", "reset"]).default("topup"),
   traffic: z.coerce.number<number | string>().int().min(0).default(0),
-  price: z.coerce.number<number | string>().int().min(1, "价格必须大于 0"),
+  price: yuanField(0.01, "价格必须大于 0"),
   plan_ids: z.array(z.string()).default([]),
   status: z.string().default("1"),
   sort_order: z.coerce.number<number | string>().int().min(0).default(0),
@@ -129,7 +130,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
         name: pkg.name ?? "",
         type: (pkg.type as "topup" | "reset") ?? "topup",
         traffic: pkg.traffic ?? 0,
-        price: pkg.price ?? 0,
+        price: centsToYuan(pkg.price),
         plan_ids: parseIds(pkg.plan_ids),
         status: String(pkg.status ?? 1),
         sort_order: pkg.sort_order ?? 0,
@@ -147,7 +148,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
         type: values.type,
         // 重置包不需要流量值，统一置 0
         traffic: values.type === "topup" ? values.traffic : 0,
-        price: values.price,
+        price: yuanToCents(values.price),
         plan_ids: joinIds(values.plan_ids),
         status: Number(values.status),
         sort_order: values.sort_order,
@@ -245,7 +246,7 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
 
           <section>
             <h3 className="text-sm font-medium">定价与销售</h3>
-            <p className="text-xs text-muted-foreground mt-1">价格单位为分（如 1000 = {currencySymbol}10.00）</p>
+            <p className="text-xs text-muted-foreground mt-1">价格单位为元</p>
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid grid-cols-3 gap-4 items-start">
                 <FormField
@@ -253,8 +254,8 @@ export default function TrafficPackageFormDialog({ open, onOpenChange, pkg, onSu
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel required>价格 (分)</FormLabel>
-                      <FormControl><Input type="number" placeholder="1000" {...field} /></FormControl>
+                      <FormLabel required>价格 ({currencySymbol})</FormLabel>
+                      <FormControl><Input type="number" step="0.01" min={0} placeholder="10" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

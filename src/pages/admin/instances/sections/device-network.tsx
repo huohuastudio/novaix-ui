@@ -28,13 +28,14 @@ interface NetworkDeviceSectionProps {
 export function NetworkDeviceSection({ form, nodeResources, nodeId: nodeIdProp }: NetworkDeviceSectionProps) {
   const { networks, loading, error } = nodeResources
   const nodeId = nodeIdProp ?? form.watch("node_id")
+  const isRouted = form.watch("network_device_config")?.nictype === "routed"
 
   return (
     <ConfigSection
       title="网络设备"
       description="配置实例的网络接口"
     >
-      <div className="space-y-6">
+      <div className="max-w-2xl space-y-6">
         <FormField
           control={form.control}
           name="network_device_name"
@@ -96,6 +97,30 @@ export function NetworkDeviceSection({ form, nodeResources, nodeId: nodeIdProp }
             </FormItem>
           )}
         />
+        {!isRouted && ([
+          { name: "network_ipv4_filtering", label: "IPv4 地址防伪造", description: "开启后仅允许使用分配的 IPv4 地址；关闭后可使用其他 IPv4 地址。" },
+          { name: "network_ipv6_filtering", label: "IPv6 地址防伪造", description: "开启后仅允许使用分配的 IPv6 地址。" },
+          { name: "network_mac_filtering", label: "MAC 地址防伪造", description: "开启后禁止伪造 MAC 地址。启用 IP 地址防伪造时会同时启用此保护。" },
+        ] as const).map(({ name, label, description }) => (
+          <FormField key={name} control={form.control} name={name} render={({ field }) => (
+            <FormItem>
+              <FormLabel>{label}</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="default">默认</SelectItem>
+                  <SelectItem value="true">开启</SelectItem>
+                  <SelectItem value="false">关闭</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>{description}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )} />
+        ))}
+        <p className="text-sm text-muted-foreground">
+          {isRouted ? "路由网络不支持这些桥接过滤选项。" : "默认不指定过滤策略；创建时分配固定 IP 会默认启用对应地址防伪造。"}
+        </p>
       </div>
     </ConfigSection>
   )

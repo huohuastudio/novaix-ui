@@ -194,8 +194,9 @@ export default function PortalTickets() {
                         <span className="bg-muted/60 px-1.5 py-0.5 rounded">{ticket.department}</span>
                       )}
                       <span>{formatDate(ticket.created_at ?? '')}</span>
-                      {ticket.reply_count !== undefined && ticket.reply_count > 0 && (
-                        <span>{ticket.reply_count} 条回复</span>
+                      {/* reply_count 包含首条工单内容，实际回复数需减 1 */}
+                      {ticket.reply_count !== undefined && ticket.reply_count > 1 && (
+                        <span>{ticket.reply_count - 1} 条回复</span>
                       )}
                     </div>
                   </div>
@@ -275,6 +276,7 @@ export default function PortalTickets() {
             <div className="space-y-2">
               <Label>详细描述</Label>
               <RichTextEditor
+                compact
                 value={newTicket.content}
                 onChange={(v) => setNewTicket({ ...newTicket, content: v })}
               />

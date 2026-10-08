@@ -1,3 +1,5 @@
+import { z } from "zod"
+
 export function formatAmount(cents: number | undefined, currencySymbol = "¥") {
   if (cents === undefined || cents === null) return "-"
   const abs = Math.abs(cents)
@@ -51,4 +53,22 @@ export const refundStatusMap: Record<string, { label: string; color: string; var
 export const planTypeMap: Record<string, string> = {
   vm: "云服务器",
   container: "容器",
+}
+
+// 后台表单金额统一按“元”录入，接口仍以“分”存储
+export function centsToYuan(cents: number | undefined | null) {
+  return (cents ?? 0) / 100
+}
+
+export function yuanToCents(yuan: number) {
+  return Math.round(yuan * 100)
+}
+
+function isValidYuan(v: number) {
+  return Math.abs(v * 100 - Math.round(v * 100)) < 1e-6
+}
+
+// 按元录入的金额字段：非负、最多两位小数
+export function yuanField(min = 0, minMessage = "金额不能为负") {
+  return z.coerce.number<number | string>().min(min, minMessage).refine(isValidYuan, "最多两位小数")
 }

@@ -29,9 +29,13 @@ export function FreeIpPickerDialog({
   title,
   confirmLabel,
   onConfirm,
+  instanceId,
+  purpose,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  instanceId: number
+  purpose: "add" | "change"
   title: string
   confirmLabel: string
   onConfirm: (ip: IppoolFreeIpItem) => Promise<void>
@@ -40,11 +44,11 @@ export function FreeIpPickerDialog({
   const [submitting, setSubmitting] = useState(false)
   const fetchIPs = useCallback(async (page: number, keyword: string): Promise<PaginatedFetchResult<IppoolFreeIpItem>> => {
     const { data: res } = await getAdminIpsFree({
-      query: { page, page_size: PAGE_SIZE, keyword: keyword || undefined },
+      query: { page, page_size: PAGE_SIZE, keyword: keyword || undefined, instance_id: instanceId, purpose },
     })
     const items = res?.data?.items ?? []
     return { items, hasMore: items.length >= PAGE_SIZE }
-  }, [])
+  }, [instanceId, purpose])
   const {
     items: ips,
     loading,
@@ -82,7 +86,7 @@ export function FreeIpPickerDialog({
           />
           <CommandList className="max-h-72">
             <CommandEmpty>
-              {loading ? "搜索中..." : "未找到匹配的空闲 IP"}
+              {loading ? "搜索中..." : "未找到兼容的空闲 IP"}
             </CommandEmpty>
             <CommandGroup>
               {ips.map((ip) => (

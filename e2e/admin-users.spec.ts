@@ -9,12 +9,12 @@ test.describe('用户管理', () => {
     await expect(page.getByRole('heading', { name: '用户管理' })).toBeVisible()
 
     await page.getByRole('button', { name: '添加用户' }).click()
-    await expect(page.getByText('添加用户')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '添加用户' })).toBeVisible()
     await page.getByLabel('用户名').fill(username)
     await page.getByLabel('邮箱').fill(`${username}@e2e.test`)
     await page.getByLabel('密码').fill('test_password_123')
     await page.getByRole('button', { name: '创建' }).click()
-    await expect(page.getByText(username)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('link', { name: username, exact: true })).toBeVisible({ timeout: 10_000 })
 
     // 通过 API 清理
     const token = await getTokenFromPage(page)

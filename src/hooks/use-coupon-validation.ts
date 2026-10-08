@@ -29,13 +29,13 @@ export function useCouponValidation() {
   }
 
   /** 验证优惠码 */
-  const validate = async (amount: number, orderType: string) => {
+  const validate = async (amount: number, orderType: string, planID?: number) => {
     if (!code.trim()) return
     setValidating(true)
     setResult(null)
     try {
       const { data: res } = await postPortalCouponsValidate({
-        body: { code: code.trim(), amount, order_type: orderType },
+        body: { code: code.trim(), amount, order_type: orderType, plan_id: planID },
       })
       if (res?.code === 0 && res.data) {
         setResult({ coupon_id: res.data.coupon_id, discount_amount: res.data.discount_amount })

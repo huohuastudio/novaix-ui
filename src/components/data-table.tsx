@@ -224,7 +224,7 @@ export function DataTable<TData, TValue>({
                   }
                 >
                   <SelectTrigger className="h-8 w-[calc(50%-0.25rem)] min-w-0 sm:w-[150px]">
-                    <SelectValue placeholder={meta.filterPlaceholder ?? `${String(column.columnDef.header)}...`} />
+                    <SelectValue placeholder={meta.filterPlaceholder ?? String(column.columnDef.header)} />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
                     <SelectItem value="__all__">全部</SelectItem>

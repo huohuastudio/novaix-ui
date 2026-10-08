@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { centsToYuan, yuanToCents, yuanField } from "@/lib/order-constants"
 import { Dices } from "lucide-react"
 import { postAdminCoupons, putAdminCouponsById } from "@/api"
 import type { CouponCouponItem } from "@/api"
@@ -27,22 +28,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PlanMultiSelect } from "@/components/plan-multi-select"
 import { FormSheet } from "@/components/form-sheet"
 import { useCurrencySymbol } from "@/hooks/use-site-settings"
 
 const formSchema = z.object({
   code: z.string().min(1, "优惠码不能为空").max(64, "优惠码不能超过 64 个字符"),
   type: z.enum(["fixed", "percent"]),
-  value: z.coerce.number<number | string>().min(1, "面值必须大于 0"),
-  min_order_amount: z.coerce.number<number | string>().min(0).default(0),
-  max_discount: z.coerce.number<number | string>().min(0).default(0),
+  value: yuanField(0.01, "面值必须大于 0"),
+  min_order_amount: yuanField().default(0),
+  max_discount: yuanField().default(0),
   usage_limit: z.coerce.number<number | string>().int().min(0).default(0),
   per_user_limit: z.coerce.number<number | string>().int().min(0).default(1),
+  plan_scope: z.enum(["all", "selected"]).default("all"),
+  plan_ids: z.array(z.string()).max(100, "最多选择 100 个套餐").default([]),
   applicable_types: z.string().default(""),
   duration: z.enum(["once", "recurring"]).default("once"),
   enabled: z.boolean().default(true),
   starts_at: z.string().optional(),
   expires_at: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.plan_scope === "selected" && values.plan_ids.length === 0) {
+    ctx.addIssue({ code: "custom", path: ["plan_ids"], message: "请至少选择一个套餐" })
+  }
+  if (values.type === "percent" && values.value > 100) {
+    ctx.addIssue({ code: "custom", path: ["value"], message: "百分比不能超过 100" })
+  }
 })
 
 const COUPON_CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ3456789"
@@ -50,6 +61,15 @@ function generateRandomCode(length = 8): string {
   const arr = new Uint8Array(length)
   crypto.getRandomValues(arr)
   return Array.from(arr, (b) => COUPON_CODE_CHARSET[b % COUPON_CODE_CHARSET.length]).join("")
+}
+
+// 表单中金额按元、百分比按 %；接口中金额为分、百分比为基点，两者都是 ×100
+function toServerAmounts(values: { value: number; min_order_amount: number; max_discount: number }) {
+  return {
+    value: yuanToCents(values.value),
+    min_order_amount: yuanToCents(values.min_order_amount),
+    max_discount: yuanToCents(values.max_discount),
+  }
 }
 
 type FormInput = z.input<typeof formSchema>
@@ -63,6 +83,8 @@ const defaultValues: FormValues = {
   max_discount: 0,
   usage_limit: 0,
   per_user_limit: 1,
+  plan_scope: "all",
+  plan_ids: [],
   applicable_types: "",
   duration: "once",
   enabled: true,
@@ -74,6 +96,7 @@ const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
 function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
   const couponType = form.watch("type")
+  const planScope = form.watch("plan_scope")
   const currencySymbol = useCurrencySymbol()
 
   return (
@@ -127,14 +150,15 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
               <FormControl>
                 <Input
                   type="number"
-                  min={1}
-                  placeholder={couponType === "fixed" ? "单位：分" : "单位：基点（5000=50%）"}
+                  min={0}
+                  step="0.01"
+                  placeholder={couponType === "fixed" ? "如 10" : "如 20"}
                   {...field}
                   onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
                 />
               </FormControl>
               <FormDescription>
-                {couponType === "fixed" ? `单位：分（100 = ${currencySymbol}1.00）` : "单位：基点（5000 = 50%）"}
+                {couponType === "fixed" ? `单位：元（${currencySymbol}），直接抵扣订单金额` : "单位：%，如 20 表示优惠 20%（即八折）"}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -151,7 +175,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
               <FormControl>
                 <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
-              <FormDescription>单位：分，0 表示不限</FormDescription>
+              <FormDescription>单位：元，0 表示不限</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -165,7 +189,7 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
               <FormControl>
                 <Input type="number" min={0} placeholder="0 表示不限" {...field} onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))} />
               </FormControl>
-              <FormDescription>单位：分，0 表示不限</FormDescription>
+              <FormDescription>单位：元，0 表示不限</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -222,6 +246,38 @@ function CouponFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
           </FormItem>
         )}
       />
+      <FormField
+        control={form.control}
+        name="plan_scope"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>适用套餐</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent>
+                <SelectItem value="all">全部套餐</SelectItem>
+                <SelectItem value="selected">指定套餐</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>新购和升级按目标套餐判断，续费按实例当前套餐判断。</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      {planScope === "selected" && (
+        <FormField
+          control={form.control}
+          name="plan_ids"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>选择套餐</FormLabel>
+              <FormControl><PlanMultiSelect value={field.value ?? []} onChange={field.onChange} /></FormControl>
+              <FormDescription>可选择多个套餐。复制的新套餐需单独添加；仅显示编号的套餐请核对后保留或移除。</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
       <FormField
         control={form.control}
         name="duration"
@@ -320,10 +376,13 @@ export function CouponCreateSheet({
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
+    const { plan_scope, plan_ids, ...fields } = values
     try {
       const { data: res } = await postAdminCoupons({
         body: {
-          ...values,
+          ...fields,
+          ...toServerAmounts(values),
+          plan_ids: plan_scope === "selected" ? plan_ids.join(",") : "",
           starts_at: toServer(values.starts_at, tz),
           expires_at: toServer(values.expires_at, tz),
         },
@@ -391,11 +450,13 @@ export function CouponEditSheet({
       form.reset({
         code: coupon.code ?? "",
         type: (coupon.type as "fixed" | "percent") ?? "fixed",
-        value: coupon.value ?? 0,
-        min_order_amount: coupon.min_order_amount ?? 0,
-        max_discount: coupon.max_discount ?? 0,
+        value: centsToYuan(coupon.value),
+        min_order_amount: centsToYuan(coupon.min_order_amount),
+        max_discount: centsToYuan(coupon.max_discount),
         usage_limit: coupon.usage_limit ?? 0,
         per_user_limit: coupon.per_user_limit ?? 1,
+        plan_scope: coupon.plan_ids ? "selected" : "all",
+        plan_ids: coupon.plan_ids?.split(",").filter(Boolean) ?? [],
         applicable_types: coupon.applicable_types ?? "",
         duration: (coupon.duration as "once" | "recurring") ?? "once",
         enabled: coupon.enabled ?? true,
@@ -407,11 +468,14 @@ export function CouponEditSheet({
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
+    const { plan_scope, plan_ids, ...fields } = values
     try {
       const { data: res } = await putAdminCouponsById({
         path: { id: coupon.id! },
         body: {
-          ...values,
+          ...fields,
+          ...toServerAmounts(values),
+          plan_ids: plan_scope === "selected" ? plan_ids.join(",") : "",
           starts_at: toServer(values.starts_at, tz),
           expires_at: toServer(values.expires_at, tz),
         },

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/data-table"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { getAdminInstances } from "@/api"
 import type { InstanceInstanceItem } from "@/api"
@@ -26,7 +27,7 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
   const [editInstanceId, setEditInstanceId] = useState<number | null>(null)
 
   const fetchInstances = useCallback(async ({ page, pageSize, sorting, filters }: FetchParams) => {
-    const sort = sorting[0]?.id as "id" | "name" | "status" | "type" | "cpu" | "memory" | "created_at" | undefined
+    const sort = sorting[0]?.id as "id" | "name" | "status" | "type" | "cpu" | "memory" | "created_at" | "traffic_used" | undefined
     const order: "asc" | "desc" | undefined = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined
 
     const { data: res } = await getAdminInstances({
@@ -78,6 +79,22 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
       ),
     },
     {
+      accessorKey: "traffic_used",
+      header: "已用流量",
+      enableSorting: true,
+      sortDescFirst: true,
+      cell: ({ row }) => (
+        <div className="tabular-nums whitespace-nowrap">
+          <div>{(row.original.traffic_used ?? 0).toFixed(2)} GB</div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.traffic_limit
+              ? `配额 ${row.original.traffic_limit + (row.original.traffic_extra ?? 0)} GB`
+              : "不限量"}
+          </div>
+        </div>
+      ),
+    },
+    {
       accessorKey: "type",
       header: "类型",
       enableSorting: true,
@@ -125,6 +142,16 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
       cell: ({ row }) => row.original.ip_address || row.original.ipv6_address || <span className="text-muted-foreground">-</span>,
     },
     {
+      accessorKey: "username",
+      header: "所属用户",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link to={`${adminPath}/users/${row.original.user_id}`} className="text-primary hover:underline">
+          {row.original.username || `#${row.original.user_id}`}
+        </Link>
+      ),
+    },
+    {
       accessorKey: "os_type",
       header: "系统",
       cell: ({ row }) => row.original.os_type || <span className="text-muted-foreground">-</span>,
@@ -153,6 +180,7 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
 
   return (
     <>
+      <p className="mb-4 text-sm text-muted-foreground">统计本月已用流量；手动重置后从重置点计算，用量随系统采集更新。</p>
       <DataTable
         columns={columns}
         data={table.data}
@@ -164,7 +192,10 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
         onSortingChange={table.setSorting}
         columnFilters={table.columnFilters}
         onColumnFiltersChange={table.setColumnFilters}
-        toolbar={toolbar}
+        toolbar={<div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => table.setSorting([{ id: "traffic_used", desc: true }])}>流量排行</Button>
+          {toolbar}
+        </div>}
       />
       {ConfirmDialog}
       <InstanceRetryDialog

@@ -6,6 +6,7 @@ import { getAdminCouponsByIdUsages } from "@/api"
 import type { CouponCouponItem, CouponUsageItem } from "@/api"
 import {
   getAdminCouponsByIdOptions,
+  getAdminPlansOptions,
   getAdminCouponsByIdUsagesQueryKey,
   getAdminCouponsByIdBoundInstancesOptions,
 } from "@/api/@tanstack/react-query.gen"
@@ -55,6 +56,11 @@ export default function CouponDetail() {
   const coupon: CouponCouponItem | null =
     couponQuery.data?.code === 0 && couponQuery.data.data ? couponQuery.data.data : null
   const loading = couponQuery.isPending
+  const planIDs = coupon?.plan_ids?.split(",").filter(Boolean) ?? []
+  const plansQuery = useQuery({
+    ...getAdminPlansOptions({ query: { ids: coupon?.plan_ids, page_size: 100 } }),
+    enabled: planIDs.length > 0,
+  })
 
   useBreadcrumb([
     { label: "优惠券管理", href: `${adminPath}/coupons` },
@@ -189,6 +195,15 @@ export default function CouponDetail() {
                     return m[t.trim()] ?? t.trim()
                   }).join("、")
                 : "全部"}
+            </div>
+          </div>
+          <div className="col-span-2">
+            <div className="text-muted-foreground">适用套餐</div>
+            <div className="font-medium mt-0.5">
+              {planIDs.length === 0 ? "全部套餐" : plansQuery.isPending ? <Skeleton className="h-5 w-40" /> : planIDs.map(id => {
+                const plan = plansQuery.data?.data?.items?.find(item => String(item.id) === id)
+                return plan ? `${plan.name} (#${id})` : `套餐 #${id}`
+              }).join("、")}
             </div>
           </div>
           <div>

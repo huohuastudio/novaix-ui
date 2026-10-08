@@ -28,11 +28,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <div>
-                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground overflow-hidden">
+                <div className={`flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground overflow-hidden ${siteLogo ? "" : "dark:bg-transparent"}`}>
                   {siteLogo ? (
                     <img src={siteLogo} alt={siteName} className="size-full object-contain" />
                   ) : (
-                    <NovaLogo className="size-5" withBackground={false} />
+                    <>
+                      {/* 暗色主题下主色为蓝色，蓝色 Logo 会融进背景，改用自带浅色底的版本 */}
+                      <NovaLogo className="size-5 dark:hidden" withBackground={false} />
+                      <NovaLogo className="hidden size-8 dark:block" />
+                    </>
                   )}
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">

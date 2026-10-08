@@ -75,6 +75,7 @@ export function RechargeDialog({ open, onOpenChange, user, onSuccess }: Recharge
         return
       }
       toast.success("充值成功")
+      onOpenChange(false)
       onSuccess()
     } catch (err) {
       handleCatchError(err, "请求失败，请重试", { setError: form.setError, setServerError, fieldNames })
@@ -175,6 +176,7 @@ export function AdjustBalanceDialog({ open, onOpenChange, user, onSuccess }: Adj
         return
       }
       toast.success("调账成功")
+      onOpenChange(false)
       onSuccess()
     } catch (err) {
       handleCatchError(err, "请求失败，请重试", { setError: form.setError, setServerError, fieldNames })

@@ -10,7 +10,7 @@ test.describe('用户端个人资料', () => {
 
   test('修改密码区域可见', async ({ page }) => {
     await page.goto('/portal/profile')
-    await expect(page.getByText('修改密码')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '修改密码', exact: true })).toBeVisible()
     await expect(page.getByLabel('当前密码')).toBeVisible()
     await expect(page.getByLabel('新密码')).toBeVisible()
   })

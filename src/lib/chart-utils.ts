@@ -41,3 +41,7 @@ export const tooltipStyle = {
 export const TICK_STYLE = { fontSize: 12, fill: "var(--color-muted-foreground)" }
 export const AXIS_PROPS = { axisLine: false, tickLine: false } as const
 export const CHART_MARGIN = { top: 4, right: 4, bottom: 0, left: -12 }
+
+// 流量类纵轴：0 显示为 0 而不是 "-"，并加宽轴区域避免 "48.8 KB" 这类标签被裁切
+export const formatAxisBytes = (v: number) => (v === 0 ? "0" : formatBytes(v))
+export const BYTES_AXIS_WIDTH = 68

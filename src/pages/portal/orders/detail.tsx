@@ -287,7 +287,8 @@ export default function PortalOrderDetail() {
         <div className="rounded-2xl bg-background p-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">订单金额</p>
+              <p className="text-xs text-muted-foreground">{order.first_period_free ? '首期免费' : '订单金额'}</p>
+              {order.first_period_free && <p className="text-xs text-muted-foreground mt-1">原价 {formatAmount((order.amount ?? 0) + (order.discount_amount ?? 0))}，首期减免 {formatAmount(order.discount_amount ?? 0)}，后续按正常规则续费</p>}
               <p className="text-3xl font-semibold tracking-tight mt-1">{formatAmount(order.amount ?? 0)}</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">

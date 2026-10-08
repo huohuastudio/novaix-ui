@@ -31,17 +31,22 @@ import { RebuildDialog } from "./components/rebuild-dialog"
 import InstanceRetryDialog from "@/components/instance-retry-dialog"
 import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
-import { statusMap, statusFilterOptions, typeFilterOptions } from "@/lib/instance-constants"
+import { statusMap, statusFilterOptions, typeFilterOptions, getTypeShortLabel } from "@/lib/instance-constants"
 import { NodePopover } from "@/components/node-popover"
 import { UserPopover } from "@/components/user-popover"
 import { EmptyState } from "@/components/empty-state"
 import { MonitorCog, Play, Square, RotateCw, ChevronDown, X } from "lucide-react"
 import { useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
-import { getErrorMessage } from "@/lib/utils"
+import { formatMemory, getErrorMessage } from "@/lib/utils"
 
 interface InstanceTableProps {
   toolbar?: React.ReactNode
   tourId?: string
+}
+
+// 列表只显示日期部分，悬停查看完整时间，给操作列留出空间
+function DateOnly({ text }: { text: string }) {
+  return <span title={text}>{text.split(" ")[0]}</span>
 }
 
 export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
@@ -211,24 +216,19 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         filterVariant: "text",
         filterPlaceholder: "搜索名称/主机名/IP...",
       },
+      // 备注合并到名称下方，节省表格宽度
       cell: ({ row }) => (
-        <Link to={`${adminPath}/instances/${row.original.id}`} className="font-medium text-primary hover:underline">
-          {row.original.name}
-        </Link>
+        <div className="min-w-0">
+          <Link to={`${adminPath}/instances/${row.original.id}`} className="font-medium text-primary hover:underline">
+            {row.original.name}
+          </Link>
+          {row.original.remark && (
+            <span className="block max-w-40 truncate text-xs text-muted-foreground" title={row.original.remark}>
+              {row.original.remark}
+            </span>
+          )}
+        </div>
       ),
-    },
-    {
-      accessorKey: "remark",
-      header: "备注",
-      cell: ({ row }) => {
-        const remark = row.original.remark
-        if (!remark) return <span className="text-muted-foreground">-</span>
-        return (
-          <span className="text-sm text-muted-foreground max-w-[200px] truncate block" title={remark}>
-            {remark}
-          </span>
-        )
-      },
     },
     {
       accessorKey: "username",
@@ -242,21 +242,6 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       header: "宿主机",
       cell: ({ row }) => (
         <NodePopover nodeId={row.original.node_id} label={row.original.node_name} />
-      ),
-    },
-    {
-      accessorKey: "type",
-      header: "类型",
-      enableSorting: true,
-      meta: {
-        filterVariant: "select",
-        filterPlaceholder: "类型",
-        filterOptions: typeFilterOptions,
-      },
-      cell: ({ row }) => (
-        <Badge variant="outline">
-          {row.original.type === "virtual-machine" ? "虚拟机" : "容器"}
-        </Badge>
       ),
     },
     {
@@ -275,13 +260,21 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
       },
     },
     {
-      id: "resources",
+      accessorKey: "type",
       header: "配置",
+      enableSorting: true,
+      meta: {
+        filterVariant: "select",
+        filterPlaceholder: "类型",
+        filterOptions: typeFilterOptions,
+      },
+      // 类型与规格合并展示
       cell: ({ row }) => {
         const i = row.original
         return (
-          <div className="text-xs text-muted-foreground">
-            {i.cpu}C / {i.memory}MB / {i.disk}GB
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <Badge variant="outline" className="text-[11px]">{getTypeShortLabel(i.type)}</Badge>
+            <span className="text-xs text-muted-foreground">{i.cpu}C / {formatMemory(i.memory ?? 0, true)} / {i.disk}G</span>
           </div>
         )
       },
@@ -294,18 +287,21 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
     {
       accessorKey: "os_type",
       header: "系统",
-      cell: ({ row }) => row.original.os_type || <span className="text-muted-foreground">-</span>,
+      cell: ({ row }) => row.original.os_type
+        ? <span className="block max-w-36 truncate" title={row.original.os_type}>{row.original.os_type}</span>
+        : <span className="text-muted-foreground">-</span>,
     },
     {
       accessorKey: "expire_at",
       header: "到期时间",
-      cell: ({ row }) => row.original.expire_at ? formatDate(row.original.expire_at) : <span className="text-muted-foreground">-</span>,
+      cell: ({ row }) => row.original.expire_at ? <DateOnly text={formatDate(row.original.expire_at)} /> : <span className="text-muted-foreground">-</span>,
     },
     {
       accessorKey: "created_at",
       header: "创建时间",
       enableSorting: true,
-      cell: ({ row }) => formatDate(row.original.created_at),
+      // 列表只显示日期，悬停查看完整时间，给操作列留出空间
+      cell: ({ row }) => <DateOnly text={formatDate(row.original.created_at)} />,
     },
     {
       id: "actions",

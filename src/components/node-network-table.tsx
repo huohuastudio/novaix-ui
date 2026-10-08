@@ -30,6 +30,7 @@ import { incus, incusErrorMessage } from "@/lib/incus"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
 import type { IncusNetworkDetail } from "@/types/incus"
 import { queryKeys } from "@/lib/query-keys"
+import { runtimeResourceStatusLabel } from "@/lib/node-constants"
 import { postAdminNodesByIdNetworksSetup, postAdminNodesByIdNetworksSyncIpv6Nic, getAdminNodesByIdNetworksDetect } from "@/api"
 import { getAdminNodesByIdQueryKey, getAdminNodesByIdNetworksDetectQueryKey } from "@/api/@tanstack/react-query.gen"
 import type { ServiceDetectedNetwork, ServicePhysicalInterface } from "@/api"
@@ -317,7 +318,7 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
           <h3 className="text-lg font-semibold">{net.name}</h3>
           <Badge variant="outline">{net.type}</Badge>
           {net.managed && <Badge variant="secondary">托管</Badge>}
-          {net.status && <Badge variant={net.status === "Created" ? "default" : "secondary"}>{net.status}</Badge>}
+          {net.status && <Badge variant={net.status === "Created" ? "default" : "secondary"}>{runtimeResourceStatusLabel(net.status)}</Badge>}
           {isActive && <Badge variant="default" className="gap-1"><Check className="size-3" />当前使用</Badge>}
         </div>
         <div className="flex items-center gap-2">
@@ -334,10 +335,13 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
               同步 IPv6 NIC
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
-            <Settings className="size-3.5 mr-1.5" />
-            {buttonLabel}
-          </Button>
+          {/* 回环网卡不能作为实例网络，不提供配置入口 */}
+          {net.type !== "loopback" && (
+            <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
+              <Settings className="size-3.5 mr-1.5" />
+              {buttonLabel}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -374,13 +378,13 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
         {net.config?.["ipv4.nat"] && (
           <div>
             <div className="text-muted-foreground">IPv4 NAT</div>
-            <div className="font-medium">{net.config["ipv4.nat"]}</div>
+            <div className="font-medium">{net.config["ipv4.nat"] === "true" ? "是" : "否"}</div>
           </div>
         )}
         {net.config?.["ipv6.nat"] && (
           <div>
             <div className="text-muted-foreground">IPv6 NAT</div>
-            <div className="font-medium">{net.config["ipv6.nat"]}</div>
+            <div className="font-medium">{net.config["ipv6.nat"] === "true" ? "是" : "否"}</div>
           </div>
         )}
       </div>
@@ -452,7 +456,7 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
                 {configEntries.map(([key, value]) => (
                   <TableRow key={key}>
                     <TableCell className="font-mono text-sm">{key}</TableCell>
-                    <TableCell className="text-muted-foreground">{value}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">{value}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

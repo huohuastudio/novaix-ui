@@ -292,14 +292,21 @@ function ExtraFields({ form }: { form: ImageBaseForm }) {
         </FormItem>
       )} />
       <FormField control={form.control} name="cloud_init" render={({ field }) => (
-        <FormItem className="flex items-center justify-between rounded-lg border p-3">
-          <div className="space-y-0.5">
-            <FormLabel className="!mt-0">Cloud-Init</FormLabel>
-            <p className="text-xs text-muted-foreground">启用后可在创建实例时注入密码、SSH 密钥等初始化配置</p>
+        <FormItem className="rounded-lg border p-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <FormLabel className="!mt-0">Cloud-Init</FormLabel>
+              <p className="text-xs text-muted-foreground">启用后可在创建实例时注入密码、SSH 密钥等初始化配置</p>
+            </div>
+            <FormControl>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormControl>
           </div>
-          <FormControl>
-            <Switch checked={field.value} onCheckedChange={field.onChange} />
-          </FormControl>
+          {!field.value && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              未启用时无法自动设置 root 密码和 SSH，用户开通后只能通过控制台终端登录。镜像库中建议选择带 cloud 标记的版本
+            </p>
+          )}
         </FormItem>
       )} />
       <FormField control={form.control} name="status" render={({ field }) => (

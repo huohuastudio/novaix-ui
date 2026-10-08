@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SettingSkeleton } from "./setting-skeleton"
+import { centsToYuan, yuanToCents } from "@/lib/order-constants"
 
 export function PushTransferSection() {
   const { data, loading, saving, save, update } = useSettings("push_transfer")
@@ -53,19 +54,24 @@ export function PushTransferSection() {
       {feeType !== "none" && (
         <div className="space-y-2">
           <Label htmlFor="push_transfer_fee_amount">
-            {feeType === "fixed" ? "手续费金额（分）" : "手续费比例（%）"}
+            {feeType === "fixed" ? "手续费金额（元）" : "手续费比例（%）"}
           </Label>
           <Input
             id="push_transfer_fee_amount"
             type="number"
             min={0}
             max={feeType === "percent" ? 100 : undefined}
-            value={data.push_transfer_fee_amount ?? "0"}
-            onChange={(e) => update("push_transfer_fee_amount", e.target.value)}
+            step={feeType === "fixed" ? "0.01" : "1"}
+            // 固定金额按元展示，存储仍为分
+            value={feeType === "fixed" ? String(centsToYuan(parseInt(data.push_transfer_fee_amount || "0"))) : (data.push_transfer_fee_amount ?? "0")}
+            onChange={(e) => update(
+              "push_transfer_fee_amount",
+              feeType === "fixed" ? String(yuanToCents(parseFloat(e.target.value || "0"))) : e.target.value,
+            )}
           />
           <p className="text-xs text-muted-foreground">
             {feeType === "fixed"
-              ? "固定手续费金额，单位为分（如 500 = 5 元）"
+              ? "每次转移收取的固定金额"
               : "按实例当前计费周期价格的百分比收取手续费"}
           </p>
         </div>

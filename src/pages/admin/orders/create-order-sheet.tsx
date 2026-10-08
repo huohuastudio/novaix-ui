@@ -14,6 +14,7 @@ import {
 } from "@/api"
 import type { ProductPlanItem } from "@/api"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import {
   Form,
@@ -57,6 +58,15 @@ const schema = z.object({
   quantity: z.coerce.number<number>().min(1).max(100).default(1),
   ip_id: z.coerce.number<number>().optional(),
   auto_pay: z.boolean().default(true),
+  first_period_free: z.boolean().default(false),
+  free_reason: z.string().trim().max(255, "赠送原因不能超过 255 字").default(""),
+}).superRefine((value, ctx) => {
+  if (value.first_period_free && value.billing_cycle === "hourly") {
+    ctx.addIssue({ code: "custom", path: ["billing_cycle"], message: "小时计费不支持首期免费" })
+  }
+  if (value.first_period_free && !value.free_reason) {
+    ctx.addIssue({ code: "custom", path: ["free_reason"], message: "请填写赠送原因" })
+  }
 })
 
 type FormInput = z.input<typeof schema>
@@ -86,6 +96,8 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
       quantity: 1,
       ip_id: undefined,
       auto_pay: true,
+      first_period_free: false,
+      free_reason: "",
     },
   })
 
@@ -158,6 +170,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
   const selectedPlan = planMap.get(form.watch("plan_id"))
   const billingCycle = form.watch("billing_cycle")
   const autoPay = form.watch("auto_pay")
+  const firstPeriodFree = form.watch("first_period_free")
   const qty = form.watch("quantity") || 1
   const unitPrice = selectedPlan
     ? billingCycle === "hourly" ? (selectedPlan as Record<string, number>).price_hourly ?? 0
@@ -169,7 +182,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
-    const fieldNames = ["user_id", "plan_id", "billing_cycle", "node_id", "image_id", "password", "hostname", "quantity", "ip_id"] as const
+    const fieldNames = ["user_id", "plan_id", "billing_cycle", "node_id", "image_id", "password", "hostname", "quantity", "ip_id", "first_period_free", "free_reason"] as const
     try {
       const { data: res } = await postAdminOrders({
         body: {
@@ -182,14 +195,22 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
           hostname: values.hostname || undefined,
           quantity: values.quantity,
           ip_id: values.ip_id || undefined,
-          auto_pay: values.auto_pay,
+          auto_pay: values.first_period_free || values.auto_pay,
+          first_period_free: values.first_period_free,
+          free_reason: values.first_period_free ? values.free_reason : undefined,
         },
       })
       if (res?.code !== 0) {
         handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
       }
-      toast.success(values.auto_pay ? "订单已创建并支付，实例开通中" : "订单已创建，待支付")
+      if (res.data?.status === "paid") {
+        toast.success(values.first_period_free ? "首期免费订单已创建，实例开通中" : "订单已创建并支付，实例开通中")
+      } else if (values.first_period_free || values.auto_pay) {
+        toast.warning("订单已创建，但未完成开通，请在订单列表检查后重试")
+      } else {
+        toast.success("订单已创建，待支付")
+      }
       onSuccess()
     } catch (err) {
       handleCatchError(err, "请求失败，请重试", { setError: form.setError, setServerError, fieldNames })
@@ -264,7 +285,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel required>计费周期</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(value) => { field.onChange(value); if (value === "hourly") form.setValue("first_period_free", false) }} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="hourly">时付</SelectItem>
@@ -387,11 +408,59 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="first_period_free"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between gap-4">
+                      <FormLabel>首期免费</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          disabled={billingCycle === "hourly"}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </div>
+                    <p className="text-xs text-muted-foreground">仅免除本次所选周期费用，后续按正常规则续费。小时计费不支持。</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {firstPeriodFree && (
+                <FormField
+                  control={form.control}
+                  name="free_reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>赠送原因</FormLabel>
+                      <FormControl>
+                        <Input {...field} maxLength={255} placeholder="例如：活动赠送、故障补偿" />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">原因将显示在订单备注中。赠送期内暂不支持升降级，正常续费不受影响。</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               {selectedPlan && (
-                <div className="rounded-md border p-3 bg-muted/50">
+                <div className="rounded-md border p-3 bg-muted/50 space-y-2">
+                  {firstPeriodFree && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">套餐原价</span>
+                        <span>{formatAmount(price)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">首期减免</span>
+                        <span>{formatAmount(price)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">应付金额</span>
-                    <span className="font-semibold text-lg">{formatAmount(price ?? 0)}</span>
+                    <span className="font-semibold text-lg">{formatAmount(firstPeriodFree ? 0 : price)}</span>
                   </div>
                 </div>
               )}
@@ -403,6 +472,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
           <Button
             type="button"
             variant="outline"
+            hidden={firstPeriodFree}
             disabled={form.formState.isSubmitting}
             onClick={() => {
               form.setValue("auto_pay", false)
@@ -419,7 +489,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
               form.handleSubmit(onSubmit)()
             }}
           >
-            {form.formState.isSubmitting && autoPay ? "创建中..." : "创建并支付"}
+            {form.formState.isSubmitting && autoPay ? "创建中..." : firstPeriodFree ? "免费开通" : "创建并支付"}
           </Button>
         </SheetFooter>
       </SheetContent>

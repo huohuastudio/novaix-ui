@@ -6,7 +6,7 @@ import { Check, ChevronsUpDown, X } from "lucide-react"
 import { postAdminRegions, putAdminRegionsById } from "@/api"
 import type { RegionRegionItem } from "@/api"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
-import { countries, searchCountries } from "@/lib/countries"
+import { countries, countryCoords, searchCountries } from "@/lib/countries"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -186,16 +186,16 @@ function CountryPickerField({ form }: { form: UseFormReturn<FormInput, unknown, 
             <PopoverTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
+                variant="field"
                 role="combobox"
                 aria-expanded={open}
-                className={cn("justify-between font-normal", !displayLabel && "text-muted-foreground")}
+                className={cn("justify-between pl-2.5 pr-2", !displayLabel && "text-muted-foreground")}
               >
                 <span className="truncate">{displayLabel ?? "选择国家/地区"}</span>
                 <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] min-w-72 p-0" align="start">
+            <PopoverContent className="w-(--radix-popover-trigger-width) min-w-72 p-0" align="start">
               <Command shouldFilter={false}>
                 <CommandInput placeholder="搜索国家（中文/拼音/英文）..." value={search} onValueChange={setSearch} />
                 <CommandList>
@@ -230,6 +230,12 @@ function CountryPickerField({ form }: { form: UseFormReturn<FormInput, unknown, 
                           const currentCode = form.getValues("code")
                           if (!currentCode) {
                             form.setValue("code", c.code)
+                          }
+                          // 经纬度未填写时按国家预填参考坐标，保证地图上能正常显示
+                          const coords = countryCoords[c.code]
+                          if (coords && !Number(form.getValues("latitude")) && !Number(form.getValues("longitude"))) {
+                            form.setValue("latitude", coords[0])
+                            form.setValue("longitude", coords[1])
                           }
                           setOpen(false)
                           setSearch("")
@@ -342,6 +348,7 @@ function RegionFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
+        <p className="col-span-2 -mb-2 text-xs text-muted-foreground">经纬度用于仪表盘和官网地图展示，选择国家后会自动填入参考坐标，可按实际机房位置修改</p>
         <FormField
           control={form.control}
           name="latitude"

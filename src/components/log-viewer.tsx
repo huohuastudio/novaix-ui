@@ -22,7 +22,7 @@ const MAX_DELAY = 30000
 export function LogViewer({ wsUrl, className, onDone }: LogViewerProps) {
   const [lines, setLines] = useState<LogLine[]>([])
   const [status, setStatus] = useState<"connecting" | "connected" | "closed" | "error">("connecting")
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const onDoneRef = useRef(onDone)
   useEffect(() => { onDoneRef.current = onDone }, [onDone])
 
@@ -102,7 +102,9 @@ export function LogViewer({ wsUrl, className, onDone }: LogViewerProps) {
   }, [wsUrl])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    // 只滚动日志容器内部，避免 scrollIntoView 带动整个页面跳动
+    const el = scrollRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
   }, [lines])
 
   const lineColor: Record<LogLine["type"], string> = {
@@ -124,17 +126,16 @@ export function LogViewer({ wsUrl, className, onDone }: LogViewerProps) {
           {status === "connected" ? "已连接" :
            status === "connecting" ? "连接中..." :
            status === "error" ? "连接失败" :
-           "已断开"}
+           "已结束"}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed min-h-0">
         {lines.map((line, i) => (
           <div key={i} className={`break-all ${lineColor[line.type]}`}>{line.text}</div>
         ))}
         {status === "closed" && (
           <div className="text-zinc-600 mt-2">--- 结束 ---</div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   )

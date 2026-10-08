@@ -2,10 +2,18 @@ import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Link } from "react-router-dom"
+import { AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAdminPath } from "@/hooks/use-site-settings"
+import { useMailConfigured } from "@/hooks/use-mail-configured"
 import { SettingSkeleton } from "./setting-skeleton"
 
 export function RegistrationSection() {
   const { data, loading, saving, save, update } = useSettings("registration")
+  const adminPath = useAdminPath()
+  // 只在开启邮箱验证时才检查邮件配置
+  const mailConfigured = useMailConfigured(data.registration_email_verify === "true")
 
   if (loading) return <SettingSkeleton rows={2} />
 
@@ -32,6 +40,19 @@ export function RegistrationSection() {
           onCheckedChange={(checked) => update("registration_email_verify", checked ? "true" : "false")}
         />
       </div>
+
+      {data.registration_email_verify === "true" && mailConfigured === false && (
+        <Alert variant="warning">
+          <AlertTriangle />
+          <AlertDescription>
+            <span>
+              尚未配置邮件发送，用户注册时将收不到验证码。请先完成
+              <Link to={`${adminPath}/settings/smtp`} className="font-medium underline underline-offset-2">邮件通知</Link>
+              配置，或暂时关闭邮箱验证。
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="pt-2">
         <Button onClick={() => save(data)} disabled={saving}>

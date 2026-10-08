@@ -69,7 +69,7 @@ export default function PortalInstanceUpgrade() {
     setUpgradeCouponResult(null)
     try {
       const { data: res } = await postPortalCouponsValidate({
-        body: { code: upgradeCouponCode.trim(), amount: Math.abs(selected?.price_diff ?? 0), order_type: "upgrade" },
+        body: { code: upgradeCouponCode.trim(), amount: Math.abs(selected?.price_diff ?? 0), order_type: "upgrade", plan_id: selectedPlanId ?? undefined },
       })
       if (res?.code === 0 && res.data) {
         setUpgradeCouponResult({ coupon_id: res.data.coupon_id, discount_amount: res.data.discount_amount })

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,6 +30,7 @@ import { RichTextEditor } from "@/components/rich-text-editor"
 
 const formSchema = z.object({
   title: z.string().min(1, "标题不能为空").max(255, "标题不能超过 255 个字符"),
+  slug: z.string().trim().min(1, "别名不能为空").max(255, "别名不能超过 255 个字符"),
   content: z.string().min(1, "内容不能为空"),
   status: z.coerce.number<number | string>().int(),
   sort_order: z.coerce.number<number | string>().int().min(0, "排序权重不能为负数"),
@@ -39,6 +41,7 @@ type FormValues = z.output<typeof formSchema>
 
 const defaultValues: FormValues = {
   title: "",
+  slug: "",
   content: "",
   status: 1,
   sort_order: 0,
@@ -48,7 +51,10 @@ const fieldNames = Object.keys(defaultValues) as (keyof FormValues)[]
 
 // ── Shared form fields ──
 
-function AnnouncementFormFields({ form }: { form: UseFormReturn<FormInput, unknown, FormValues> }) {
+function AnnouncementFormFields({ form, originalSlug }: {
+  form: UseFormReturn<FormInput, unknown, FormValues>
+  originalSlug?: string
+}) {
   return (
     <>
       <FormField
@@ -60,6 +66,24 @@ function AnnouncementFormFields({ form }: { form: UseFormReturn<FormInput, unkno
             <FormControl>
               <Input placeholder="输入公告标题" {...field} />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="slug"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel required>别名 (Slug)</FormLabel>
+            <FormControl>
+              <Input placeholder="url-friendly-name" {...field} />
+            </FormControl>
+            <FormDescription>
+              {originalSlug !== undefined && field.value.trim() !== originalSlug
+                ? "修改别名后，原公告链接将失效，请同步更新已分享的链接。"
+                : "用于公告详情链接，建议使用英文字母、数字和连字符。修改标题不会改变别名。"}
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -140,26 +164,20 @@ function AnnouncementCreateForm({
   onSuccess: () => void
 }) {
   const [serverError, setServerError] = useState("")
+  const [initialSlug] = useState(() => `announcement-${crypto.randomUUID()}`)
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: { ...defaultValues, slug: initialSlug },
   })
 
   const onSubmit = async (values: FormValues) => {
     setServerError("")
     try {
-      const suffix = crypto.randomUUID().slice(0, 8)
-      const slug = (values.title
-        .toLowerCase()
-        .replace(/[^a-z0-9一-鿿]+/g, '-')
-        .replace(/^-|-$/g, '')
-        || 'announcement') + `-${suffix}`
       const { data: res } = await postAdminArticles({
         body: {
           ...values,
           type: 'announcement',
-          slug,
         },
       })
       if (res?.code !== 0) {
@@ -237,6 +255,7 @@ function AnnouncementEditForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: announcement.title ?? "",
+      slug: announcement.slug ?? "",
       content: announcement.content ?? "",
       status: announcement.status ?? 1,
       sort_order: announcement.sort_order ?? 0,
@@ -279,7 +298,7 @@ function AnnouncementEditForm({
     >
       <Form {...form}>
         <form id="announcement-edit-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <AnnouncementFormFields form={form} />
+          <AnnouncementFormFields form={form} originalSlug={announcement.slug ?? ""} />
           {serverError && <p className="text-sm text-destructive">{serverError}</p>}
         </form>
       </Form>

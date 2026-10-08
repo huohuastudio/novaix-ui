@@ -178,7 +178,6 @@ export default function Announcements() {
         emptyDescription="发布公告后将显示在这里"
         emptyAction={
           <Button variant="outline" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
             发布公告
           </Button>
         }

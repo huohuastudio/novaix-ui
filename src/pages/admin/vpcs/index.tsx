@@ -414,7 +414,6 @@ export default function VPCs() {
         emptyDescription="创建 VPC 来隔离实例间的网络通信"
         emptyAction={
           <Button variant="outline" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
             创建 VPC
           </Button>
         }

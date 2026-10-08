@@ -151,7 +151,6 @@ export default function AgentGroups() {
         emptyDescription="创建分组后可统一管理代理的返佣与折扣"
         emptyAction={
           <Button variant="outline" onClick={openCreate}>
-            <Plus className="size-4" />
             添加分组
           </Button>
         }

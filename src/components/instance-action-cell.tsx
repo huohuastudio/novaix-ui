@@ -1,4 +1,11 @@
-import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, RefreshCw, RotateCcw } from "lucide-react"
+import { Play, Square, RotateCw, Pause, Zap, Pencil, Trash2, RefreshCw, RotateCcw, MoreHorizontal } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -65,35 +72,58 @@ export function InstanceActionCell({
 }: InstanceActionCellProps) {
   const inTransition = transientStatuses.has(inst.status ?? "")
 
+  const isRunning = inst.status === "running"
+  const isFrozen = inst.status === "frozen"
+  const isError = inst.status === "error"
+  const canStart = inst.status === "stopped" || isFrozen || isError
+  const canRenew = !!onRenew && !!inst.plan_id && !inTransition && !isError
+  const canForceStop = isRunning || isFrozen || isError
+  const canRebuild = (inst.status === "stopped" || isError) && !!onRebuild
+  const canRetry = isError && !!onRetry
+  const hasMoreActions = canRenew || isRunning || isFrozen || canRetry || canForceStop || canRebuild
+
+  // 表格里只保留最常用的电源操作和编辑，其余收进“更多”菜单，避免操作列过宽
   return (
     <div className="flex items-center gap-1">
-      {onRenew && inst.plan_id && !inTransition && inst.status !== "error" && (
-        <ActionButton label="续费" icon={RefreshCw} busy={false} onClick={() => onRenew(inst)} />
-      )}
-      {(inst.status === "stopped" || inst.status === "frozen" || inst.status === "error") && (
+      {canStart && (
         <ActionButton label="启动" icon={Play} busy={busy} onClick={() => onPowerAction(inst, "start")} />
       )}
-      {inst.status === "running" && (
+      {isRunning && (
         <>
           <ActionButton label="重启" icon={RotateCw} busy={busy} onClick={() => onPowerAction(inst, "restart")} />
           <ActionButton label="停止" icon={Square} busy={busy} onClick={() => onPowerAction(inst, "stop")} />
-          <ActionButton label="冻结" icon={Pause} busy={busy} onClick={() => onPowerAction(inst, "freeze")} />
         </>
       )}
-      {inst.status === "frozen" && (
-        <ActionButton label="解冻" icon={Play} busy={busy} onClick={() => onPowerAction(inst, "unfreeze")} />
-      )}
-      {(inst.status === "running" || inst.status === "frozen" || inst.status === "error") && (
-        <ActionButton label="强制停止" icon={Zap} busy={busy} destructive onClick={() => onPowerAction(inst, "force-stop")} />
-      )}
-      {(inst.status === "stopped" || inst.status === "error") && onRebuild && (
-        <ActionButton label="重建" icon={RotateCcw} busy={busy} destructive onClick={() => onRebuild(inst)} />
-      )}
-      {inst.status === "error" && onRetry && (
-        <ActionButton label="重试" icon={RotateCw} busy={false} onClick={() => onRetry(inst)} />
-      )}
       <ActionButton label="编辑" icon={Pencil} busy={false} disabled={inTransition} onClick={() => onEdit(inst)} />
-      <ActionButton label="删除" icon={Trash2} busy={false} destructive disabled={inTransition || busy} onClick={() => onDelete(inst)} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" aria-label="更多操作">
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {canRenew && (
+            <DropdownMenuItem onClick={() => onRenew!(inst)}><RefreshCw />续费</DropdownMenuItem>
+          )}
+          {isRunning && (
+            <DropdownMenuItem disabled={busy} onClick={() => onPowerAction(inst, "freeze")}><Pause />冻结</DropdownMenuItem>
+          )}
+          {isFrozen && (
+            <DropdownMenuItem disabled={busy} onClick={() => onPowerAction(inst, "unfreeze")}><Play />解冻</DropdownMenuItem>
+          )}
+          {canRetry && (
+            <DropdownMenuItem onClick={() => onRetry!(inst)}><RotateCw />重试</DropdownMenuItem>
+          )}
+          {canForceStop && (
+            <DropdownMenuItem variant="destructive" disabled={busy} onClick={() => onPowerAction(inst, "force-stop")}><Zap />强制停止</DropdownMenuItem>
+          )}
+          {canRebuild && (
+            <DropdownMenuItem variant="destructive" disabled={busy} onClick={() => onRebuild!(inst)}><RotateCcw />重建</DropdownMenuItem>
+          )}
+          {hasMoreActions && <DropdownMenuSeparator />}
+          <DropdownMenuItem variant="destructive" disabled={inTransition || busy} onClick={() => onDelete(inst)}><Trash2 />删除</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

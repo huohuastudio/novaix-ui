@@ -7,6 +7,7 @@ const ERR_FEATURE_NOT_AVAILABLE = 10470
 const ERR_NODE_QUOTA_EXCEEDED = 10471
 const ERR_FEATURE_DISABLED_ADMIN = 10472
 const ERR_ADMIN_2FA_REQUIRED = 21004
+const ERR_FORBIDDEN = 10403
 
 client.setConfig({ throwOnError: true })
 
@@ -46,7 +47,9 @@ client.instance.interceptors.response.use(
       } else if (code === ERR_ADMIN_2FA_REQUIRED) {
         setRequire2FASetup(true)
         toast.error('系统要求管理员开启二次验证，请先前往个人资料页面设置', { id: 'admin-2fa-required', duration: 6000 })
-      } else {
+      } else if (code === undefined || code === ERR_FORBIDDEN) {
+        // 其余 403 为带具体原因的业务错误（如注册未开放、不支持退款），由调用方展示，
+        // 这里再弹“权限不足”会与调用方提示重复且误导
         toast.error('权限不足，无法执行此操作')
       }
     }

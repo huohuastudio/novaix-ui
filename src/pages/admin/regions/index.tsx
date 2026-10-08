@@ -10,6 +10,7 @@ import type { RegionRegionItem } from "@/api"
 import { getAdminRegionsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
+import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
@@ -22,6 +23,7 @@ const statusLabels: Record<number, { label: string; variant: "default" | "second
 }
 
 export default function Regions() {
+  useBreadcrumb([{ label: "区域管理" }])
   const formatDate = useFormatDate()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<RegionRegionItem | null>(null)

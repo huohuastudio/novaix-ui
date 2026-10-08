@@ -128,6 +128,12 @@ function CouponList() {
       cell: ({ row }) => row.original.min_order_amount ? formatAmount(row.original.min_order_amount) : "-",
     },
     {
+      accessorKey: "plan_ids",
+      header: "适用套餐",
+      enableSorting: false,
+      cell: ({ row }) => row.original.plan_ids ? `指定 ${row.original.plan_ids.split(",").length} 个套餐` : "全部套餐",
+    },
+    {
       accessorKey: "used_count",
       header: "使用量",
       enableSorting: true,

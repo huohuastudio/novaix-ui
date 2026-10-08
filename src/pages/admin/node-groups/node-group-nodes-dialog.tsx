@@ -140,6 +140,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
         </DialogHeader>
 
         <div className="space-y-2">
+          <h4 className="text-sm font-medium">添加节点</h4>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
@@ -159,7 +160,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
           <div className="max-h-40 overflow-y-auto space-y-1">
             {availableNodes.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                {keyword ? "未找到匹配的独立节点" : "没有可用的独立节点"}
+                {keyword ? "未找到匹配的未分组节点" : "没有未分组的节点（每个节点只能属于一个节点组）"}
               </p>
             ) : (
               availableNodes.map((n) => (
@@ -170,7 +171,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
                   <input
                     type="radio"
                     name="available-node"
-                    className="size-4"
+                    className="size-4 accent-foreground"
                     checked={selectedNodeId === String(n.id)}
                     onChange={() => setSelectedNodeId(String(n.id!))}
                   />
@@ -188,7 +189,9 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
           />
         </div>
 
-        <div className="space-y-2 max-h-80 overflow-y-auto">
+        <div className="space-y-2 border-t pt-4">
+          <h4 className="text-sm font-medium">组内节点{!loading && `（${nodes.length}）`}</h4>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
           {loading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -196,7 +199,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
               ))}
             </div>
           ) : nodes.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">暂无节点</p>
+            <p className="text-center text-sm text-muted-foreground py-6">组内暂无节点，请从上方选择节点添加</p>
           ) : (
             nodes.map((node) => (
               <div
@@ -226,6 +229,7 @@ export default function NodeGroupNodesDialog({ group, onClose, onChanged }: Prop
               </div>
             ))
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

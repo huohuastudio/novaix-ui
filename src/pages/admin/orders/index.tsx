@@ -423,7 +423,7 @@ function OrderList() {
                 </Tooltip>
               </>
             )}
-            {order.status === "paid" && (
+            {order.status === "paid" && !order.first_period_free && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => handleRefund(order)}>

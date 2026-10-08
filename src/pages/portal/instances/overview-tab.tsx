@@ -24,11 +24,12 @@ function MetricTile({
   percent?: number
 }) {
   return (
-    <div className="rounded-2xl bg-background p-5">
+    <div className="rounded-2xl bg-background p-4 sm:p-5">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
-        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+      {/* 窄屏缩小数值字号并允许单位换到下一行，避免数值被拆开 */}
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-1">
+        <span className="text-xl sm:text-2xl font-semibold tracking-tight tabular-nums whitespace-nowrap">{value}</span>
+        {unit && <span className="text-xs text-muted-foreground whitespace-nowrap">{unit}</span>}
       </div>
       {percent !== undefined && (
         <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">

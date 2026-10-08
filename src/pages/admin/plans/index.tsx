@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal, ArrowUpFromDot, ArrowDownToDot } from "lucide-react"
+import { Plus, Pencil, Trash2, FolderTree, Package, FlaskConical, MoreHorizontal, ArrowUpFromDot, ArrowDownToDot, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -25,9 +25,11 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
 import { useFormatAmount } from "@/hooks/use-site-settings"
-import { getErrorMessage } from "@/lib/utils"
+import { formatMemory, getErrorMessage } from "@/lib/utils"
+import { getTypeShortLabel } from "@/lib/instance-constants"
 import { EmptyState } from "@/components/empty-state"
 import PlanFormDialog from "./plan-form-dialog"
+import PlanCopyDialog from "./plan-copy-dialog"
 import PlanGroupDialog from "./plan-group-dialog"
 import TrialDialog from "./trial-dialog"
 import { useQuery } from "@tanstack/react-query"
@@ -142,6 +144,7 @@ export default function Plans() {
   const formatPrice = useFormatAmount()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<ProductPlanItem | undefined>()
+  const [copyingPlanId, setCopyingPlanId] = useState<number>()
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -149,7 +152,7 @@ export default function Plans() {
   const groupsQuery = useQuery(getAdminPlanGroupsOptions({ query: { page: 1, page_size: 100 } }))
   const groups = useMemo<ProductPlanGroupItem[]>(() => groupsQuery.data?.data?.items ?? [], [groupsQuery.data])
 
-  const nodesQuery = useQuery(getAdminNodesOptions({ query: { page: 1, page_size: 500 } }))
+  const nodesQuery = useQuery(getAdminNodesOptions({ query: { page: 1, page_size: 100 } }))
   const nodeRegionMap = useMemo(() => {
     const m = new Map<number, string>()
     for (const n of nodesQuery.data?.data?.items ?? []) {
@@ -293,9 +296,10 @@ export default function Plans() {
       cell: ({ row }) => {
         const p = row.original
         return (
-          <span className="text-xs text-muted-foreground">
-            {p.cpu}C / {p.memory! >= 1024 ? `${(p.memory! / 1024).toFixed(p.memory! % 1024 === 0 ? 0 : 1)}G` : `${p.memory}M`} / {p.disk}G
-          </span>
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <Badge variant="outline" className="text-[11px]">{getTypeShortLabel(p.type)}</Badge>
+            <span className="text-xs text-muted-foreground">{p.cpu}C / {formatMemory(p.memory ?? 0, true)} / {p.disk}G</span>
+          </div>
         )
       },
     },
@@ -374,7 +378,7 @@ export default function Plans() {
         const plan = row.original
         return (
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(plan)}>
+            <Button variant="ghost" size="icon" className="size-8" aria-label="编辑套餐" onClick={() => handleEdit(plan)}>
               <Pencil className="size-4" />
             </Button>
             <Button variant="ghost" size="icon" className="size-8" onClick={() => handleToggleStatus(plan)} title={plan.status === 1 ? "下架" : "上架"}>
@@ -382,11 +386,15 @@ export default function Plans() {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-8">
+                <Button variant="ghost" size="icon" className="size-8" aria-label="更多操作">
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setCopyingPlanId(plan.id!)}>
+                  <Copy className="size-4 mr-2" />
+                  复制套餐
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleTrial(plan)}>
                   <FlaskConical className="size-4 mr-2" />
                   试建实例
@@ -411,7 +419,7 @@ export default function Plans() {
           <h1 className="text-2xl font-bold tracking-tight">套餐管理</h1>
           <HelpLink path="/novaix/plan" />
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">套餐定义了用户可购买的资源配置（CPU/内存/磁盘/带宽）和价格。套餐通过绑定节点组来决定在哪些节点上开通实例</p>
+        <p className="mt-1 text-sm text-muted-foreground">套餐定义资源配置和价格，通过可用节点限制开通位置。不同地区需要独立库存时，可复制套餐并分别设置节点和库存。</p>
       </div>
       <DataTable
         tourId="plan-table"
@@ -458,6 +466,17 @@ export default function Plans() {
         onOpenChange={setGroupDialogOpen}
         onChanged={() => table.refresh()}
       />
+      {copyingPlanId != null && (
+        <PlanCopyDialog
+          planId={copyingPlanId}
+          onOpenChange={(open) => { if (!open) setCopyingPlanId(undefined) }}
+          onSuccess={() => {
+            setCopyingPlanId(undefined)
+            toast.success("已创建独立套餐")
+            table.refresh()
+          }}
+        />
+      )}
       {trialPlan && (
         <TrialDialog
           open={trialOpen}

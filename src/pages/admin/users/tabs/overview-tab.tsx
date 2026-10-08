@@ -120,11 +120,11 @@ export function OverviewTab({
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">总收入</div>
-            <div className="text-2xl font-bold tabular-nums text-emerald-600">{formatAmount(summary.total_income ?? 0)}</div>
+            <div className={`text-2xl font-bold tabular-nums ${(summary.total_income ?? 0) > 0 ? "text-emerald-600" : ""}`}>{formatAmount(summary.total_income ?? 0)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">总支出</div>
-            <div className="text-2xl font-bold tabular-nums text-red-500">{formatAmount(summary.total_expense ?? 0)}</div>
+            <div className={`text-2xl font-bold tabular-nums ${(summary.total_expense ?? 0) > 0 ? "text-red-500" : ""}`}>{formatAmount(summary.total_expense ?? 0)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">总佣金</div>

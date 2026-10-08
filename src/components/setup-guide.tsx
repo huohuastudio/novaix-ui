@@ -11,10 +11,11 @@ import {
   ChevronRight,
   ChevronDown,
   Rocket,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAdminPath } from "@/hooks/use-site-settings"
+import { useAdminPath, useRegistrationOpen } from "@/hooks/use-site-settings"
 import {
   getAdminNodes,
   getAdminImages,
@@ -55,6 +56,8 @@ async function checkPaymentEnabled(): Promise<boolean> {
 
 function useSetupStatus() {
   const adminPath = useAdminPath()
+  // 注册开关已随站点设置加载，保存后会刷新，无需单独请求
+  const registrationOpen = useRegistrationOpen()
 
   // 聚合节点/镜像/套餐/支付四项检查，单次请求失败按未完成处理（与原逻辑一致），故用手写聚合 key
   const query = useQuery({
@@ -120,8 +123,16 @@ function useSetupStatus() {
         icon: CreditCard,
         done: status.hasPayment,
       },
+      {
+        key: "registration",
+        label: "开放用户注册",
+        description: "新站点默认关闭注册，开启后访客才能自助注册并下单",
+        href: `${adminPath}/settings/registration`,
+        icon: UserPlus,
+        done: registrationOpen,
+      },
     ]
-  }, [status, adminPath])
+  }, [status, adminPath, registrationOpen])
 }
 
 export function SetupGuide() {

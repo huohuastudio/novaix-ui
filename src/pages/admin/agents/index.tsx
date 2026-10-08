@@ -294,7 +294,6 @@ function AgentList() {
         emptyDescription="设置代理后将显示在这里"
         emptyAction={
           <Button variant="outline" onClick={openCreate}>
-            <Plus className="size-4" />
             设置代理
           </Button>
         }

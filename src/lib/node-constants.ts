@@ -11,3 +11,16 @@ export const statusMap: Record<number, { label: string; variant: "default" | "se
 }
 
 export const statusFilterOptions = Object.entries(statusMap).map(([value, { label }]) => ({ label, value }))
+
+// 运行时返回的存储池/网络状态（英文原值）转中文展示
+const runtimeResourceStatusLabels: Record<string, string> = {
+  Created: "正常",
+  Pending: "待创建",
+  Errored: "异常",
+  Unknown: "未知",
+  Unavailable: "不可用",
+}
+
+export function runtimeResourceStatusLabel(status: string) {
+  return runtimeResourceStatusLabels[status] ?? status
+}

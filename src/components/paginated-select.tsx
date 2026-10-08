@@ -93,10 +93,10 @@ export function PaginatedSelect({
       <PopoverTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="field"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          className="w-full justify-between pl-2.5 pr-2"
         >
           {selectedItem ? (
             <span className="truncate">{selectedItem.label}</span>

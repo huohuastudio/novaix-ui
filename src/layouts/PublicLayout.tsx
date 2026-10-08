@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom"
 import { Menu, X, ChevronDown, ExternalLink, LayoutDashboard, Settings } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
-import { useSiteSettings, useAdminPath } from "@/hooks/use-site-settings"
+import { useSiteSettings, useAdminPath, useRegistrationOpen } from "@/hooks/use-site-settings"
 import { BootstrapContext, EMPTY_BOOTSTRAP } from "@/hooks/use-bootstrap"
 import type { BootstrapData } from "@/hooks/use-bootstrap"
 import { isAuthenticated, getUser } from "@/lib/auth"
@@ -157,6 +157,7 @@ function groupLinks(links: PublicPublicLinkItem[]): FooterLinkGroup[] {
 
 export default function PublicLayout() {
   const { site_name: siteName, site_logo: logo, site_copyright: copyright, tos_url: tosUrl, privacy_url: privacyUrl, edition } = useSiteSettings()
+  const registrationOpen = useRegistrationOpen()
   const adminPath = useAdminPath()
   const { pathname, hash } = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -285,12 +286,15 @@ export default function PublicLayout() {
               </>
             ) : (
               <>
-                <Button variant="ghost" size="sm" className={immersive ? IMMERSIVE_BTN : ""} asChild>
+                {/* 未开放注册时只保留登录入口，并作为主按钮 */}
+                <Button variant={registrationOpen ? "ghost" : "default"} size="sm" className={registrationOpen && immersive ? IMMERSIVE_BTN : ""} asChild>
                   <Link to="/login">登录</Link>
                 </Button>
-                <Button size="sm" asChild>
-                  <Link to="/register">注册</Link>
-                </Button>
+                {registrationOpen && (
+                  <Button size="sm" asChild>
+                    <Link to="/register">注册</Link>
+                  </Button>
+                )}
               </>
             )}
             {headerMenus.length > 0 && (

@@ -17,7 +17,7 @@ import type {
   PublicPublicPlanItem,
   PublicPublicBannerItem, PublicPublicTestimonialItem, PublicPublicRegionItem,
 } from '@/api'
-import { useFormatAmount } from '@/hooks/use-site-settings'
+import { useFormatAmount, useRegistrationOpen } from '@/hooks/use-site-settings'
 import { useBootstrapData } from '@/hooks/use-bootstrap'
 import { isAuthenticated } from '@/lib/auth'
 import { formatMemory, parseJSON } from '@/lib/utils'
@@ -490,6 +490,10 @@ function ManageVisual() {
    ================================================================ */
 
 const billingLabels: Record<string, string> = { monthly: '月付', quarterly: '季付', yearly: '年付' }
+const PRICING_CYCLES = ['monthly', 'quarterly', 'yearly'] as const
+const planSupportsCycle = (p: PublicPublicPlanItem, c: string) => p.enabled_cycles?.includes(c) ?? false
+// 卡片数量不足一行时居中排列，避免在居中标题下偏向左侧
+const centeredCardGrid = 'flex flex-wrap justify-center gap-5 *:w-full sm:*:w-[calc((100%-1.25rem)/2)] lg:*:w-[calc((100%-2.5rem)/3)]'
 
 function PlanCard({ plan, cycle, formatAmount, index }: {
   plan: PublicPublicPlanItem; cycle: string; formatAmount: (v: number) => string; index: number
@@ -504,6 +508,8 @@ function PlanCard({ plan, cycle, formatAmount, index }: {
   if ((plan.traffic ?? 0) > 0) specs.push({ label: '流量', value: `${plan.traffic} GB/月` })
 
   const authed = isAuthenticated()
+  // 未开放注册时访客入口改为登录页
+  const guestEntry = useRegistrationOpen() ? '/register' : '/login'
 
   return (
     <motion.div
@@ -512,8 +518,8 @@ function PlanCard({ plan, cycle, formatAmount, index }: {
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
     >
-      <GlowCard>
-        <div className="p-6">
+      <GlowCard className="h-full">
+        <div className="p-6 h-full flex flex-col">
           <h3 className="font-semibold text-foreground">{plan.name}</h3>
           {plan.description && <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>}
           <div className="mt-5 mb-6">
@@ -529,8 +535,8 @@ function PlanCard({ plan, cycle, formatAmount, index }: {
               </div>
             ))}
           </div>
-          <Button className="w-full" variant="outline" asChild>
-            <Link to={authed ? '/portal/purchase' : '/register'}>选择方案</Link>
+          <Button className="w-full mt-auto" variant="outline" asChild>
+            <Link to={authed ? '/portal/purchase' : guestEntry}>选择方案</Link>
           </Button>
         </div>
       </GlowCard>
@@ -669,7 +675,7 @@ function TestimonialSection({ testimonials }: { testimonials: PublicPublicTestim
 
 function DataCenterSection({ regions }: { regions: PublicPublicRegionItem[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className={centeredCardGrid}>
       {regions.slice(0, 6).map((dc, i) => (
         <Reveal key={dc.id} delay={i * 0.06}>
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
@@ -722,6 +728,8 @@ export default function Home() {
   const { banners, testimonials, regions, faqs, homeReady } = useBootstrapData()
 
   const authed = isAuthenticated()
+  // 未开放注册时访客入口改为登录页
+  const guestEntry = useRegistrationOpen() ? '/register' : '/login'
 
   // 首页设置（区块配置）
   const homepageQuery = useQuery(getSettingsHomepageOptions())
@@ -732,7 +740,13 @@ export default function Home() {
 
   // 公开套餐列表
   const plansQuery = useQuery(getPlansPublicOptions())
-  const groups = plansQuery.data?.data ?? []
+  const groups = useMemo(() => plansQuery.data?.data ?? [], [plansQuery.data])
+  // 只展示至少有一个套餐开放的计费周期
+  const availableCycles = useMemo(
+    () => PRICING_CYCLES.filter((c) => groups.some((g) => (g.plans ?? []).some((p) => planSupportsCycle(p, c)))),
+    [groups],
+  )
+  const activeCycle = availableCycles.includes(cycle as typeof PRICING_CYCLES[number]) ? cycle : (availableCycles[0] ?? 'monthly')
   const loadingPlans = plansQuery.isPending
 
   const hasBanners = banners.length > 0
@@ -769,7 +783,7 @@ export default function Home() {
             </BlurIn>
             <BlurIn delay={0.3} className="mt-8 sm:mt-10 flex items-center justify-center gap-3">
               <Button size="lg" className={`h-12 gap-2.5 rounded-lg px-6 text-lg font-normal border-0 group/btn ${hasBanners ? "bg-white text-black hover:bg-white/90" : ""}`} asChild>
-                <Link to={authed ? '/portal/purchase' : '/register'}>
+                <Link to={authed ? '/portal/purchase' : guestEntry}>
                   开始使用
                   <ArrowRight className="size-4 transition-transform duration-150 ease-out group-hover/btn:translate-x-0.5" />
                 </Link>
@@ -904,12 +918,13 @@ export default function Home() {
 
           <Reveal delay={0.1}>
             <div className="flex justify-center mt-10 mb-12">
+              {availableCycles.length > 1 && (
               <div className="inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/50">
-                {(['monthly', 'quarterly', 'yearly'] as const).map((c) => (
+                {availableCycles.map((c) => (
                   <button key={c} onClick={() => setCycle(c)}
-                    className={`relative px-5 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${cycle === c ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`relative px-5 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${activeCycle === c ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >
-                    {cycle === c && (
+                    {activeCycle === c && (
                       <motion.div layoutId="pill" className="absolute inset-0 bg-background rounded-md shadow-sm border border-border/60"
                         transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }} />
                     )}
@@ -917,6 +932,7 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           </Reveal>
 
@@ -930,20 +946,24 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : groups.length === 0 ? (
+          ) : groups.length === 0 || availableCycles.length === 0 ? (
             <p className="text-center text-muted-foreground py-12">暂无可用方案</p>
           ) : (
             <div className="space-y-16">
-              {groups.map((g) => (
+              {groups.map((g) => {
+                const plans = (g.plans ?? []).filter((p) => planSupportsCycle(p, activeCycle))
+                if (plans.length === 0) return null
+                return (
                 <div key={g.name}>
-                  {groups.length > 1 && <h3 className="text-lg font-semibold mb-6">{g.name}</h3>}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {(g.plans ?? []).map((p, i) => (
-                      <PlanCard key={p.name} plan={p} cycle={cycle} formatAmount={formatAmount} index={i} />
+                  {groups.length > 1 && <h3 className="text-lg font-semibold mb-6 text-center">{g.name}</h3>}
+                  <div className={centeredCardGrid}>
+                    {plans.map((p, i) => (
+                      <PlanCard key={p.name} plan={p} cycle={activeCycle} formatAmount={formatAmount} index={i} />
                     ))}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -977,7 +997,7 @@ export default function Home() {
               </p>
               <div className="mt-8 sm:mt-10">
                 <Button size="lg" className="h-12 gap-2.5 rounded-lg px-6 text-lg font-normal group/btn animate-glow-pulse" asChild>
-                  <Link to={authed ? '/portal/purchase' : '/register'}>
+                  <Link to={authed ? '/portal/purchase' : guestEntry}>
                     {cfg.cta.button_text} <ArrowRight className="size-4 transition-transform duration-150 ease-out group-hover/btn:translate-x-0.5" />
                   </Link>
                 </Button>

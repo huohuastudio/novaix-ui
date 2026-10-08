@@ -96,6 +96,11 @@ export const incusConfigSchema = z.object({
   // 设备 - 网络
   network_device_name: z.string().optional(),
   network_name: z.string().optional(),
+  // 保存未建模的网卡属性，编辑过滤策略时不丢失 IP、MAC、MTU 等配置。
+  network_device_config: z.record(z.string(), z.string()).optional(),
+  network_ipv4_filtering: z.enum(["default", "true", "false"]),
+  network_ipv6_filtering: z.enum(["default", "true", "false"]),
+  network_mac_filtering: z.enum(["default", "true", "false"]),
 
   // 设备 - 磁盘
   disk_pool: z.string().optional(),
@@ -170,6 +175,9 @@ export const incusConfigDefaults: IncusConfigFormValues = {
   cloud_init_vendor_data: "",
   cloud_init_network_config: "",
   network_device_name: "eth0",
+  network_ipv4_filtering: "default",
+  network_ipv6_filtering: "default",
+  network_mac_filtering: "default",
   network_name: "",
   disk_pool: "",
   disk_size: "",
@@ -232,9 +240,15 @@ export function buildConfigAndDevices(values: IncusConfigFormValues) {
       ...(values.disk_size && { size: values.disk_size }),
     }
   }
-  if (values.network_name) {
-    devices[values.network_device_name || "eth0"] = { type: "nic", network: values.network_name }
+  const nic: Record<string, string> = { ...values.network_device_config, type: "nic" }
+  if (values.network_name) nic.network = values.network_name
+  else delete nic.network
+  for (const family of ["ipv4", "ipv6", "mac"] as const) {
+    const value = values[`network_${family}_filtering`]
+    if (value !== "default" && nic.nictype !== "routed") nic[`security.${family}_filtering`] = value
+    else delete nic[`security.${family}_filtering`]
   }
+  if (Object.keys(nic).length > 1) devices[values.network_device_name || "eth0"] = nic
   for (const proxy of values.proxy_devices) {
     devices[proxy.name] = {
       type: "proxy", listen: proxy.listen, connect: proxy.connect, bind: proxy.bind,
@@ -369,6 +383,10 @@ export function configToFormValues(
     disk_size: rootDev?.size ?? "",
     network_device_name: nicEntry?.[0] ?? "eth0",
     network_name: nicEntry?.[1]?.network ?? "",
+    network_device_config: nicEntry?.[1],
+    network_ipv4_filtering: nicFilterValue(nicEntry?.[1]?.["security.ipv4_filtering"]),
+    network_ipv6_filtering: nicFilterValue(nicEntry?.[1]?.["security.ipv6_filtering"]),
+    network_mac_filtering: nicFilterValue(nicEntry?.[1]?.["security.mac_filtering"]),
     proxy_devices: proxyDevices,
     gpu_devices: gpuDevices,
     volume_devices: volumeDevices,
@@ -404,4 +422,8 @@ function buildRawIncusConfig(cfg: Record<string, string> | null | undefined): st
     }
   }
   return Object.keys(extra).length > 0 ? JSON.stringify(extra, null, 2) : ""
+}
+
+function nicFilterValue(value: string | undefined): "default" | "true" | "false" {
+  return value === "true" || value === "false" ? value : "default"
 }

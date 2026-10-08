@@ -374,7 +374,7 @@ export default function TicketDetail() {
           <Separator className="shrink-0" />
           <section className="shrink-0 space-y-3">
             <h3 className="text-sm font-medium">回复工单</h3>
-            <RichTextEditor value={replyContent} onChange={setReplyContent} />
+            <RichTextEditor compact value={replyContent} onChange={setReplyContent} />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Switch id="internal" checked={isInternal} onCheckedChange={setIsInternal} />

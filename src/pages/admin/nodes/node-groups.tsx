@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Server, Folder } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   getAdminNodeGroups,
   deleteAdminNodeGroupsById,
@@ -138,9 +139,22 @@ export default function NodeGroups() {
         const g = row.original
         return (
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(g)}>
-              <Pencil className="size-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8" onClick={() => setNodesDialogGroup(g)}>
+                  <Server className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>管理组内节点</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(g)}>
+                  <Pencil className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>编辑</TooltipContent>
+            </Tooltip>
             <Button
               variant="ghost"
               size="icon"
@@ -171,7 +185,6 @@ export default function NodeGroups() {
         emptyDescription="创建节点组来组织和管理节点"
         emptyAction={
           <Button variant="outline" onClick={handleCreate}>
-            <Plus className="size-4" />
             创建节点组
           </Button>
         }

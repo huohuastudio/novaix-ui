@@ -29,7 +29,7 @@ import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { useDebounce } from "@uidotdev/usehooks"
 import { formatMemory } from "@/lib/utils"
-import { portalStatusConfig } from "@/lib/instance-constants"
+import { portalStatusConfig, instanceAccessAddress } from "@/lib/instance-constants"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 
 function StatusIndicator({ status }: { status: string }) {
@@ -74,7 +74,7 @@ function InstanceCard({
 
         {/* IP */}
         <p className="text-xs text-muted-foreground mt-1 font-mono">
-          {instance.ip_address || instance.ipv6_address || "未分配 IP"}
+          {instanceAccessAddress(instance) || "未分配 IP"}
         </p>
 
         {/* 配置 */}
@@ -87,52 +87,48 @@ function InstanceCard({
         </div>
 
         {/* 底部信息 */}
-        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/70">
-          {instance.plan_name && <span>{instance.plan_name}</span>}
-          {instance.os_type && (
-            <>
-              {instance.plan_name && <span className="text-border/60">·</span>}
-              <span>{instance.os_type}</span>
-            </>
-          )}
-          {instance.expire_at && (
-            <>
-              {(instance.plan_name || instance.os_type) && <span className="text-border/60">·</span>}
-              <span>到期 {formatDate(instance.expire_at)}</span>
-            </>
-          )}
-        </div>
+        <p className="mt-2 text-xs text-muted-foreground/70">
+          {[instance.plan_name, instance.os_type, instance.expire_at && `到期 ${formatDate(instance.expire_at)}`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
       </Link>
 
       {/* 操作栏 */}
       <div className="relative z-10 flex items-center justify-end gap-1 mt-3 pt-3 border-t border-transparent group-hover:border-border/40 transition-colors" data-tour="instance-actions" onClick={(e) => e.stopPropagation()}>
-        <Button
-          variant="outline"
-          className="h-7 px-2.5 text-xs gap-1"
-          disabled={disabled || isRunning}
-          onClick={() => onAction(instance, "start")}
-        >
-          <Play className="size-3" />
-          启动
-        </Button>
-        <Button
-          variant="outline"
-          className="h-7 px-2.5 text-xs gap-1"
-          disabled={disabled || !isRunning}
-          onClick={() => onAction(instance, "restart")}
-        >
-          <RotateCcw className="size-3" />
-          重启
-        </Button>
-        <Button
-          variant="outline"
-          className="h-7 px-2.5 text-xs gap-1"
-          disabled={disabled || !isRunning}
-          onClick={() => onAction(instance, "stop")}
-        >
-          <Square className="size-3" />
-          停止
-        </Button>
+        {/* 按当前状态只展示可执行的电源操作 */}
+        {isRunning ? (
+          <>
+            <Button
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={disabled}
+              onClick={() => onAction(instance, "restart")}
+            >
+              <RotateCcw className="size-3" />
+              重启
+            </Button>
+            <Button
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={disabled}
+              onClick={() => onAction(instance, "stop")}
+            >
+              <Square className="size-3" />
+              停止
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="outline"
+            className="h-7 px-2.5 text-xs gap-1"
+            disabled={disabled}
+            onClick={() => onAction(instance, "start")}
+          >
+            <Play className="size-3" />
+            启动
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="size-7">

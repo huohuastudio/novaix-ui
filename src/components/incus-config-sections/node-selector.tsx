@@ -126,11 +126,11 @@ export function NodeSelector({ form, onNodeSwitch }: NodeSelectorProps) {
             <PopoverTrigger asChild>
               <FormControl>
                 <Button
-                  variant="outline"
+                  variant="field"
                   role="combobox"
                   aria-expanded={open}
                   className={cn(
-                    "w-full justify-between font-normal border border-input bg-transparent hover:bg-transparent aria-expanded:bg-transparent dark:bg-input/30 dark:hover:bg-input/50 dark:aria-expanded:bg-input/50",
+                    "w-full justify-between pl-2.5 pr-2",
                     !field.value && "text-muted-foreground"
                   )}
                 >
@@ -144,7 +144,7 @@ export function NodeSelector({ form, onNodeSwitch }: NodeSelectorProps) {
                 </Button>
               </FormControl>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
               <Command shouldFilter={false} disablePointerSelection>
                 <CommandInput
                   placeholder="搜索节点名称或地址..."

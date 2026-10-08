@@ -5,9 +5,15 @@ import { cn } from "@/lib/utils"
 import { ChevronsUpDownIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 function Select({
+  onValueChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  // 选项不允许空字符串值，Radix 在条件渲染挂载时可能回调空值，会冲掉程序设置的选中项，这里统一忽略
+  const handleValueChange = React.useCallback(
+    (v: string) => { if (v !== "") onValueChange?.(v) },
+    [onValueChange],
+  )
+  return <SelectPrimitive.Root data-slot="select" onValueChange={handleValueChange} {...props} />
 }
 
 function SelectGroup({

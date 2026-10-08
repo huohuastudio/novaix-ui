@@ -71,7 +71,7 @@ export function StoragePoolResizeDialog({ nodeId, poolName, onClose }: { nodeId:
                 ["宿主预留空间", capacity.reserved_bytes],
               ].map(([label, bytes]) => <div key={String(label)}><dt className="text-muted-foreground">{label}</dt><dd className="mt-1 font-medium">{formatBytes(Number(bytes ?? 0))}</dd></div>)}
             </dl>
-            <p className="text-sm text-muted-foreground">已扣除同分区其他池及当前池尚未占用的容量，并为宿主预留空间。当前最多可扩至 {capacity.max_size_gib} GiB。</p>
+            <p className="text-sm text-muted-foreground">先扣除同分区池文件待占用的空间，再预留剩余空间的 20% 供宿主使用；最低预留为分区总容量的 10%（不低于 2 GiB、不高于 10 GiB），取较大值，并非固定只留 10 GiB。当前最多可扩至 {capacity.max_size_gib} GiB。</p>
             <div className="space-y-2">
               <Label htmlFor="pool-resize-size">目标容量（GiB）</Label>
               <Input id="pool-resize-size" type="number" min={Math.floor((capacity.current_size_bytes ?? 0) / 1024 ** 3) + 1} max={capacity.max_size_gib} step={1} value={value} onChange={(event) => setSize(event.target.value)} disabled={submitting} />

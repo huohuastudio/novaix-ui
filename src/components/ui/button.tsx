@@ -19,6 +19,9 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // 外观与 Input/SelectTrigger 一致，用于 Popover 下拉选择器的触发按钮
+        field:
+          "border border-input bg-transparent font-normal focus-visible:border-foreground/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 dark:aria-expanded:bg-input/50",
       },
       size: {
         default:

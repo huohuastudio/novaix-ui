@@ -31,6 +31,8 @@ export function useBreadcrumb(items: BreadcrumbEntry[]) {
 
   useEffect(() => {
     setItems(JSON.parse(serialized) as BreadcrumbEntry[])
+    // 页面卸载时清空，避免跳到未设置面包屑的页面时残留上一页的标题
+    return () => setItems([])
   }, [setItems, serialized])
 }
 

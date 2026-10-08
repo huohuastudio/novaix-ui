@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-export function AdminIpList({ instanceId, onRefresh }: { instanceId: number; onRefresh: () => void }) {
+export function AdminIpList({ instanceId, onRefresh, emptyText }: { instanceId: number; onRefresh: () => void; emptyText?: string }) {
   const queryClient = useQueryClient()
   const [removeConfirm, setRemoveConfirm] = useState<InstanceIpItem | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -87,6 +87,8 @@ export function AdminIpList({ instanceId, onRefresh }: { instanceId: number; onR
     )
   }
   if (ips.length === 0) {
+    // 有替代说明（如 NAT 实例）时用一行文字，避免大块空状态
+    if (emptyText) return <p className="text-sm text-muted-foreground">{emptyText}</p>
     return <EmptyState icon={Network} title="暂无 IP 地址" />
   }
   return (

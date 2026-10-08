@@ -26,9 +26,10 @@ export function isHtmlEmpty(html: string): boolean {
   return text.length === 0
 }
 
-export function formatMemory(mb: number): string {
-  if (mb >= 1024) return `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`
-  return `${mb} MB`
+// compact 用于表格等窄空间，输出 "1G" / "512M"
+export function formatMemory(mb: number, compact = false): string {
+  if (mb >= 1024) return `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)}${compact ? "G" : " GB"}`
+  return `${mb}${compact ? "M" : " MB"}`
 }
 
 export function formatDisk(gb: number): string {

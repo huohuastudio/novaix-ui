@@ -16,7 +16,8 @@ import {
   postPortalOrdersByIdPay,
   postPortalPayments,
 } from "@/api"
-import { getPortalPaymentMethodsOptions } from "@/api/@tanstack/react-query.gen"
+import { getPortalPaymentMethodsOptions, getPortalProfileOptions } from "@/api/@tanstack/react-query.gen"
+import { Link } from "react-router-dom"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { cn, getErrorMessage, getErrorCode } from "@/lib/utils"
 import { PaymentMethodGrid } from "@/components/payment-method-picker"
@@ -35,7 +36,8 @@ interface PayDialogProps {
 
 export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAmountChanged }: PayDialogProps) {
   const formatAmount = useFormatAmount()
-  const [payMode, setPayMode] = useState<"balance" | "online">("balance")
+  // null 表示用户尚未手动选择，此时按余额是否充足自动决定
+  const [payMode, setPayMode] = useState<"balance" | "online" | null>(null)
   const [selectedProvider, setSelectedProvider] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -54,14 +56,21 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
   const methods = methodsQuery.data?.data ?? []
   const loadingMethods = methodsQuery.isPending
 
+  // 当前余额：用于提示余额不足，避免用户点击后才被拒绝
+  const profileQuery = useQuery({ ...getPortalProfileOptions(), enabled: open })
+  const balance = profileQuery.data?.data?.balance
+  const balanceShort = balance !== undefined && balance < amount
+
   useEffect(() => {
     if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置状态
     setPaymentResult(null)
-    setPayMode("balance")
+    setPayMode(null)
     setSelectedProvider("")
     setSelectedMethod("")
   }, [open])
+
+  const effectivePayMode = payMode ?? (balanceShort && methods.length > 0 ? "online" : "balance")
 
   // 未手动选择时默认选中第一个支付方式（原逻辑在加载完成后 setState，这里改为派生）
   const effectiveProvider = selectedProvider || (methods[0]?.provider ?? "")
@@ -69,7 +78,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
   const selectedMethodObj = methods.find(
     (m) => (m.provider ?? "") === effectiveProvider && (m.method ?? "") === effectiveMethod
   )
-  const fee = payMode === "online" ? calculateFee(selectedMethodObj, amount) : 0
+  const fee = effectivePayMode === "online" ? calculateFee(selectedMethodObj, amount) : 0
   const totalAmount = amount + fee
 
   const handleBalancePay = async () => {
@@ -182,7 +191,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
                 type="button"
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                  payMode === "balance"
+                  effectivePayMode === "balance"
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border hover:bg-accent"
                 )}
@@ -190,12 +199,15 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
               >
                 <Wallet className="size-4" />
                 余额支付
+                {balance !== undefined && (
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">{formatAmount(balance)}</span>
+                )}
               </button>
               <button
                 type="button"
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                  payMode === "online"
+                  effectivePayMode === "online"
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border hover:bg-accent",
                   methods.length === 0 && "opacity-50 cursor-not-allowed"
@@ -207,9 +219,18 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
                 在线支付
               </button>
             </div>
+            {effectivePayMode === "balance" && balanceShort && (
+              <p className="text-xs text-destructive">
+                余额不足，还差 {formatAmount(amount - (balance ?? 0))}，
+                <Link to="/portal/wallet" className="underline underline-offset-2" onClick={() => onOpenChange(false)}>去充值</Link>
+              </p>
+            )}
+            {!loadingMethods && methods.length === 0 && (
+              <p className="text-xs text-muted-foreground">本站暂未开通在线支付</p>
+            )}
           </div>
 
-          {payMode === "online" && (
+          {effectivePayMode === "online" && (
             <div className="space-y-3">
               <Label>选择支付方式</Label>
               {loadingMethods ? (
@@ -227,7 +248,7 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
             </div>
           )}
 
-          {payMode === "online" && fee > 0 && (
+          {effectivePayMode === "online" && fee > 0 && (
             <div className="rounded-md border border-dashed p-3 text-sm space-y-1">
               <div className="flex justify-between text-muted-foreground">
                 <span>订单金额</span>
@@ -246,15 +267,15 @@ export function PayDialog({ open, onOpenChange, orderId, amount, onSuccess, onAm
 
           <Button
             className="w-full"
-            disabled={submitting || (payMode === "online" && !effectiveProvider)}
-            onClick={payMode === "balance" ? handleBalancePay : handleOnlinePay}
+            disabled={submitting || (effectivePayMode === "online" && !effectiveProvider) || (effectivePayMode === "balance" && balanceShort)}
+            onClick={effectivePayMode === "balance" ? handleBalancePay : handleOnlinePay}
           >
             {submitting ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
                 处理中...
               </>
-            ) : payMode === "balance" ? (
+            ) : effectivePayMode === "balance" ? (
               `余额支付 ${formatAmount(amount)}`
             ) : (
               `在线支付 ${formatAmount(fee > 0 ? totalAmount : amount)}`

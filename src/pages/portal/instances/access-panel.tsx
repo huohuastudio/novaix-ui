@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Terminal } from "lucide-react"
 import { toast } from "sonner"
-import { isIPv6OnlyInstance } from "@/lib/instance-constants"
+import { isIPv6OnlyInstance, instanceAccessAddress } from "@/lib/instance-constants"
 import { getErrorMessage } from "@/lib/utils"
 
 export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }) {
@@ -20,7 +20,7 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
   const defaultUser = instance.default_user || "root"
   const primaryIP = instance.ip_address || instance.ipv6_address || ""
   const isIPv6Only = isIPv6OnlyInstance(instance)
-  const ip = nat ? `${nat.shared_ip_address}:${nat.ssh_port}` : primaryIP
+  const ip = instanceAccessAddress(instance)
   const sshCommand = nat
     ? `ssh -p ${nat.ssh_port} ${defaultUser}@${nat.shared_ip_address}`
     : (primaryIP ? `ssh ${defaultUser}@${primaryIP}` : "")
@@ -92,10 +92,10 @@ export function AccessPanel({ instance }: { instance: PortalPortalInstanceItem }
 
         {/* SSH 命令 */}
         {sshCommand && (
-          <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-xs text-muted-foreground">SSH 命令</span>
-            <div className="flex items-center gap-1.5">
-              <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{sshCommand}</code>
+          <div className="flex items-center justify-between gap-3 px-5 py-3.5">
+            <span className="text-xs text-muted-foreground shrink-0">SSH 命令</span>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded break-all">{sshCommand}</code>
               <CopyButton value={sshCommand} />
             </div>
           </div>

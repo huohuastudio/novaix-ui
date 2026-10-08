@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useSiteSettings } from "@/hooks/use-site-settings"
+import { useSiteSettings, useRegistrationOpen } from "@/hooks/use-site-settings"
 import { useCaptcha } from "@/hooks/use-captcha"
 import { CaptchaWidget } from "@/components/captcha-widget"
 import { SocialLoginButtons } from "@/components/social-login-buttons"
@@ -16,6 +16,7 @@ import { getErrorMessage } from "@/lib/utils"
 
 export default function RegisterPage() {
   const { site_name: siteName, site_logo: logo, sms_enabled, registration_email_verify } = useSiteSettings()
+  const registrationOpen = useRegistrationOpen()
   const smsEnabled = sms_enabled === "true"
   const emailVerifyEnabled = registration_email_verify !== "false"
   const navigate = useNavigate()
@@ -152,6 +153,26 @@ export default function RegisterPage() {
   const handleStep2 = async (e: FormEvent) => {
     e.preventDefault()
     await submitRegister(code)
+  }
+
+  // 注册未开放时直接提示，避免用户填完表单才被拒绝
+  if (!registrationOpen) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm text-center">
+          {logo ? (
+            <img src={logo} alt={siteName} className="h-8 mx-auto mb-3" />
+          ) : (
+            <h1 className="text-2xl font-bold tracking-tight">{siteName}</h1>
+          )}
+          <p className="text-sm text-muted-foreground mt-4">本站暂未开放注册，如需开通账户请联系站点管理员</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button variant="outline" asChild><Link to="/">返回首页</Link></Button>
+            <Button asChild><Link to="/login">已有账户，去登录</Link></Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

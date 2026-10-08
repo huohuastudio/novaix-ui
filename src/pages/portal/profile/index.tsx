@@ -102,7 +102,8 @@ export default function PortalProfile() {
   const siteName = useSiteName()
   const adminPath = useAdminPath()
   const formatDate = useFormatDate()
-  const { kyc_enabled } = useSiteSettings()
+  const { kyc_enabled, sms_enabled } = useSiteSettings()
+  const smsEnabled = sms_enabled === "true"
   useDocumentTitle(`个人资料 - ${siteName}`)
 
   const queryClient = useQueryClient()
@@ -390,9 +391,13 @@ export default function PortalProfile() {
     }
     setChangingPwd(true)
     try {
-      await putPortalProfilePassword({
+      const { data: res } = await putPortalProfilePassword({
         body: { old_password: oldPassword, new_password: newPassword, totp_code: pwdTotpCode || undefined },
       })
+      if (res?.code !== 0) {
+        toast.error(res?.message || '修改密码失败，请重试')
+        return
+      }
       toast.success('密码已修改')
       setOldPassword('')
       setNewPassword('')
@@ -657,6 +662,9 @@ export default function PortalProfile() {
                 )}
               </div>
 
+              {/* 手机号：未开启短信且未绑定过手机号时不展示，避免绑定时收不到验证码 */}
+              {(smsEnabled || profile?.phone) && (
+                <>
               <Separator className="my-8" />
 
               {/* 手机号 */}
@@ -677,6 +685,8 @@ export default function PortalProfile() {
                 <div className="mt-4 max-w-md">
                   <p className="text-sm font-mono">{maskPhone(profile.phone)}</p>
                 </div>
+              )}
+                </>
               )}
 
               <Separator className="my-8" />

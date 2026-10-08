@@ -446,7 +446,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                 <span>
                   <Button
                     variant="outline"
-                    disabled={instance.status !== "stopped"}
+                    disabled={instance.status !== "stopped" || !!instance.nat_info}
                     onClick={() => setChangeIPOpen(true)}
                   >
                     <ArrowRightLeft className="size-4" />
@@ -454,17 +454,19 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
                   </Button>
                 </span>
               </TooltipTrigger>
-              {instance.status !== "stopped" && (
-                <TooltipContent>需要先停止实例才能更换 IP</TooltipContent>
+              {(instance.status !== "stopped" || instance.nat_info) && (
+                <TooltipContent>{instance.nat_info ? "NAT 实例请使用独享公网 IP 管理" : "需要先停止实例才能更换 IP"}</TooltipContent>
               )}
             </Tooltip>
           </div>
         </div>
-        <AdminIpList instanceId={instance.id!} onRefresh={onRefresh} />
+        <AdminIpList instanceId={instance.id!} onRefresh={onRefresh} emptyText={instance.nat_info ? "NAT 实例通过下方共享 IP 和端口访问，暂无独享 IP" : undefined} />
         <FreeIpPickerDialog
           open={changeIPOpen}
           onOpenChange={setChangeIPOpen}
           title="更换 IP 地址"
+          instanceId={instance.id!}
+          purpose="change"
           confirmLabel="确认更换"
           onConfirm={handleChangeIP}
         />
@@ -472,6 +474,8 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
           open={addIpOpen}
           onOpenChange={setAddIpOpen}
           title="添加 IP 地址"
+          instanceId={instance.id!}
+          purpose="add"
           confirmLabel="确认添加"
           onConfirm={handleAddIp}
         />

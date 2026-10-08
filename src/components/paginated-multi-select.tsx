@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, type ComponentProps } from "react"
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,7 @@ export interface PaginatedMultiSelectItem {
   description?: string
 }
 
-interface PaginatedMultiSelectProps {
+interface PaginatedMultiSelectProps extends Pick<ComponentProps<"button">, "id" | "aria-describedby" | "aria-invalid" | "ref"> {
   value: string[]
   onChange: (value: string[]) => void
   fetchFn: (page: number, keyword: string) => Promise<PaginatedFetchResult<PaginatedMultiSelectItem>>
@@ -42,6 +42,7 @@ export function PaginatedMultiSelect({
   placeholder = "选择...",
   searchPlaceholder = "搜索...",
   emptyText = "无匹配项",
+  ...controlProps
 }: PaginatedMultiSelectProps) {
   const [open, setOpen] = useState(false)
 
@@ -103,22 +104,24 @@ export function PaginatedMultiSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          {...controlProps}
           type="button"
-          variant="outline"
+          variant="field"
           role="combobox"
           aria-expanded={open}
-          className="h-auto min-h-9 w-full justify-start font-normal"
+          className="h-auto min-h-8 w-full justify-start pl-2.5 pr-2"
         >
           {selectedItems.length > 0 ? (
             selectedItems.length <= 2 ? (
-              <div className="flex items-center gap-1 overflow-hidden">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {selectedItems.map((item) => (
-                  <Badge key={item.id} variant="secondary" className="gap-0.5 pr-0.5 shrink-0">
-                    {item.label}
+                  <Badge key={item.id} variant="secondary" className="max-w-full gap-0.5 pr-0.5">
+                    <span className="truncate">{item.label}</span>
                     <span
                       role="button"
+                      aria-label={`移除 ${item.label}`}
                       tabIndex={0}
-                      className="ml-0.5 rounded-sm p-0.5 hover:bg-muted-foreground/20"
+                      className="ml-0.5 shrink-0 rounded-sm p-0.5 hover:bg-muted-foreground/20"
                       onClick={(e) => handleRemove(item.id, e)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleRemove(item.id, e as unknown as React.MouseEvent) }}
                     >

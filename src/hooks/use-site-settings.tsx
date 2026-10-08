@@ -189,6 +189,11 @@ export function useSiteSettings() {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+export function useRegistrationOpen() {
+  return useContext(SiteSettingsContext).registration_enabled === "true"
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCurrencySymbol() {
   return useContext(SiteSettingsContext).currency_symbol
 }

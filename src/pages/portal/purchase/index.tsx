@@ -176,7 +176,7 @@ export default function PortalPurchase() {
     setCouponValidating(true)
     try {
       const { data: res } = await postPortalCouponsValidate({
-        body: { code: couponCode.trim(), order_type: 'new', amount: price },
+        body: { code: couponCode.trim(), order_type: 'new', amount: price, plan_id: selectedPlan?.id },
       })
       if (res?.code === 0 && res.data) {
         setCouponDiscount(res.data.discount_amount ?? 0)
@@ -399,7 +399,8 @@ export default function PortalPurchase() {
         </div>
       </div>
 
-      {/* 计费周期 */}
+      {/* 计费周期：没有可选套餐时不展示空标题 */}
+      {selectedPlan && (
       <div className="space-y-4" data-tour="purchase-cycle">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">计费周期</h2>
         <div className="flex flex-wrap gap-2">
@@ -426,6 +427,7 @@ export default function PortalPurchase() {
           })}
         </div>
       </div>
+      )}
 
       {/* 系统镜像 */}
       {images.length > 0 && (
@@ -451,55 +453,11 @@ export default function PortalPurchase() {
         </div>
       )}
 
-      {/* 数量 */}
-      <div className="space-y-4">
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">购买数量</h2>
-        <div className="rounded-2xl bg-background p-6">
-          <div className="flex items-center gap-4 max-w-xs">
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              disabled={quantity <= 1}
-              onClick={() => { setQuantity(q => Math.max(1, q - 1)); setCouponDiscount(0) }}
-            >
-              −
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={maxQuantity}
-              value={quantity}
-              onChange={(e) => {
-                const v = Math.max(1, Math.min(maxQuantity, Number(e.target.value) || 1))
-                setQuantity(v)
-                setCouponDiscount(0)
-              }}
-              className="text-center font-semibold"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              disabled={quantity >= maxQuantity}
-              onClick={() => { setQuantity(q => Math.min(maxQuantity, q + 1)); setCouponDiscount(0) }}
-            >
-              +
-            </Button>
-          </div>
-          {quantity > 1 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              单价 {formatAmount(unitPrice)} × {quantity} 台 = {formatAmount(price)}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* 主机名和密码 */}
+      {/* 基本配置：主机名、密码、数量、优惠码合并到同一卡片 */}
       <div className="space-y-4" data-tour="purchase-config">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">基本配置</h2>
-        <div className="rounded-2xl bg-background p-6">
-          <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
+        <div className="rounded-2xl bg-background p-6 space-y-6">
+          <div className="grid sm:grid-cols-2 gap-6 max-w-3xl">
             <div className="space-y-2">
               <Label htmlFor="hostname">主机名{quantity > 1 && '（基础名）'}</Label>
               <div className="flex gap-2">
@@ -536,12 +494,88 @@ export default function PortalPurchase() {
                 onGenerate={() => setPassword(newPassword())}
               />
               {selectedImage && !selectedImage.cloud_init && (
-                <p className="text-xs text-muted-foreground">该镜像不支持自动配置，请在系统安装过程中手动设置密码</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedPlan?.type === "container"
+                    ? "该镜像不支持自动设置密码，开通后请通过控制台终端登录并设置密码"
+                    : "该镜像不支持自动配置，请在系统安装过程中手动设置密码"}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quantity">购买数量</Label>
+              <div className="flex items-center gap-2 max-w-48">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  disabled={quantity <= 1}
+                  onClick={() => { setQuantity(q => Math.max(1, q - 1)); setCouponDiscount(0) }}
+                >
+                  −
+                </Button>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min={1}
+                  max={maxQuantity}
+                  value={quantity}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(maxQuantity, Number(e.target.value) || 1))
+                    setQuantity(v)
+                    setCouponDiscount(0)
+                  }}
+                  className="text-center font-semibold"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  disabled={quantity >= maxQuantity}
+                  onClick={() => { setQuantity(q => Math.min(maxQuantity, q + 1)); setCouponDiscount(0) }}
+                >
+                  +
+                </Button>
+              </div>
+              {quantity > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  单价 {formatAmount(unitPrice)} × {quantity} 台 = {formatAmount(price)}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="coupon">优惠码</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    id="coupon"
+                    placeholder="选填"
+                    className="pl-9 font-mono uppercase"
+                    value={couponCode}
+                    onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); if (couponDiscount > 0) { setCouponDiscount(0) } }}
+                    disabled={couponDiscount > 0}
+                  />
+                </div>
+                {couponDiscount > 0 ? (
+                  <Button variant="outline" onClick={handleRemoveCoupon}>取消</Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || couponValidating || price <= 0}
+                  >
+                    {couponValidating && <Loader2 className="size-4 animate-spin" />}
+                    使用
+                  </Button>
+                )}
+              </div>
+              {couponDiscount > 0 && (
+                <p className="text-sm text-green-600 dark:text-green-400">已优惠 {formatAmount(couponDiscount)}</p>
               )}
             </div>
           </div>
           {sshKeys.length > 0 && (
-            <div className="mt-6">
+            <div>
               <Label className="mb-2 block">SSH 密钥（可选）</Label>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -576,50 +610,14 @@ export default function PortalPurchase() {
         </div>
       </div>
 
-      {/* 优惠券 */}
-      <div className="space-y-4">
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">优惠券</h2>
-        <div className="rounded-2xl bg-background p-6">
-          <div className="flex items-end gap-3 max-w-md">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="coupon">优惠码</Label>
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  id="coupon"
-                  placeholder="输入优惠码"
-                  className="pl-9 font-mono uppercase"
-                  value={couponCode}
-                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); if (couponDiscount > 0) { setCouponDiscount(0) } }}
-                  disabled={couponDiscount > 0}
-                />
-              </div>
-            </div>
-            {couponDiscount > 0 ? (
-              <Button variant="outline" onClick={handleRemoveCoupon}>取消</Button>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={handleApplyCoupon}
-                disabled={!couponCode.trim() || couponValidating || price <= 0}
-              >
-                {couponValidating && <Loader2 className="size-4 animate-spin" />}
-                使用
-              </Button>
-            )}
-          </div>
-          {couponDiscount > 0 && (
-            <p className="text-sm text-green-600 dark:text-green-400 mt-2">已优惠 {formatAmount(couponDiscount)}</p>
-          )}
-        </div>
-      </div>
-
       {/* 确认下单 */}
       <div className="rounded-2xl bg-background p-6" data-tour="purchase-submit">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">
-              {selectedPlan?.name} · {billingCycleMap[selectedCycle]}{quantity > 1 && ` × ${quantity} 台`}
+              {selectedPlan
+                ? <>{selectedPlan.name} · {billingCycleMap[selectedCycle]}{quantity > 1 && ` × ${quantity} 台`}</>
+                : "当前区域暂无可购买的套餐"}
             </p>
             {couponDiscount > 0 ? (
               <div className="flex items-baseline gap-2 mt-1">

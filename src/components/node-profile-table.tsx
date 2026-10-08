@@ -151,10 +151,11 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {p.description || "-"}
+                    {/* 运行时自带的默认描述是英文且含底层名称，替换为中文 */}
+                    {p.name === "default" && /incus/i.test(p.description ?? "") ? "系统默认配置文件" : p.description || "-"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {Object.keys(p.config ?? {}).length || "默认"}
+                    {Object.keys(p.config ?? {}).length}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {p.devices ? Object.keys(p.devices).length : 0}

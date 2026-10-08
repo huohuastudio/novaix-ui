@@ -63,6 +63,13 @@ export function getStatusInfo(status?: string) {
   return statusMap[status ?? ""] ?? { label: status ?? "未知", variant: "outline" as const }
 }
 
+// 表格等窄空间使用的简写
+export function getTypeShortLabel(type?: string) {
+  if (type === "virtual-machine" || type === "vm") return "VM"
+  if (type === "container") return "容器"
+  return type ?? "-"
+}
+
 export function getTypeLabel(type?: string) {
   if (type === "virtual-machine") return "虚拟机"
   if (type === "container") return "容器"
@@ -78,4 +85,15 @@ export const typeFilterOptions = [
 
 export function isIPv6OnlyInstance(inst: { nat_info?: unknown; ip_address?: string; ipv6_address?: string }) {
   return !inst.nat_info && !inst.ip_address && !!inst.ipv6_address
+}
+
+// 用户侧展示的访问地址：NAT 实例显示共享公网 IP + SSH 端口，其余显示实例 IP
+export function instanceAccessAddress(inst: {
+  nat_info?: { shared_ip_address?: string; ssh_port?: number }
+  ip_address?: string
+  ipv6_address?: string
+}) {
+  const nat = inst.nat_info
+  if (nat?.shared_ip_address) return nat.ssh_port ? `${nat.shared_ip_address}:${nat.ssh_port}` : nat.shared_ip_address
+  return inst.ip_address || inst.ipv6_address || ""
 }

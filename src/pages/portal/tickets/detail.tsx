@@ -173,6 +173,7 @@ export default function PortalTicketDetail() {
       {status !== 'closed' && (
         <div className="rounded-2xl bg-background p-5">
           <RichTextEditor
+            compact
             value={replyContent}
             onChange={setReplyContent}
             className="mb-3"

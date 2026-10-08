@@ -243,7 +243,7 @@ export default function OrderDetail() {
               </Button>
             </>
           )}
-          {order.status === "paid" && (!refundStatus || refundStatus === "") && (
+          {order.status === "paid" && !order.first_period_free && (!refundStatus || refundStatus === "") && (
             <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleRefund}>
               <Undo2 className="size-4" />
               退款
@@ -259,6 +259,11 @@ export default function OrderDetail() {
           <KV label="订单号"><span className="font-mono text-xs">{order.order_no}</span></KV>
           <KV label="类型">{orderTypeMap[order.type ?? ""] ?? order.type}</KV>
           <KV label="计费周期">{billingCycleMap[order.billing_cycle ?? ""] ?? order.billing_cycle ?? "-"}</KV>
+          {order.first_period_free && <>
+            <KV label="开通方式">首期免费</KV>
+            <KV label="套餐原价">{formatAmount((order.amount ?? 0) + (order.discount_amount ?? 0))}</KV>
+            <KV label="首期减免">{formatAmount(order.discount_amount)}</KV>
+          </>}
           <KV label="金额"><span className="text-base font-semibold">{formatAmount(order.amount)}</span></KV>
           <KV label="用户">
             <Link to={`${adminPath}/users`} className="text-primary hover:underline">
@@ -380,19 +385,21 @@ export default function OrderDetail() {
                 </div>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-3 max-w-md">
-              <div className="rounded-md border px-3 py-2 text-center">
-                <div className="text-xs text-muted-foreground">月付</div>
-                <div className="text-sm font-medium">{formatAmount(snap.price_monthly)}</div>
-              </div>
-              <div className="rounded-md border px-3 py-2 text-center">
-                <div className="text-xs text-muted-foreground">季付</div>
-                <div className="text-sm font-medium">{formatAmount(snap.price_quarterly)}</div>
-              </div>
-              <div className="rounded-md border px-3 py-2 text-center">
-                <div className="text-xs text-muted-foreground">年付</div>
-                <div className="text-sm font-medium">{formatAmount(snap.price_yearly)}</div>
-              </div>
+            {/* 只展示有价格的周期和本订单的周期，避免未开放的周期显示为 ¥0.00 */}
+            <div className="mt-3 flex flex-wrap gap-3">
+              {([
+                ["hourly", "时付", snap.price_hourly],
+                ["monthly", "月付", snap.price_monthly],
+                ["quarterly", "季付", snap.price_quarterly],
+                ["yearly", "年付", snap.price_yearly],
+              ] as const)
+                .filter(([cycle, , price]) => (price ?? 0) > 0 || cycle === order.billing_cycle)
+                .map(([cycle, label, price]) => (
+                  <div key={cycle} className="min-w-28 rounded-md border px-3 py-2 text-center">
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="text-sm font-medium">{formatAmount(price)}</div>
+                  </div>
+                ))}
             </div>
           </section>
         </>

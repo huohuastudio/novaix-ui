@@ -48,6 +48,7 @@ import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusStoragePoolDetail, IncusStorageVolume } from "@/types/incus"
 import { queryKeys } from "@/lib/query-keys"
+import { runtimeResourceStatusLabel } from "@/lib/node-constants"
 
 import { StoragePoolResizeDialog } from "@/components/storage-pool-resize-dialog"
 
@@ -233,7 +234,7 @@ function PoolSection({ pool, nodeId }: { pool: IncusStoragePoolDetail; nodeId: n
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <h3 className="break-all text-lg font-semibold">{pool.name}</h3>
             <Badge variant="outline">{pool.driver}</Badge>
-            <Badge variant={pool.status === "Created" ? "default" : "secondary"}>{pool.status}</Badge>
+            <Badge variant={pool.status === "Created" ? "default" : "secondary"}>{runtimeResourceStatusLabel(pool.status)}</Badge>
           </div>
           <div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{pool.used_by?.length ?? 0} 个引用</span><Button variant="outline" onClick={() => setResizeOpen(true)}><Expand className="size-4" />扩容</Button></div>
         </div>
