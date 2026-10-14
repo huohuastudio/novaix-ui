@@ -33,6 +33,7 @@ import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
 import { statusMap, statusFilterOptions, typeFilterOptions, getTypeShortLabel } from "@/lib/instance-constants"
 import { NodePopover } from "@/components/node-popover"
+import { NodeFilter } from "@/components/node-filter"
 import { UserPopover } from "@/components/user-popover"
 import { EmptyState } from "@/components/empty-state"
 import { MonitorCog, Play, Square, RotateCw, ChevronDown, X } from "lucide-react"
@@ -71,6 +72,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
         keyword: (filters.name as string) || undefined,
         status: (filters.status as "stopped" | "running" | "frozen" | "error" | "creating") || undefined,
         type: (filters.type as "virtual-machine" | "container") || undefined,
+        node_id: filters.node_id ? Number(filters.node_id) : undefined,
         sort,
         order,
       },
@@ -87,7 +89,7 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
   const table = useDataTable({
     fetchFn: fetchInstances,
     queryKey: getAdminInstancesQueryKey(),
-    filterKeys: ["name", "status", "type"],
+    filterKeys: ["name", "status", "type", "node_id"],
   })
 
   const { handleDelete, handlePowerAction, loadingId, ConfirmDialog, ConfirmChoiceDialog } = useInstanceActions(table.refresh)
@@ -239,7 +241,16 @@ export default function InstanceTable({ toolbar, tourId }: InstanceTableProps) {
     },
     {
       accessorKey: "node_name",
+      id: "node_id",
       header: "宿主机",
+      meta: {
+        renderFilter: (column) => (
+          <NodeFilter
+            value={(column.getFilterValue() as string) ?? ""}
+            onChange={(value) => column.setFilterValue(value)}
+          />
+        ),
+      },
       cell: ({ row }) => (
         <NodePopover nodeId={row.original.node_id} label={row.original.node_name} />
       ),

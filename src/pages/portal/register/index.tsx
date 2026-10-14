@@ -42,6 +42,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [codeIdentity, setCodeIdentity] = useState("")
   const [error, setError] = useState("")
   const sendCodeCaptcha = useCaptcha("send_code")
   const registerCaptcha = useCaptcha("register")
@@ -71,7 +72,7 @@ export default function RegisterPage() {
   }, [countdown])
 
   const handleSendCode = useCallback(async () => {
-    if (countdown > 0 || sendingCode) return
+    if (sendingCode || (countdown > 0 && codeIdentity === `${method}:${method === "phone" ? phone : email}`)) return
     setSendingCode(true)
     setError("")
     try {
@@ -83,6 +84,8 @@ export default function RegisterPage() {
       if (res?.code === 0) {
         toast.success(method === "phone" ? "验证码已发送，请查收短信" : "验证码已发送，请查收邮箱")
         setCountdown(60)
+        setCodeIdentity(`${method}:${method === "phone" ? phone : email}`)
+        setCode("")
         setStep(2)
       } else {
         setError(res?.message || "发送验证码失败")
@@ -93,10 +96,11 @@ export default function RegisterPage() {
       setSendingCode(false)
       sendCodeCaptcha.reset()
     }
-  }, [method, email, phone, countdown, sendingCode, sendCodeCaptcha])
+  }, [method, email, phone, countdown, codeIdentity, sendingCode, sendCodeCaptcha])
 
   const needVerifyCode = method === "phone" || emailVerifyEnabled
   const needIdentityInput = !oauthInfo?.email_verified
+  const hasSentCode = codeIdentity === `${method}:${method === "phone" ? phone : email}`
 
   const submitRegister = async (verificationCode: string) => {
     setLoading(true)
@@ -133,6 +137,10 @@ export default function RegisterPage() {
   const handleStep1 = (e: FormEvent) => {
     e.preventDefault()
     setError("")
+    if (username.includes("@") || /^\d+$/.test(username)) {
+      setError("用户名不能包含 @ 或为纯数字")
+      return
+    }
     if (password && password !== confirmPassword) {
       setError("两次输入的密码不一致")
       return
@@ -144,7 +152,8 @@ export default function RegisterPage() {
     }
     // 其余情况（普通注册 / OAuth 无已验证邮箱）走统一流程
     if (needVerifyCode) {
-      handleSendCode()
+      if (hasSentCode) setStep(2)
+      else void handleSendCode()
     } else {
       submitRegister("")
     }
@@ -290,7 +299,7 @@ export default function RegisterPage() {
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={
                 sendingCode || loading ||
-                (sendCodeCaptcha.required && needVerifyCode && !oauthInfo?.email_verified && !sendCodeCaptcha.token) ||
+                (sendCodeCaptcha.required && needVerifyCode && !hasSentCode && !oauthInfo?.email_verified && !sendCodeCaptcha.token) ||
                 (registerCaptcha.required && (!needVerifyCode || oauthInfo?.email_verified) && !registerCaptcha.token)
               }>
                 {loading ? "注册中..." : sendingCode ? "发送验证码中..." : needVerifyCode ? "下一步" : "注册"}
@@ -335,7 +344,7 @@ export default function RegisterPage() {
                 {loading ? "注册中..." : "完成注册"}
               </Button>
               <div className="flex items-center justify-between text-sm">
-                <Button type="button" variant="ghost" className="h-auto p-0" onClick={() => { setStep(1); setCode(""); setError(""); setCountdown(0) }}>
+                <Button type="button" variant="ghost" className="h-auto p-0" onClick={() => { setStep(1); setError("") }}>
                   <ArrowLeft className="size-3.5" />
                   返回
                 </Button>

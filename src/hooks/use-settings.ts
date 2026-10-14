@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { putAdminSettingsByGroup } from "@/api"
-import type { GetAdminSettingsByGroupResponse } from "@/api"
 import {
   getAdminSettingsByGroupOptions,
   getAdminSettingsByGroupQueryKey,
@@ -28,6 +27,19 @@ export function useSettings(group: string) {
     [serverData, overrides],
   )
 
+  // 保存成功后，仅清除仍等于提交值的 overrides，保留请求期间产生的新编辑
+  const commitOverrides = useCallback((submitted: Record<string, string>) => {
+    setOverrides((prev) => {
+      const next: Record<string, string> = {}
+      for (const [key, value] of Object.entries(prev)) {
+        if (!(key in submitted) || value !== submitted[key]) {
+          next[key] = value
+        }
+      }
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [])
+
   const save = useCallback(async (items: Record<string, string>) => {
     setSaving(true)
     try {
@@ -42,13 +54,11 @@ export function useSettings(group: string) {
         } else {
           toast.success("保存成功")
         }
-        // 保存成功后将已保存项合并进缓存，保持缓存与服务端一致（原实现为本地 setData 合并）
-        queryClient.setQueryData<GetAdminSettingsByGroupResponse>(
-          getAdminSettingsByGroupQueryKey({ path: { group } }),
-          (old) => old
-            ? { ...old, data: { ...(old.data as Record<string, string> | undefined ?? {}), ...items } }
-            : old,
-        )
+        // 以服务端脱敏结果更新缓存，不能将密码等提交明文写回查询缓存。
+        await queryClient.invalidateQueries({
+          queryKey: getAdminSettingsByGroupQueryKey({ path: { group } }),
+        })
+        commitOverrides(items)
         refreshSiteSettings()
         return true
       }
@@ -60,7 +70,7 @@ export function useSettings(group: string) {
     } finally {
       setSaving(false)
     }
-  }, [group, queryClient])
+  }, [group, queryClient, commitOverrides])
 
   const update = useCallback((key: string, value: string) => {
     setOverrides((prev) => ({ ...prev, [key]: value }))
@@ -73,19 +83,6 @@ export function useSettings(group: string) {
       queryKey: getAdminSettingsByGroupQueryKey({ path: { group } }),
     })
   }, [group, queryClient])
-
-  // 保存成功后，仅清除仍等于提交值的 overrides，保留请求期间产生的新编辑
-  const commitOverrides = useCallback((submitted: Record<string, string>) => {
-    setOverrides((prev) => {
-      const next: Record<string, string> = {}
-      for (const [key, value] of Object.entries(prev)) {
-        if (!(key in submitted) || value !== submitted[key]) {
-          next[key] = value
-        }
-      }
-      return Object.keys(next).length === Object.keys(prev).length ? prev : next
-    })
-  }, [])
 
   const dirty = Object.keys(overrides).length > 0
 

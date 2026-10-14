@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,6 +111,7 @@ export function OAuthAccountsSection() {
 
   return (
     <>
+      <Separator className="my-8" />
       <div>
         <h3 className="text-sm font-medium">社交账号</h3>
         <p className="text-xs text-muted-foreground mt-1">关联第三方账号，一键登录无需输入密码</p>

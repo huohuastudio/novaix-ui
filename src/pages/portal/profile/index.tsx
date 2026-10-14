@@ -21,6 +21,7 @@ import {
 import { RevealOnceDialog } from '@/components/reveal-once-dialog'
 import { useIsAdmin } from '@/hooks/use-auth'
 import { OAuthAccountsSection } from './oauth-accounts'
+import { PluginConnections } from '@/components/plugin-connections'
 import { setRequire2FASetup } from '@/lib/auth'
 import { TOTPInput } from '@/components/totp-input'
 import {
@@ -769,10 +770,10 @@ export default function PortalProfile() {
                 )}
               </div>
 
-              <Separator className="my-8" />
-
               {/* 社交账号 */}
               <OAuthAccountsSection />
+              <Separator className="my-8" />
+              <PluginConnections />
             </div>
           </TabsContent>
 

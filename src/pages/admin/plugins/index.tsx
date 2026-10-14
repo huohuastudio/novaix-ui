@@ -19,6 +19,7 @@ import {
   deleteAdminPluginsById,
   postAdminPluginsUpload,
   postAdminPluginsMarketplaceByIdInstall,
+  type PluginInfo,
 } from "@/api"
 import {
   getAdminPluginsMarketplaceOptions,
@@ -54,19 +55,6 @@ import { HelpLink } from "@/components/help-doc"
 import { isImpersonating } from "@/lib/auth"
 import { getErrorMessage } from "@/lib/utils"
 
-interface PluginInfo {
-  id?: string
-  name?: string
-  version?: string
-  description?: string
-  type?: string
-  author?: { name?: string; email?: string; url?: string }
-  license?: string
-  homepage?: string
-  enabled?: boolean
-  error?: string
-}
-
 interface MarketplaceItem {
   id?: string
   name?: string
@@ -97,6 +85,7 @@ const typeLabels: Record<string, string> = {
   notify: "通知",
   kyc: "认证",
   oauth: "登录",
+  extension: "扩展",
 }
 
 const allTypes = Object.keys(typeLabels)

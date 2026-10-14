@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef, useState } from "react"
 import { Inbox } from "lucide-react"
 import {
   type ColumnDef,
+  type Column,
   type ColumnFiltersState,
   type PaginationState,
   type RowSelectionState,
@@ -55,11 +56,11 @@ export interface FilterOption {
 }
 
 declare module "@tanstack/react-table" {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ColumnMeta<TData, TValue> {
     filterVariant?: "text" | "select"
     filterOptions?: FilterOption[]
     filterPlaceholder?: string
+    renderFilter?: (column: Column<TData, TValue>) => React.ReactNode
   }
 }
 
@@ -202,7 +203,7 @@ export function DataTable<TData, TValue>({
   })
 
   const filterableColumns = table.getAllColumns().filter(
-    (col) => col.columnDef.meta?.filterVariant
+    (col) => col.columnDef.meta?.filterVariant || col.columnDef.meta?.renderFilter
   )
 
   return (
@@ -213,6 +214,10 @@ export function DataTable<TData, TValue>({
           {filterableColumns.map((column) => {
             const meta = column.columnDef.meta!
             const filterValue = (column.getFilterValue() as string) ?? ""
+
+            if (meta.renderFilter) {
+              return <Fragment key={column.id}>{meta.renderFilter(column)}</Fragment>
+            }
 
             if (meta.filterVariant === "select") {
               return (

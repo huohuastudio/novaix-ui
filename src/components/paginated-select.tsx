@@ -32,6 +32,8 @@ interface PaginatedSelectProps {
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
+  className?: string
+  "aria-label"?: string
 }
 
 export function PaginatedSelect({
@@ -42,6 +44,8 @@ export function PaginatedSelect({
   placeholder = "选择...",
   searchPlaceholder = "搜索...",
   emptyText = "无匹配项",
+  className,
+  "aria-label": ariaLabel,
 }: PaginatedSelectProps) {
   const [open, setOpen] = useState(false)
 
@@ -96,7 +100,8 @@ export function PaginatedSelect({
           variant="field"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between pl-2.5 pr-2"
+          aria-label={ariaLabel}
+          className={cn("w-full justify-between pl-2.5 pr-2", className)}
         >
           {selectedItem ? (
             <span className="truncate">{selectedItem.label}</span>
