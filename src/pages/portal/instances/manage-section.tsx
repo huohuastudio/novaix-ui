@@ -130,10 +130,15 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
     ...getPortalPlansOptions(),
     enabled: reinstallOpen,
   })
+  // 优先使用实例当前套餐的镜像；套餐已下架时退回同类型套餐，避免虚拟机与容器镜像混用
   const images = useMemo<PortalPurchaseImageItem[]>(() => {
-    const all = plansQuery.data?.data?.plans?.flatMap((p) => p.images ?? []) ?? []
+    const plans = plansQuery.data?.data?.plans ?? []
+    const planType = instance.type === "container" ? "container" : "vm"
+    const ownPlan = plans.find((p) => p.id === instance.plan_id)
+    const source = ownPlan ? [ownPlan] : plans.filter((p) => p.type === planType)
+    const all = source.flatMap((p) => p.images ?? [])
     return all.filter((img, i, arr) => arr.findIndex((a) => a.id === img.id) === i)
-  }, [plansQuery.data])
+  }, [plansQuery.data, instance.plan_id, instance.type])
   // 未手动选择时默认选中第一个镜像
   const effectiveImageId = selectedImageId ?? images[0]?.id ?? null
 
@@ -230,7 +235,7 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
       if (res?.code === 0) {
         const taskId = res.data?.task_id
         if (taskId) addTask(taskId, "reset_password", instance.id)
-        toast.success(autoRestart ? "密码重置任务已提交，将自动重启" : "密码重置任务已提交，重启后生效")
+        toast.success(autoRestart ? "密码重置任务已提交，将自动重启" : "密码重置任务已提交，完成后立即生效")
         setResetPwdOpen(false)
         setResetPwd("")
         onPasswordChanged?.()
@@ -588,17 +593,15 @@ export function ManageSection({ instance, onRefresh, onPasswordChanged }: { inst
                 <input type="checkbox" checked={autoRestart} onChange={(e) => setAutoRestart(e.target.checked)} className="accent-foreground" />
                 <span className="text-sm">重置后自动重启</span>
               </label>
-            ) : instance.cloud_init === false ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400">该镜像不支持离线密码注入，请先启动服务器再重置密码</p>
             ) : (
-              <p className="text-xs text-muted-foreground">密码将在下次启动时生效</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">请先启动服务器再重置密码</p>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetPwdOpen(false)}>取消</Button>
             <Button
               onClick={handleResetPassword}
-              disabled={instanceBusy || resettingPwd || !resetPwd || (instance.cloud_init === false && instance.status !== 'running')}
+              disabled={instanceBusy || resettingPwd || !resetPwd || instance.status !== 'running'}
             >
               {resettingPwd && <Loader2 className="size-4 animate-spin" />}
               确认重置

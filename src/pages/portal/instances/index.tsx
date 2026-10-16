@@ -29,7 +29,7 @@ import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { useDebounce } from "@uidotdev/usehooks"
 import { formatMemory } from "@/lib/utils"
-import { portalStatusConfig, instanceAccessAddress } from "@/lib/instance-constants"
+import { portalStatusConfig, instanceAccessAddress, instanceDisplayName } from "@/lib/instance-constants"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 
 function StatusIndicator({ status }: { status: string }) {
@@ -62,7 +62,7 @@ function InstanceCard({
       <Link to={`/portal/servers/${instance.id}`} className="block">
         {/* 第一行：名称 + 状态 */}
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[15px] font-semibold truncate min-w-0">{instance.name}</h3>
+          <h3 className="text-[15px] font-semibold truncate min-w-0">{instanceDisplayName(instance)}</h3>
           <span className="shrink-0">
             <StatusIndicator status={status} />
           </span>

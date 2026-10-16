@@ -29,6 +29,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -186,6 +187,7 @@ export function SnapshotsTab({ instanceId }: { instanceId: number }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>创建快照</DialogTitle>
+            <DialogDescription>运行中创建的快照不保证应用数据一致，重要业务请先停止写入或关机后再创建。</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input

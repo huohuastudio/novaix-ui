@@ -8,7 +8,7 @@ import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useFormatAmount, useFormatDate } from "@/hooks/use-site-settings"
-import { txTypeMap } from "@/lib/order-constants"
+import { transactionTypeMeta } from "@/lib/order-constants"
 
 export function TransactionsTab({ userId }: { userId: number }) {
   const formatAmount = useFormatAmount()
@@ -46,7 +46,7 @@ export function TransactionsTab({ userId }: { userId: number }) {
       accessorKey: "type",
       header: "类型",
       cell: ({ row }) => {
-        const label = txTypeMap[row.original.type ?? ""]?.label ?? row.original.type
+        const label = transactionTypeMeta(row.original.type, row.original.amount).label
         return <Badge variant="outline">{label}</Badge>
       },
     },

@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ServiceFirewallRuleItem, ServiceFirewallRuleInput } from "@/api"
+import type { ServiceFirewallRuleItem, ServiceFirewallRuleInput, ServiceFirewallSyncStatus } from "@/api"
 import { getErrorMessage } from "@/lib/utils"
 import { toast } from "sonner"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
+import { isTaskActive } from "@/lib/task-constants"
 
 export const PROTOCOL_ALL = "_all"
 
@@ -46,6 +47,7 @@ interface FirewallAPI {
   create: (opts: { path: { id: number }; body: ServiceFirewallRuleInput }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
   update: (opts: { path: { id: number; ruleId: number }; body: ServiceFirewallRuleInput }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
   remove: (opts: { path: { id: number; ruleId: number } }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
+  syncStatus: (opts: { path: { id: number } }) => Promise<{ data?: { code?: number; data?: unknown; message?: string } }>
 }
 
 export function useFirewallRules(instanceId: number, api: FirewallAPI) {
@@ -73,9 +75,21 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
 
   useQueryErrorToast(query.error, "获取防火墙规则失败")
 
+  // 最近一次规则同步结果，仅在同步进行中轮询
+  const syncQueryKey = queryKeys.firewallSync(api.scope, instanceId)
+  const syncQuery = useQuery({
+    queryKey: syncQueryKey,
+    queryFn: async () => {
+      const { data: res } = await api.syncStatus({ path: { id: instanceId } })
+      return (res?.data ?? null) as ServiceFirewallSyncStatus | null
+    },
+    refetchInterval: (q) => (isTaskActive(q.state.data?.status) ? 3000 : false),
+  })
+
   const invalidateRules = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey })
-  }, [queryClient, queryKey])
+    void queryClient.invalidateQueries({ queryKey: syncQueryKey })
+  }, [queryClient, queryKey, syncQueryKey])
 
   const openCreate = () => {
     setEditingRule(null)
@@ -159,6 +173,7 @@ export function useFirewallRules(instanceId: number, api: FirewallAPI) {
   return {
     rules: query.data ?? [],
     loading: query.isPending,
+    sync: syncQuery.data ?? undefined,
     dialogOpen,
     setDialogOpen,
     editingRule,

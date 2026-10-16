@@ -6,7 +6,7 @@ import { centsToYuan, yuanToCents, yuanField } from "@/lib/order-constants"
 import { Dices } from "lucide-react"
 import { postAdminCoupons, putAdminCouponsById } from "@/api"
 import type { CouponCouponItem } from "@/api"
-import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { handleCatchError, handleServerErrors, joinIds, parseIds } from "@/lib/form-utils"
 import { serverToDatetimeLocal as toLocal, datetimeLocalToServer as toServer } from "@/lib/datetime"
 import { useTimezone } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
@@ -382,7 +382,7 @@ export function CouponCreateSheet({
         body: {
           ...fields,
           ...toServerAmounts(values),
-          plan_ids: plan_scope === "selected" ? plan_ids.join(",") : "",
+          plan_ids: plan_scope === "selected" ? joinIds(plan_ids) : "",
           starts_at: toServer(values.starts_at, tz),
           expires_at: toServer(values.expires_at, tz),
         },
@@ -456,7 +456,7 @@ export function CouponEditSheet({
         usage_limit: coupon.usage_limit ?? 0,
         per_user_limit: coupon.per_user_limit ?? 1,
         plan_scope: coupon.plan_ids ? "selected" : "all",
-        plan_ids: coupon.plan_ids?.split(",").filter(Boolean) ?? [],
+        plan_ids: parseIds(coupon.plan_ids),
         applicable_types: coupon.applicable_types ?? "",
         duration: (coupon.duration as "once" | "recurring") ?? "once",
         enabled: coupon.enabled ?? true,
@@ -475,7 +475,7 @@ export function CouponEditSheet({
         body: {
           ...fields,
           ...toServerAmounts(values),
-          plan_ids: plan_scope === "selected" ? plan_ids.join(",") : "",
+          plan_ids: plan_scope === "selected" ? joinIds(plan_ids) : "",
           starts_at: toServer(values.starts_at, tz),
           expires_at: toServer(values.expires_at, tz),
         },

@@ -16,6 +16,8 @@ const permissions: Record<string, string> = {
   'instances:operate': '启动、停止和重启您的服务器',
 }
 
+const formatPermissions = (list?: string[]) => list?.map((p) => permissions[p]).filter(Boolean).join('、')
+
 export function PluginConnections() {
   const queryClient = useQueryClient()
   const query = useQuery(getPortalExtensionsOptions())
@@ -23,7 +25,6 @@ export function PluginConnections() {
   const [revoke, setRevoke] = useState<ServicePluginConnection | null>(null)
   const [busy, setBusy] = useState(false)
   const [code, setCode] = useState('')
-  const [codeOpen, setCodeOpen] = useState(false)
   const refresh = () => queryClient.invalidateQueries({ queryKey: getPortalExtensionsQueryKey() })
 
   async function issueCode() {
@@ -33,7 +34,6 @@ export function PluginConnections() {
       const { data } = await postPortalExtensionsByIdBindingCode({ path: { id: authorize.id }, body: { permissions: authorize.permissions ?? [] } })
       if (data?.code !== 0 || !data.data?.code) throw new Error(data?.message || '生成配对码失败')
       setCode(data.data.code)
-      setCodeOpen(true)
       setAuthorize(null)
     } catch (err) { toast.error(getErrorMessage(err, '生成配对码失败')) }
     finally { setBusy(false) }
@@ -68,7 +68,7 @@ export function PluginConnections() {
               <div className="min-w-0 space-y-1">
                 <p className="font-medium">{item.name}{!item.enabled && '（已停用）'}</p>
                 <p className="text-sm text-muted-foreground break-words">{item.external_id ? `已绑定：${item.external_id}` : item.description}</p>
-                <p className="text-sm text-muted-foreground">授权范围：{item.permissions?.map((p) => permissions[p]).filter(Boolean).join('、')}</p>
+                <p className="text-sm text-muted-foreground">授权范围：{formatPermissions(item.permissions)}</p>
               </div>
               <div className="flex shrink-0 gap-2">
                 {item.external_id ? <Button variant="outline" onClick={() => setRevoke(item)}>解除绑定</Button> : <>
@@ -85,7 +85,7 @@ export function PluginConnections() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>授权连接 {authorize?.name}</AlertDialogTitle>
-            <AlertDialogDescription>绑定后，此扩展可以{authorize?.permissions?.map((p) => permissions[p]).filter(Boolean).join('、')}。仅将配对码发送给您信任的对应服务。配对码五分钟内有效，重新生成会使旧码失效。</AlertDialogDescription>
+            <AlertDialogDescription>绑定后，此扩展可以{formatPermissions(authorize?.permissions)}。仅将配对码发送给您信任的对应服务。配对码五分钟内有效，重新生成会使旧码失效。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
@@ -99,7 +99,7 @@ export function PluginConnections() {
           <AlertDialogFooter><AlertDialogCancel disabled={busy}>取消</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={(event) => { event.preventDefault(); void revokeBinding() }}>确认撤销</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <RevealOnceDialog open={codeOpen} onOpenChange={(open) => { setCodeOpen(open); if (!open) setCode('') }} title="扩展配对码" description="配对码五分钟内有效，仅可使用一次。请按对应扩展的说明完成绑定。" value={code} />
+      <RevealOnceDialog open={!!code} onOpenChange={(open) => { if (!open) setCode('') }} title="扩展配对码" description="配对码五分钟内有效，仅可使用一次。请按对应扩展的说明完成绑定。" value={code} />
     </section>
   )
 }

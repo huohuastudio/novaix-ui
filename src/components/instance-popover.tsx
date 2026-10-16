@@ -7,6 +7,7 @@ import { statusMap } from "@/lib/instance-constants"
 import { useFormatDate } from "@/hooks/use-site-settings"
 import { billingCycleMap } from "@/lib/order-constants"
 import { useLazyPopover } from "@/hooks/use-lazy-popover"
+import { formatMemory } from "@/lib/utils"
 
 interface InstancePopoverProps {
   instanceId?: number
@@ -53,7 +54,7 @@ export function InstancePopover({ instanceId, label }: InstancePopoverProps) {
               <span className="text-foreground font-mono text-xs">{instance.ip_address || instance.ipv6_address || "-"}</span>
               <span>配置</span>
               <span className="text-foreground text-xs">
-                {instance.cpu}C / {(instance.memory ?? 0) >= 1024 ? `${((instance.memory ?? 0) / 1024).toFixed(0)}G` : `${instance.memory}M`} / {instance.disk}G
+                {instance.cpu}C / {formatMemory(instance.memory ?? 0, true)} / {instance.disk}G
               </span>
               <span>节点</span>
               <span className="text-foreground">{instance.node_name || "-"}</span>

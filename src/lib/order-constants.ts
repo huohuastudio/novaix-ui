@@ -12,7 +12,7 @@ export const orderStatusMap: Record<string, { label: string; variant: "default" 
   paid: { label: "已支付", variant: "default" },
   cancelled: { label: "已取消", variant: "secondary" },
   refunded: { label: "已退款", variant: "destructive" },
-  pending_refund: { label: "待退款", variant: "destructive" },
+  pending_refund: { label: "退款处理中", variant: "destructive" },
 }
 
 export const orderTypeMap: Record<string, string> = {
@@ -41,8 +41,19 @@ export const txTypeMap: Record<string, { label: string; variant: "default" | "se
   hourly_deduction: { label: "按时扣费", variant: "outline" },
   commission: { label: "返佣", variant: "default" },
   distribution: { label: "分销拿货", variant: "secondary" },
+  transfer: { label: "实例转移", variant: "outline" },
   change_ip: { label: "换 IP", variant: "outline" },
 }
+
+/** 流水类型展示信息：transfer 类型的正数流水为手续费退还；未知类型原样显示、使用 outline 样式 */
+export function transactionTypeMeta(type: string | undefined, amount: number | undefined) {
+  const meta = txTypeMap[type ?? ""]
+  const label = type === "transfer" && (amount ?? 0) > 0 ? "转移手续费退还" : meta?.label ?? type ?? ""
+  return { label, variant: meta?.variant ?? ("outline" as const) }
+}
+
+/** 流水类型筛选项，与 txTypeMap 保持一致 */
+export const txTypeOptions = Object.entries(txTypeMap).map(([value, { label }]) => ({ label, value }))
 
 export const refundStatusMap: Record<string, { label: string; color: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "退款审核中", color: "text-amber-600 dark:text-amber-400", variant: "outline" },

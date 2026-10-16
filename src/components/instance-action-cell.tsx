@@ -80,7 +80,7 @@ export function InstanceActionCell({
   const canForceStop = isRunning || isFrozen || isError
   const canRebuild = (inst.status === "stopped" || isError) && !!onRebuild
   const canRetry = isError && !!onRetry
-  const hasMoreActions = canRenew || isRunning || isFrozen || canRetry || canForceStop || canRebuild
+  const hasMoreActions = canRenew || canForceStop || canRebuild
 
   // 表格里只保留最常用的电源操作和编辑，其余收进“更多”菜单，避免操作列过宽
   return (

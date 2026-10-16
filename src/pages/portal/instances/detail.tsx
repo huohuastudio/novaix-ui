@@ -19,7 +19,7 @@ import {
 } from "@/api/@tanstack/react-query.gen"
 import type { PortalPortalInstanceItem } from "@/api"
 import { putPortalInstancesByIdRemark } from "@/api"
-import { portalStatusConfig, isIPv6OnlyInstance, instanceAccessAddress } from "@/lib/instance-constants"
+import { portalStatusConfig, isIPv6OnlyInstance, instanceAccessAddress, instanceDisplayName } from "@/lib/instance-constants"
 import { usePortalInstanceActions } from "@/hooks/use-portal-instance-actions"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
 import type { PortalPowerAction } from "@/hooks/use-portal-instance-actions"
@@ -117,7 +117,7 @@ export default function PortalInstanceDetail() {
     ? (instanceRes.data as PortalPortalInstanceItem)
     : null
 
-  useDocumentTitle(`${instance?.name ?? "云服务器"} - ${siteName}`)
+  useDocumentTitle(`${instance ? instanceDisplayName(instance) : "云服务器"} - ${siteName}`)
 
   // 未解析出实例（instance 仅在响应 code===0 且有 data 时非空），且请求已出错或已有响应
   // （即实例不存在或加载失败且无缓存数据）时返回列表页
@@ -233,7 +233,7 @@ export default function PortalInstanceDetail() {
             </Button>
             <div data-tour="instance-info" className="min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <h1 className="text-xl font-semibold tracking-tight truncate" title={instance.name}>{instance.name}</h1>
+                <h1 className="text-xl font-semibold tracking-tight truncate" title={instanceDisplayName(instance)}>{instanceDisplayName(instance)}</h1>
                 <span className={`inline-flex items-center gap-1.5 text-xs font-medium shrink-0 ${cfg.color}`}>
                   <span className={`size-1.5 rounded-full ${cfg.dot}`} />
                   {cfg.label}

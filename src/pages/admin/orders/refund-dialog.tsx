@@ -67,7 +67,9 @@ export function RefundDialog({ open, onOpenChange, order, onSuccess }: Props) {
         setServerError(res?.message ?? "退款失败")
         return
       }
-      toast.success("退款成功")
+      toast.success(res.data?.status === "pending_refund"
+        ? "已通过审批，资源回收完成后自动退款到余额"
+        : "退款成功")
       onSuccess()
     } catch (err) {
       handleCatchError(err, "请求失败，请重试", { setServerError })

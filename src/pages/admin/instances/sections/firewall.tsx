@@ -1,3 +1,4 @@
+import { FirewallSyncStatus } from "@/components/firewall-sync-status"
 import { useMemo } from "react"
 import { Shield, Plus, Pencil, Trash2 } from "lucide-react"
 import {
@@ -5,6 +6,7 @@ import {
   postAdminInstancesByIdFirewallRules,
   putAdminInstancesByIdFirewallRulesByRuleId,
   deleteAdminInstancesByIdFirewallRulesByRuleId,
+  getAdminInstancesByIdFirewallSync,
 } from "@/api"
 import { useFirewallRules, directionMap, actionMap } from "@/hooks/use-firewall-rules"
 import { FirewallRuleFormDialog, FirewallDeleteDialog } from "@/components/firewall-rule-dialog"
@@ -25,6 +27,7 @@ export function FirewallSection({ instanceId }: { instanceId: number }) {
     create: postAdminInstancesByIdFirewallRules,
     update: putAdminInstancesByIdFirewallRulesByRuleId,
     remove: deleteAdminInstancesByIdFirewallRulesByRuleId,
+    syncStatus: getAdminInstancesByIdFirewallSync,
   }), [])
 
   const fw = useFirewallRules(instanceId, api)
@@ -45,11 +48,12 @@ export function FirewallSection({ instanceId }: { instanceId: number }) {
           </Button>
         </div>
 
+        <FirewallSyncStatus sync={fw.sync} />
         {fw.rules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Shield className="size-10 text-muted-foreground/50 mb-3" />
             <p className="text-sm text-muted-foreground">暂无防火墙规则</p>
-            <p className="text-xs text-muted-foreground mt-1">所有流量将按照默认策略放行（出站允许，入站无限制）</p>
+            <p className="text-xs text-muted-foreground mt-1">本系统未设置网络规则，节点上的其他网络策略仍然适用</p>
           </div>
         ) : (
           <div className="space-y-2">

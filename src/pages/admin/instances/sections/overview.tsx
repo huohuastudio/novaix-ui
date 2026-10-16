@@ -45,9 +45,7 @@ export function OverviewTab({ instance, onRefresh }: { instance: InstanceInstanc
   const [remarkValue, setRemarkValue] = useState(instance.remark ?? "")
   const [savingRemark, setSavingRemark] = useState(false)
   const [editingExpire, setEditingExpire] = useState(false)
-  const [expireValue, setExpireValue] = useState(() =>
-    instance.expire_at ? serverToDatetimeLocal(instance.expire_at, siteTz) : ""
-  )
+  const [expireValue, setExpireValue] = useState("")
   const [savingExpire, setSavingExpire] = useState(false)
   const status = getStatusInfo(instance.status)
   const isRunning = instance.status === "running"

@@ -12,6 +12,7 @@ import type { PortalPortalInstanceItem, ServiceUpgradeOption } from "@/api"
 import { formatMemory, formatDisk, getErrorMessage } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { billingCycleMap } from "@/lib/order-constants"
+import { instanceDisplayName } from "@/lib/instance-constants"
 import { useFormatAmount, useSiteName } from "@/hooks/use-site-settings"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -162,7 +163,7 @@ export default function PortalInstanceUpgrade() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">升级/降级</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {instance.name} · 当前 {instance.cpu} 核 / {formatMemory(instance.memory ?? 0)} / {formatDisk(instance.disk ?? 0)}
+            {instanceDisplayName(instance)} · 当前 {instance.cpu} 核 / {formatMemory(instance.memory ?? 0)} / {formatDisk(instance.disk ?? 0)}
           </p>
         </div>
       </div>

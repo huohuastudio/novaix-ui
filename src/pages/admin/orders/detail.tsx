@@ -47,7 +47,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { orderStatusMap, orderTypeMap, billingCycleMap, planTypeMap, txTypeMap, refundStatusMap } from "@/lib/order-constants"
+import { orderStatusMap, orderTypeMap, billingCycleMap, planTypeMap, transactionTypeMeta, refundStatusMap } from "@/lib/order-constants"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { statusMap as instanceStatusMap } from "@/lib/instance-constants"
 import { useConfirm } from "@/hooks/use-confirm"
@@ -425,13 +425,13 @@ export default function OrderDetail() {
                 </TableHeader>
                 <TableBody>
                   {order.transactions.map((tx: OrderOrderDetailTransaction) => {
-                    const txType = txTypeMap[tx.type ?? ""]
+                    const txType = transactionTypeMeta(tx.type, tx.amount)
                     const amountColor = (tx.amount ?? 0) > 0 ? "text-green-600" : (tx.amount ?? 0) < 0 ? "text-red-600" : ""
                     return (
                       <TableRow key={tx.id}>
                         <TableCell className="font-mono text-xs">{tx.id}</TableCell>
                         <TableCell>
-                          {txType ? <Badge variant={txType.variant}>{txType.label}</Badge> : tx.type}
+                          <Badge variant={txType.variant}>{txType.label}</Badge>
                         </TableCell>
                         <TableCell className={`font-medium ${amountColor}`}>{formatAmount(tx.amount)}</TableCell>
                         <TableCell>{formatAmount(tx.balance)}</TableCell>

@@ -80,3 +80,14 @@ export function handleServerErrors<T extends FieldValues>(
     showError(res?.message ?? "操作失败", opts.setServerError)
   }
 }
+
+// 解析逗号分隔的 ID 字符串，忽略空白项
+export function parseIds(str: string | undefined): string[] {
+  if (!str) return []
+  return str.split(",").map((s) => s.trim()).filter(Boolean)
+}
+
+// 将 ID 列表拼接为逗号分隔字符串
+export function joinIds(ids: string[]): string {
+  return ids.join(",")
+}

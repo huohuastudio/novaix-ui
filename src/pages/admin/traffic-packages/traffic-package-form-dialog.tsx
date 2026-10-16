@@ -11,7 +11,7 @@ import {
 } from "@/api"
 import type { TrafficPackageTrafficPackageItem } from "@/api"
 import { getAdminPlansOptions } from "@/api/@tanstack/react-query.gen"
-import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { handleCatchError, handleServerErrors, joinIds, parseIds } from "@/lib/form-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -63,15 +63,6 @@ const defaultValues: FormValues = {
 }
 
 const fieldNames = Object.keys(defaultValues)
-
-function parseIds(str: string | undefined): string[] {
-  if (!str) return []
-  return str.split(",").map((s) => s.trim()).filter(Boolean)
-}
-
-function joinIds(ids: string[]): string {
-  return ids.join(",")
-}
 
 interface Props {
   open: boolean

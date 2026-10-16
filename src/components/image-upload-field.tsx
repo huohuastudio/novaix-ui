@@ -3,7 +3,7 @@ import { Upload, X, Loader2 } from "lucide-react"
 import { postAdminUpload } from "@/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 
 interface ImageUploadFieldProps {
   value?: string
@@ -37,8 +37,8 @@ export function ImageUploadField({
       } else {
         setError(res?.message || "上传失败")
       }
-    } catch {
-      setError("上传失败，请重试")
+    } catch (err) {
+      setError(getErrorMessage(err, "上传失败，请重试"))
     } finally {
       setUploading(false)
     }

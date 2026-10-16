@@ -21,13 +21,13 @@ import {
   postAdminOrdersBatchRefundReject,
   deleteAdminOrdersById,
 } from "@/api"
-import type { OrderOrderItem, OrderTransactionItem, OrderBatchRefundResponse } from "@/api"
+import type { OrderOrderItem, OrderTransactionItem, OrderBatchRefundResponse, GetAdminTransactionsData } from "@/api"
 import { getAdminOrdersQueryKey, getAdminTransactionsQueryKey } from "@/api/@tanstack/react-query.gen"
 import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
-import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeMap, refundStatusMap } from "@/lib/order-constants"
+import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeOptions, transactionTypeMeta, refundStatusMap } from "@/lib/order-constants"
 import { ExportButton } from "@/components/export-button"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { UserPopover } from "@/components/user-popover"
@@ -514,7 +514,7 @@ function TransactionList() {
         page_size: pageSize,
         keyword: (filters.username as string) || undefined,
         user_id: filters.user_id ? Number(filters.user_id) : undefined,
-        type: (filters.type as "recharge" | "payment" | "refund" | "admin" | "addon_ip" | "traffic_overage" | "traffic_package" | "hourly_deduction" | "commission" | "distribution") || undefined,
+        type: (filters.type as NonNullable<GetAdminTransactionsData["query"]>["type"]) || undefined,
         sort,
         order,
       },
@@ -557,23 +557,11 @@ function TransactionList() {
       meta: {
         filterVariant: "select" as const,
         filterPlaceholder: "类型",
-        filterOptions: [
-          { label: "充值", value: "recharge" },
-          { label: "支付", value: "payment" },
-          { label: "退款", value: "refund" },
-          { label: "调账", value: "admin" },
-          { label: "附加 IP", value: "addon_ip" },
-          { label: "流量超额", value: "traffic_overage" },
-          { label: "流量包", value: "traffic_package" },
-          { label: "按时扣费", value: "hourly_deduction" },
-          { label: "返佣", value: "commission" },
-          { label: "分销拿货", value: "distribution" },
-          { label: "换 IP", value: "change_ip" },
-        ],
+        filterOptions: txTypeOptions,
       },
       cell: ({ row }) => {
-        const tx = txTypeMap[row.original.type ?? ""]
-        return tx ? <Badge variant={tx.variant}>{tx.label}</Badge> : row.original.type
+        const tx = transactionTypeMeta(row.original.type, row.original.amount)
+        return <Badge variant={tx.variant}>{tx.label}</Badge>
       },
     },
     {

@@ -43,6 +43,7 @@ import { PaginatedCombobox } from "@/components/paginated-combobox"
 import { User, Server, Globe, Box, MonitorCog } from "lucide-react"
 import { useFormatAmount } from "@/hooks/use-site-settings"
 import { handleCatchError, handleServerErrors } from "@/lib/form-utils"
+import { formatMemory } from "@/lib/utils"
 
 const PAGE_SIZE = 20
 
@@ -127,7 +128,7 @@ export default function CreateOrderSheet({ open, onOpenChange, onSuccess }: Prop
     const items = plans.map((p) => ({
       id: p.id!,
       label: p.name ?? "",
-      description: `${p.cpu}C / ${p.memory! >= 1024 ? `${(p.memory! / 1024).toFixed(0)}G` : `${p.memory}M`} / ${p.disk}G`,
+      description: `${p.cpu}C / ${formatMemory(p.memory ?? 0, true)} / ${p.disk}G`,
     }))
     return { items, hasMore: items.length >= PAGE_SIZE }
   }, [])

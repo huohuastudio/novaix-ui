@@ -12,7 +12,7 @@ import {
 import { SimplePagination } from '@/components/simple-pagination'
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
 import { useDocumentTitle } from '@uidotdev/usehooks'
-import { txTypeMap } from '@/lib/order-constants'
+import { transactionTypeMeta } from '@/lib/order-constants'
 import { RechargeDialog } from './recharge-dialog'
 
 export default function PortalWallet() {
@@ -105,7 +105,7 @@ export default function PortalWallet() {
           <>
             <div className="rounded-2xl bg-background divide-y divide-border/50">
               {transactions.map((tx) => {
-                const isIncome = tx.type === 'recharge' || tx.type === 'refund'
+                const isIncome = (tx.amount ?? 0) > 0
                 const Icon = tx.type === 'admin' ? RefreshCw : isIncome ? ArrowDownRight : ArrowUpRight
                 return (
                   <div key={tx.id} className="flex items-center gap-4 p-5 first:rounded-t-2xl last:rounded-b-2xl">
@@ -114,7 +114,7 @@ export default function PortalWallet() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">
-                        {txTypeMap[tx.type ?? '']?.label ?? tx.type}
+                        {transactionTypeMeta(tx.type, tx.amount).label}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {formatDate(tx.created_at ?? '')}

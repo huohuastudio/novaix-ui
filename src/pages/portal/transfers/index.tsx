@@ -47,6 +47,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getErrorMessage } from '@/lib/utils'
+import { instanceDisplayName } from '@/lib/instance-constants'
 
 const statusMap: Record<string, { label: string; variant: 'outline' | 'secondary' | 'default' | 'destructive' }> = {
   pending: { label: '待接收', variant: 'outline' },
@@ -452,9 +453,9 @@ export default function PortalTransfers() {
                     <SelectValue placeholder="请选择要转移的实例" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(instances as Array<{ id?: number; name?: string; ip_address?: string; status?: string }>).map((inst) => (
+                    {instances.map((inst) => (
                       <SelectItem key={inst.id} value={String(inst.id)}>
-                        {inst.name} {inst.ip_address ? `(${inst.ip_address})` : ''}
+                        {instanceDisplayName(inst)} {inst.ip_address ? `(${inst.ip_address})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

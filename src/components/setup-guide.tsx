@@ -195,7 +195,7 @@ export function SetupGuide() {
 
   return (
     <div className="rounded-md border p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
             <Rocket className="size-4.5 text-primary" />
@@ -203,8 +203,19 @@ export function SetupGuide() {
           <div>
             <h3 className="text-sm font-medium">快速开始</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              完成以下步骤即可开始售卖 · {completedCount}/{resolvedSteps.length}
+              完成以下步骤即可开始售卖，全部完成后建议以用户视角走一遍购买流程
             </p>
+          </div>
+        </div>
+        <div className="ml-auto mr-2 hidden items-center gap-3 sm:flex">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {completedCount}/{resolvedSteps.length}
+          </span>
+          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${(completedCount / resolvedSteps.length) * 100}%` }}
+            />
           </div>
         </div>
         <Button
@@ -218,14 +229,7 @@ export function SetupGuide() {
         </Button>
       </div>
 
-      <div className="mt-4 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-500"
-          style={{ width: `${(completedCount / resolvedSteps.length) * 100}%` }}
-        />
-      </div>
-
-      <div className="mt-4 space-y-1.5">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {resolvedSteps.map((step, index) => {
           const isCurrent = index === currentIndex
           const StepIcon = step.icon
@@ -233,11 +237,11 @@ export function SetupGuide() {
             <Link
               key={step.key}
               to={step.href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${
+              className={`flex items-start gap-3 rounded-md border border-transparent px-3 py-2.5 transition-colors ${
                 step.done
                   ? "opacity-60"
                   : isCurrent
-                    ? "bg-muted/50 ring-1 ring-border"
+                    ? "border-border bg-muted/50"
                     : "hover:bg-muted/30"
               }`}
             >
@@ -264,17 +268,12 @@ export function SetupGuide() {
                 >
                   {step.label}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{step.description}</p>
               </div>
-              {!step.done && <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
             </Link>
           )
         })}
       </div>
-
-      <p className="mt-3 text-xs text-muted-foreground">
-        全部完成后，建议以用户视角走一遍购买流程确认一切正常
-      </p>
     </div>
   )
 }

@@ -71,8 +71,11 @@ export default function RegisterPage() {
     return () => clearTimeout(timer)
   }, [countdown])
 
+  const identityKey = `${method}:${method === "phone" ? phone : email}`
+  const hasSentCode = codeIdentity === identityKey
+
   const handleSendCode = useCallback(async () => {
-    if (sendingCode || (countdown > 0 && codeIdentity === `${method}:${method === "phone" ? phone : email}`)) return
+    if (sendingCode || (countdown > 0 && hasSentCode)) return
     setSendingCode(true)
     setError("")
     try {
@@ -84,7 +87,7 @@ export default function RegisterPage() {
       if (res?.code === 0) {
         toast.success(method === "phone" ? "验证码已发送，请查收短信" : "验证码已发送，请查收邮箱")
         setCountdown(60)
-        setCodeIdentity(`${method}:${method === "phone" ? phone : email}`)
+        setCodeIdentity(identityKey)
         setCode("")
         setStep(2)
       } else {
@@ -96,11 +99,10 @@ export default function RegisterPage() {
       setSendingCode(false)
       sendCodeCaptcha.reset()
     }
-  }, [method, email, phone, countdown, codeIdentity, sendingCode, sendCodeCaptcha])
+  }, [method, email, phone, countdown, hasSentCode, identityKey, sendingCode, sendCodeCaptcha])
 
   const needVerifyCode = method === "phone" || emailVerifyEnabled
   const needIdentityInput = !oauthInfo?.email_verified
-  const hasSentCode = codeIdentity === `${method}:${method === "phone" ? phone : email}`
 
   const submitRegister = async (verificationCode: string) => {
     setLoading(true)

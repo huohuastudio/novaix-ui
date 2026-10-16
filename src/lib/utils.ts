@@ -93,3 +93,8 @@ export function generatePassword(length: number): string {
   }
   return pwd.join('')
 }
+
+// 套餐展示名称，套餐信息缺失时回退为 ID
+export function planLabel(id: string, plan?: { name?: string }) {
+  return plan ? `${plan.name} (#${id})` : `套餐 #${id}`
+}

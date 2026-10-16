@@ -87,6 +87,11 @@ export function isIPv6OnlyInstance(inst: { nat_info?: unknown; ip_address?: stri
   return !inst.nat_info && !inst.ip_address && !!inst.ipv6_address
 }
 
+// 用户侧展示的实例名称：优先显示购买时填写的主机名，实例名由系统生成，仅作兜底
+export function instanceDisplayName(inst: { name?: string; hostname?: string }) {
+  return inst.hostname || inst.name || ""
+}
+
 // 用户侧展示的访问地址：NAT 实例显示共享公网 IP + SSH 端口，其余显示实例 IP
 export function instanceAccessAddress(inst: {
   nat_info?: { shared_ip_address?: string; ssh_port?: number }

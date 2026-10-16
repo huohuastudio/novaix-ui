@@ -20,9 +20,10 @@ import {
 } from '@/components/ui/select'
 import { RevealOnceDialog } from '@/components/reveal-once-dialog'
 import { useIsAdmin } from '@/hooks/use-auth'
+import { useConfirm } from '@/hooks/use-confirm'
 import { OAuthAccountsSection } from './oauth-accounts'
 import { PluginConnections } from '@/components/plugin-connections'
-import { setRequire2FASetup } from '@/lib/auth'
+import { setRequire2FASetup, logout } from '@/lib/auth'
 import { TOTPInput } from '@/components/totp-input'
 import {
   Dialog,
@@ -43,6 +44,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import {
+  postAuthSessionsRevoke,
   putPortalProfilePassword,
   postPortalSshKeys,
   deletePortalSshKeysById,
@@ -181,6 +183,7 @@ export default function PortalProfile() {
   const [deleteKeyId, setDeleteKeyId] = useState<number | null>(null)
   const [deletingKey, setDeletingKey] = useState(false)
 
+  const { confirm, ConfirmDialog } = useConfirm()
   const [totpSetupOpen, setTotpSetupOpen] = useState(false)
   const [totpQRURL, setTotpQRURL] = useState('')
   const [totpSecret, setTotpSecret] = useState('')
@@ -399,7 +402,8 @@ export default function PortalProfile() {
         toast.error(res?.message || '修改密码失败，请重试')
         return
       }
-      toast.success('密码已修改')
+      toast.success('密码已修改，请重新登录')
+      logout()
       setOldPassword('')
       setNewPassword('')
       setPwdTotpCode('')
@@ -453,13 +457,29 @@ export default function PortalProfile() {
     try {
       await postPortalTotpEnable({ body: { code: totpCode } })
       setRequire2FASetup(false)
-      toast.success('二次验证已启用')
+      toast.success('二次验证已启用，请重新登录')
       setTotpSetupOpen(false)
-      invalidateProfile()
+      logout()
     } catch (err) {
       toast.error(getErrorMessage(err, '启用失败'))
     } finally {
       setTotpEnabling(false)
+    }
+  }
+
+  const handleRevokeSessions = async () => {
+    const ok = await confirm({
+      title: '退出所有设备？',
+      description: '全部登录会话将失效，您需要重新登录。API 密钥需在密钥管理中单独撤销。',
+      confirmText: '确认退出',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await postAuthSessionsRevoke()
+      logout()
+    } catch (err) {
+      toast.error(getErrorMessage(err, '退出失败，请重试'))
     }
   }
 
@@ -468,10 +488,10 @@ export default function PortalProfile() {
     setTotpDisabling(true)
     try {
       await postPortalTotpDisable({ body: { code: totpDisableCode } })
-      toast.success('二次验证已禁用')
+      toast.success('二次验证已禁用，请重新登录')
       setTotpDisableOpen(false)
       setTotpDisableCode('')
-      invalidateProfile()
+      logout()
     } catch (err) {
       toast.error(getErrorMessage(err, '禁用失败'))
     } finally {
@@ -770,6 +790,15 @@ export default function PortalProfile() {
                 )}
               </div>
 
+              <Separator className="my-8" />
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-medium">登录设备</h3>
+                  <p className="text-xs text-muted-foreground mt-1">退出全部登录设备，包括当前设备</p>
+                </div>
+                <Button variant="outline" onClick={handleRevokeSessions}>退出所有设备</Button>
+              </div>
+              {ConfirmDialog}
               {/* 社交账号 */}
               <OAuthAccountsSection />
               <Separator className="my-8" />

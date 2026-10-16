@@ -20,6 +20,7 @@ export const queryKeys = {
   setupGuideStatus: () => ["setup-guide-status"] as const,
   /** 防火墙规则（scope 为注入 api 的端标识，区分 admin/portal 两端缓存） */
   firewallRules: (scope: "admin" | "portal", instanceId: number) => ["firewall-rules", scope, instanceId] as const,
+  firewallSync: (scope: "admin" | "portal", instanceId: number) => ["firewall-sync", scope, instanceId] as const,
   /** 端口转发规则（同上） */
   portForwardRules: (scope: "admin" | "portal", instanceId: number) => ["port-forward-rules", scope, instanceId] as const,
   /** 工单员工列表（管理员+客服两角色的全量分页聚合，代价较高；用独立根 key，避免被无关的用户 CRUD 失效连带 refetch） */

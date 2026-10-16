@@ -55,6 +55,11 @@ export const taskTypeOptions = Object.entries(TASK_TYPE_LABELS).map(
 
 export type TaskStatus = "pending" | "running" | "completed" | "failed" | "compensation_failed"
 
+/** 任务是否仍在进行中（等待或执行） */
+export function isTaskActive(status?: string) {
+  return status === "pending" || status === "running"
+}
+
 type BadgeVariant = "default" | "secondary" | "outline" | "destructive"
 
 export const taskStatusMap: Record<string, { label: string; variant: BadgeVariant }> = {

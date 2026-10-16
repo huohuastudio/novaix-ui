@@ -11,6 +11,7 @@ import { useConfirm } from "@/hooks/use-confirm"
 import { usePortalTasks } from "@/hooks/use-portal-tasks"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
+import { instanceDisplayName } from "@/lib/instance-constants"
 
 export type PortalPowerAction = "start" | "stop" | "restart" | "rescue" | "unrescue"
 
@@ -79,7 +80,7 @@ export function usePortalInstanceActions(onRefresh: () => void) {
     if (cfg.confirm) {
       const ok = await confirm({
         title: cfg.confirm.title,
-        description: cfg.confirm.description(instance.name ?? ""),
+        description: cfg.confirm.description(instanceDisplayName(instance)),
         confirmText: cfg.label,
       })
       if (!ok) return

@@ -22,6 +22,8 @@ import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-s
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { UserPopover } from "@/components/user-popover"
 import { OrderPopover } from "@/components/order-popover"
+import { planLabel } from "@/lib/utils"
+import { parseIds } from "@/lib/form-utils"
 
 function DetailSkeleton() {
   return (
@@ -56,7 +58,7 @@ export default function CouponDetail() {
   const coupon: CouponCouponItem | null =
     couponQuery.data?.code === 0 && couponQuery.data.data ? couponQuery.data.data : null
   const loading = couponQuery.isPending
-  const planIDs = coupon?.plan_ids?.split(",").filter(Boolean) ?? []
+  const planIDs = parseIds(coupon?.plan_ids)
   const plansQuery = useQuery({
     ...getAdminPlansOptions({ query: { ids: coupon?.plan_ids, page_size: 100 } }),
     enabled: planIDs.length > 0,
@@ -200,10 +202,7 @@ export default function CouponDetail() {
           <div className="col-span-2">
             <div className="text-muted-foreground">适用套餐</div>
             <div className="font-medium mt-0.5">
-              {planIDs.length === 0 ? "全部套餐" : plansQuery.isPending ? <Skeleton className="h-5 w-40" /> : planIDs.map(id => {
-                const plan = plansQuery.data?.data?.items?.find(item => String(item.id) === id)
-                return plan ? `${plan.name} (#${id})` : `套餐 #${id}`
-              }).join("、")}
+              {planIDs.length === 0 ? "全部套餐" : plansQuery.isPending ? <Skeleton className="h-5 w-40" /> : planIDs.map(id => planLabel(id, plansQuery.data?.data?.items?.find(item => String(item.id) === id))).join("、")}
             </div>
           </div>
           <div>

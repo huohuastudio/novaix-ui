@@ -14,6 +14,7 @@ import { InstanceEditSheet } from "@/components/instance-edit-sheet"
 import { InstanceActionCell } from "@/components/instance-action-cell"
 import { statusMap, statusFilterOptions, typeFilterOptions } from "@/lib/instance-constants"
 import { getAdminInstancesQueryKey } from "@/api/@tanstack/react-query.gen"
+import { formatTraffic } from "@/lib/utils"
 
 interface NodeInstanceTableProps {
   nodeId: number
@@ -85,7 +86,7 @@ export default function NodeInstanceTable({ nodeId, toolbar }: NodeInstanceTable
       sortDescFirst: true,
       cell: ({ row }) => (
         <div className="tabular-nums whitespace-nowrap">
-          <div>{(row.original.traffic_used ?? 0).toFixed(2)} GB</div>
+          <div>{formatTraffic(row.original.traffic_used ?? 0)}</div>
           <div className="text-xs text-muted-foreground">
             {row.original.traffic_limit
               ? `配额 ${row.original.traffic_limit + (row.original.traffic_extra ?? 0)} GB`

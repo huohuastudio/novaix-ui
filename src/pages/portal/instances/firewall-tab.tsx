@@ -1,3 +1,4 @@
+import { FirewallSyncStatus } from "@/components/firewall-sync-status"
 import { useMemo } from "react"
 import { Shield, Plus, Pencil, Trash2 } from "lucide-react"
 import {
@@ -5,6 +6,7 @@ import {
   postPortalInstancesByIdFirewallRules,
   putPortalInstancesByIdFirewallRulesByRuleId,
   deletePortalInstancesByIdFirewallRulesByRuleId,
+  getPortalInstancesByIdFirewallSync,
 } from "@/api"
 import { useFirewallRules, directionMap, actionMap } from "@/hooks/use-firewall-rules"
 import { FirewallRuleFormDialog, FirewallDeleteDialog } from "@/components/firewall-rule-dialog"
@@ -18,6 +20,7 @@ export function FirewallTab({ instanceId, instanceBusy }: { instanceId: number; 
     create: postPortalInstancesByIdFirewallRules,
     update: putPortalInstancesByIdFirewallRulesByRuleId,
     remove: deletePortalInstancesByIdFirewallRulesByRuleId,
+    syncStatus: getPortalInstancesByIdFirewallSync,
   }), [])
 
   const fw = useFirewallRules(instanceId, api)
@@ -55,6 +58,7 @@ export function FirewallTab({ instanceId, instanceBusy }: { instanceId: number; 
           </Button>
         </div>
 
+        <FirewallSyncStatus sync={fw.sync} />
         {fw.rules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Shield className="size-10 text-muted-foreground/25 mb-3" />
