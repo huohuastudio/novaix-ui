@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useForm, type UseFormReturn } from "react-hook-form"
+import { useForm, useWatch, type UseFormReturn } from "react-hook-form"
 import { Link } from "react-router-dom"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -39,6 +39,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -585,6 +587,10 @@ function CreateNodeForm({ open, onOpenChange, onSuccess }: {
 
 // ── 编辑表单 ──
 
+function isIPAddress(value: string) {
+  return z.ipv4().safeParse(value).success || z.ipv6().safeParse(value).success
+}
+
 function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -594,6 +600,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
   const [serverError, setServerError] = useState("")
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<ServiceTestConnectionResponse | null>(null)
+  const [migrateSharedIPs, setMigrateSharedIPs] = useState(true)
   const { data: regions = [] } = useRegions()
 
   const detectQuery = useQuery({
@@ -644,6 +651,7 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setServerError("")
       setTestResult(null)
+      setMigrateSharedIPs(true)
       form.reset({
         name: node.name ?? "",
         region_id: node.region_id ?? undefined,
@@ -667,13 +675,24 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
     }
   }, [open, node, form])
 
+  // 旧主机地址是 IP 且被修改时，询问是否一并迁移同地址的共享 IP（宿主机更换公网 IP 场景）
+  const newHost = (useWatch({ control: form.control, name: "host" }) ?? "").trim()
+  const hostChanged = !!node.host && isIPAddress(node.host) && isIPAddress(newHost) && newHost !== node.host
+
   const onSubmit = async (values: EditFormValues) => {
     setServerError("")
     try {
-      const { data: res } = await putAdminNodesById({ path: { id: node.id! }, body: buildBody(values) })
+      const { data: res } = await putAdminNodesById({
+        path: { id: node.id! },
+        body: { ...buildBody(values), migrate_shared_ips: hostChanged && migrateSharedIPs },
+      })
       if (res?.code !== 0) {
         handleServerErrors(res, { setError: form.setError, setServerError, fieldNames })
         return
+      }
+      // 节点已保存，但共享 IP 或出口地址迁移未完成
+      for (const warning of res.data?.warnings ?? []) {
+        toast.warning(warning, { duration: 8000 })
       }
       onSuccess()
     } catch (err) {
@@ -696,6 +715,24 @@ function EditNodeForm({ open, onOpenChange, node, onSuccess }: {
                 <RegionSelectField form={form} regions={regions} />
               </div>
               <HostField form={form} />
+              {hostChanged && (
+                <div className="flex items-start gap-2 rounded-md border p-3">
+                  <Checkbox
+                    id="migrate-shared-ips"
+                    checked={migrateSharedIPs}
+                    onCheckedChange={(v) => setMigrateSharedIPs(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <label htmlFor="migrate-shared-ips" className="text-sm font-medium cursor-pointer">
+                      同时将 {node.host} 上的共享 IP 和网桥出口地址迁移到 {newHost}
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      宿主机更换了公网 IP 时勾选，实例的端口转发和出口地址会迁移到新地址。如果只是更换管理连接地址（如改用内网 IP），请取消勾选
+                    </p>
+                  </div>
+                </div>
+              )}
               <PortFields form={form} />
               <SSHAuthFields form={form} optional />
               {node.node_group_id && (

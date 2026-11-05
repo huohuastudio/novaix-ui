@@ -11,6 +11,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
@@ -22,21 +23,29 @@ import type { LucideIcon } from "lucide-react"
 export type NavGroup = {
   label?: string
   defaultOpen?: boolean
+  /** 站点设置开关键：对应值为 "false" 时整个分组隐藏（与 featureKey 加锁不同） */
+  settingKey?: "self_hosted_enabled" | "supplier_resale_enabled"
   items: {
     title: string
     url: string
     icon: LucideIcon
     exact?: boolean
     featureKey?: string
+    /** 角标数据键，数值由 NavMain 的 badges 传入，大于 0 时显示 */
+    badgeKey?: string
+    /** 站点设置开关键：对应值为 "false" 时隐藏该菜单项 */
+    settingKey?: "self_hosted_enabled" | "supplier_resale_enabled"
   }[]
 }
 
 function NavItemButton({
   item,
   isActive,
+  badge,
 }: {
   item: NavGroup["items"][number]
   isActive: boolean
+  badge?: number
 }) {
   const navigate = useNavigate()
   const { isMobile, setOpenMobile } = useSidebar()
@@ -62,6 +71,9 @@ function NavItemButton({
         <span className="flex-1">{item.title}</span>
         {!allowed && <Lock className="size-3 text-muted-foreground/50" />}
       </SidebarMenuButton>
+      {allowed && !!badge && badge > 0 && (
+        <SidebarMenuBadge className="bg-destructive/10 text-destructive">{badge > 99 ? "99+" : badge}</SidebarMenuBadge>
+      )}
       {showActivation && (
         <ActivationDialog open={showActivation} onOpenChange={setShowActivation} />
       )}
@@ -78,9 +90,11 @@ function isItemActive(item: NavGroup["items"][number], pathname: string) {
 function CollapsibleNavGroup({
   group,
   pathname,
+  badges,
 }: {
   group: NavGroup
   pathname: string
+  badges?: Record<string, number>
 }) {
   const hasActiveItem = group.items.some((item) =>
     isItemActive(item, pathname),
@@ -112,6 +126,7 @@ function CollapsibleNavGroup({
                   <NavItemButton
                     item={item}
                     isActive={isItemActive(item, pathname)}
+                    badge={item.badgeKey ? badges?.[item.badgeKey] : undefined}
                   />
                 </SidebarMenuItem>
               ))}
@@ -123,7 +138,7 @@ function CollapsibleNavGroup({
   )
 }
 
-export function NavMain({ groups }: { groups: NavGroup[] }) {
+export function NavMain({ groups, badges }: { groups: NavGroup[]; badges?: Record<string, number> }) {
   const location = useLocation()
 
   return (
@@ -134,6 +149,7 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
             key={group.label}
             group={group}
             pathname={location.pathname}
+            badges={badges}
           />
         ) : (
           <SidebarGroup key={i}>
@@ -143,6 +159,7 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
                   <NavItemButton
                     item={item}
                     isActive={isItemActive(item, location.pathname)}
+                    badge={item.badgeKey ? badges?.[item.badgeKey] : undefined}
                   />
                 </SidebarMenuItem>
               ))}

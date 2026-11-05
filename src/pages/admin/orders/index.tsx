@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Routes, Route, useNavigate } from "react-router-dom"
+import { Routes, Route, useNavigate, Link } from "react-router-dom"
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { RotateCcw, XCircle, CreditCard, Undo2, Plus, ShoppingCart, X, CheckCheck, Ban, Trash2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,7 +27,7 @@ import { useDataTable, type FetchParams } from "@/hooks/use-data-table"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { HelpLink } from "@/components/help-doc"
-import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeOptions, transactionTypeMeta, refundStatusMap } from "@/lib/order-constants"
+import { orderStatusMap, orderTypeMap, billingCycleMap, txTypeOptions, transactionTypeMeta, refundStatusMap, orderBizOptions } from "@/lib/order-constants"
 import { ExportButton } from "@/components/export-button"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { UserPopover } from "@/components/user-popover"
@@ -35,6 +35,7 @@ import { InstancePopover } from "@/components/instance-popover"
 import { OrderPopover } from "@/components/order-popover"
 import CreateOrderSheet from "./create-order-sheet"
 import { RefundDialog } from "./refund-dialog"
+import { ModuleRefundDialog } from "@/components/module-refund-dialog"
 import OrderDetail from "./detail"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -45,6 +46,7 @@ function OrderList() {
   const formatDate = useFormatDate()
   const [createOpen, setCreateOpen] = useState(false)
   const [refundOrder, setRefundOrder] = useState<OrderOrderItem | null>(null)
+  const [moduleRefundOrder, setModuleRefundOrder] = useState<OrderOrderItem | null>(null)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [batchLoading, setBatchLoading] = useState(false)
   const { confirm, ConfirmDialog } = useConfirm()
@@ -63,6 +65,7 @@ function OrderList() {
         type: (filters.type as "new" | "renew" | "upgrade" | "addon_ip" | "traffic_package") || undefined,
         billing_cycle: (filters.billing_cycle as "hourly" | "monthly" | "quarterly" | "yearly") || undefined,
         refund_status: (filters.refund_status as "pending" | "approved" | "rejected") || undefined,
+        biz: (filters.biz as "instance" | "module") || undefined,
         sort,
         order,
       },
@@ -79,7 +82,7 @@ function OrderList() {
   const table = useDataTable({
     fetchFn: fetchOrders,
     queryKey: getAdminOrdersQueryKey(),
-    filterKeys: ["order_no", "status", "type", "billing_cycle", "refund_status"],
+    filterKeys: ["order_no", "status", "type", "billing_cycle", "refund_status", "biz"],
   })
 
   const handlePay = useCallback(async (order: OrderOrderItem) => {
@@ -120,8 +123,10 @@ function OrderList() {
     }
   }, [table, confirm])
 
+  // 模块商品订单走供应商退款流程（可选择是否同时退订上游）
   const handleRefund = useCallback((order: OrderOrderItem) => {
-    setRefundOrder(order)
+    if (order.biz === "module") setModuleRefundOrder(order)
+    else setRefundOrder(order)
   }, [])
 
   const handleDelete = useCallback(async (order: OrderOrderItem) => {
@@ -299,6 +304,15 @@ function OrderList() {
       accessorKey: "instance_name",
       header: "实例",
       cell: ({ row }) => {
+        if (row.original.biz === "module") {
+          return row.original.module_service_id ? (
+            <Link to={`${adminPath}/supplier/services/${row.original.module_service_id}`} className="text-primary hover:underline">
+              服务 #{row.original.module_service_id}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )
+        }
         const qty = row.original.quantity ?? 1
         if (!row.original.instance_id && qty > 1) {
           return <span className="text-muted-foreground text-xs">批量 ×{qty}</span>
@@ -323,8 +337,20 @@ function OrderList() {
       cell: ({ row }) => orderTypeMap[row.original.type ?? ""] ?? row.original.type,
     },
     {
+      id: "biz",
+      header: "业务",
+      meta: {
+        filterVariant: "select" as const,
+        filterPlaceholder: "业务",
+        filterOptions: orderBizOptions,
+      },
+      cell: ({ row }) => row.original.biz === "module"
+        ? <Badge variant="outline">转售</Badge>
+        : <span className="text-xs text-muted-foreground">自营</span>,
+    },
+    {
       accessorKey: "plan_name",
-      header: "套餐",
+      header: "套餐 / 商品",
       cell: ({ row }) => row.original.plan_name || <span className="text-muted-foreground">-</span>,
     },
     {
@@ -495,6 +521,11 @@ function OrderList() {
         onOpenChange={(open) => !open && setRefundOrder(null)}
         order={refundOrder}
         onSuccess={() => { setRefundOrder(null); table.refresh() }}
+      />
+      <ModuleRefundDialog
+        open={!!moduleRefundOrder}
+        onOpenChange={(open) => { if (!open) setModuleRefundOrder(null) }}
+        order={moduleRefundOrder}
       />
       {ConfirmDialog}
     </>

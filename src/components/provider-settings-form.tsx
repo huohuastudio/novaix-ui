@@ -1,5 +1,5 @@
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Loader2, Eye, EyeOff, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import {
@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { CopyButton } from "@/components/copy-button"
+import { PaginatedSelect, type PaginatedSelectItem } from "@/components/paginated-select"
+import type { PaginatedFetchResult } from "@/hooks/use-paginated-fetch"
 import { useSiteSettings } from "@/hooks/use-site-settings"
 import { isSubmittable, isFieldVisible, validateField } from "@/lib/provider-field-utils"
 import { SettingSkeleton } from "@/pages/admin/settings/sections/setting-skeleton"
@@ -222,6 +224,13 @@ function getEffectiveOptions(field: ProviderField, fieldValues: Record<string, s
   return field.options ?? []
 }
 
+/** 远程选项加载函数：按字段分页拉取上游选项（由调用方注入，如供应商插件字段） */
+export type RemoteOptionsFetch = (
+  field: ProviderField,
+  page: number,
+  keyword: string,
+) => Promise<PaginatedFetchResult<PaginatedSelectItem>>
+
 /** 支持分组和 span 的字段网格渲染 */
 export function FieldGrid({
   fields,
@@ -231,6 +240,8 @@ export function FieldGrid({
   onChange,
   descriptorName,
   siteURL,
+  remoteFetch,
+  remoteLabels,
 }: {
   fields: ProviderField[]
   fieldValues: Record<string, string>
@@ -239,6 +250,10 @@ export function FieldGrid({
   onChange: (f: ProviderField, v: string) => void
   descriptorName?: string
   siteURL?: string
+  /** options_remote 字段的选项加载函数；不传时按字段类型渲染普通控件 */
+  remoteFetch?: RemoteOptionsFetch
+  /** options_remote 字段已选值的显示名（字段 key → 显示名），用于编辑回显 */
+  remoteLabels?: Record<string, string>
 }) {
   const grouped = groupFields(fields)
   const hasGroups = grouped.some((g) => g.group !== "")
@@ -255,6 +270,8 @@ export function FieldGrid({
             fieldValues={fieldValues}
             descriptorName={descriptorName}
             siteURL={siteURL}
+            remoteFetch={remoteFetch}
+            remoteLabel={remoteLabels?.[f.key ?? ""]}
           />
         </div>
       ) : null,
@@ -524,6 +541,8 @@ export function DynamicField({
   fieldValues,
   descriptorName,
   siteURL,
+  remoteFetch,
+  remoteLabel,
 }: {
   field: ProviderField
   value: string
@@ -532,8 +551,24 @@ export function DynamicField({
   fieldValues?: Record<string, string>
   descriptorName?: string
   siteURL?: string
+  /** options_remote 字段的选项加载函数 */
+  remoteFetch?: RemoteOptionsFetch
+  /** options_remote 字段已选值的显示名 */
+  remoteLabel?: string
 }) {
   const displayValue = field.computed ? resolveComputed(field.computed, descriptorName, siteURL) : value
+  const isRemote = !!field.options_remote && !!remoteFetch
+
+  // 远程选项：fetchFn 与 initialItem 需保持引用稳定，避免下拉框重复加载或重复写缓存
+  const remoteFetchFn = useCallback(
+    (page: number, keyword: string) =>
+      remoteFetch ? remoteFetch(field, page, keyword) : Promise.resolve({ items: [], hasMore: false }),
+    [remoteFetch, field],
+  )
+  const remoteInitialItem = useMemo<PaginatedSelectItem | undefined>(
+    () => (isRemote && value ? { id: value, label: remoteLabel || value } : undefined),
+    [isRemote, value, remoteLabel],
+  )
 
   const hasOptions = field.type === "select" || field.type === "multiselect" || field.type === "radio"
   const effectiveOptions = hasOptions ? getEffectiveOptions(field, fieldValues ?? {}) : []
@@ -576,7 +611,20 @@ export function DynamicField({
   )
 
   let control: React.ReactNode
-  switch (field.type) {
+  if (isRemote) {
+    control = (
+      <PaginatedSelect
+        value={displayValue}
+        onChange={onChange}
+        fetchFn={remoteFetchFn}
+        initialItem={remoteInitialItem}
+        placeholder={field.placeholder || `请选择${field.label ?? ""}`}
+        searchPlaceholder="搜索..."
+        emptyText="无可用选项"
+        aria-label={field.label}
+      />
+    )
+  } else switch (field.type) {
     case "bool":
       control = (
         <div>

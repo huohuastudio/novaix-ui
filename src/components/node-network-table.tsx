@@ -28,6 +28,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { formatBytes, getErrorMessage } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
+import { NodeQueryError } from "@/components/node-query-error"
 import type { IncusNetworkDetail } from "@/types/incus"
 import { queryKeys } from "@/lib/query-keys"
 import { runtimeResourceStatusLabel } from "@/lib/node-constants"
@@ -66,10 +67,14 @@ interface DHCPLease {
   type: string
 }
 
-function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChange, existingParentInterface, isActiveWithResources, ipPoolCount, sharedIPCount, bridgeConfig }: {
+// 出口地址选择器中"自动"选项的取值（Select 不支持空字符串）
+const NAT_ADDRESS_AUTO = "_auto"
+
+function SetupNetworkDialog({ nodeId, networkName, interfaces, natAddresses, open, onOpenChange, existingParentInterface, isActiveWithResources, ipPoolCount, sharedIPCount, bridgeConfig }: {
   nodeId: number
   networkName: string
   interfaces: ServicePhysicalInterface[]
+  natAddresses: string[]
   open: boolean
   onOpenChange: (open: boolean) => void
   existingParentInterface?: string
@@ -86,7 +91,11 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
   const [dns1, setDns1] = useState("8.8.8.8")
   const [dns2, setDns2] = useState("8.8.4.4")
   const [parentInterface, setParentInterface] = useState("")
+  const [natAddress, setNatAddress] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const currentNatAddress = bridgeConfig?.["ipv4.nat.address"] ?? ""
+  // 当前出口地址已不在网卡上（如宿主机换 IP）时仍列出，便于管理员看到并改回自动
+  const staleNatAddress = currentNatAddress && !natAddresses.includes(currentNatAddress) ? currentNatAddress : ""
 
   useEffect(() => {
     if (!open) return
@@ -98,9 +107,10 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
     setCidr("")
     setDns1("8.8.8.8")
     setDns2("8.8.4.4")
+    setNatAddress(currentNatAddress)
     const isPublic = bridgeConfig?.["ipv4.nat"] === "false"
     setMode(isPublic ? "public" : "nat")
-  }, [open, existingParentInterface, bridgeConfig])
+  }, [open, existingParentInterface, bridgeConfig, currentNatAddress])
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -110,7 +120,7 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
         body: {
           mode,
           network_name: networkName,
-          ...(mode === "nat" ? { shared_ip_address: sharedIP || undefined } : {}),
+          ...(mode === "nat" ? { shared_ip_address: sharedIP || undefined, nat_address: natAddress } : {}),
           ...(mode === "public" ? { gateway, cidr, dns1, dns2, parent_interface: parentInterface || undefined } : {}),
         },
       })
@@ -174,6 +184,29 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
                 onChange={(e) => setSharedIP(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">填写后将自动创建共享 IP，端口范围默认 10000-60000</p>
+            </div>
+          )}
+
+          {mode === "nat" && (
+            <div className="space-y-2">
+              <Label htmlFor="nat-address">出口地址</Label>
+              <Select value={natAddress || NAT_ADDRESS_AUTO} onValueChange={(v) => setNatAddress(v === NAT_ADDRESS_AUTO ? "" : v)}>
+                <SelectTrigger id="nat-address">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NAT_ADDRESS_AUTO}>自动（按系统路由选择）</SelectItem>
+                  {staleNatAddress && (
+                    <SelectItem value={staleNatAddress}>{staleNatAddress}（已不在网卡上）</SelectItem>
+                  )}
+                  {natAddresses.map((addr) => (
+                    <SelectItem key={addr} value={addr}>{addr}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                实例访问外网时使用的源地址。宿主机有多个 IP 且自动选择的地址无法出网时，请指定可用地址；宿主机公网 IP 会变化时建议保持自动
+              </p>
             </div>
           )}
 
@@ -251,12 +284,13 @@ function SetupNetworkDialog({ nodeId, networkName, interfaces, open, onOpenChang
   )
 }
 
-function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces, parentInterface }: {
+function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces, natAddresses, parentInterface }: {
   net: IncusNetworkDetail
   nodeId: number
   activeNetworkName?: string
   detectInfo?: ServiceDetectedNetwork
   interfaces: ServicePhysicalInterface[]
+  natAddresses: string[]
   parentInterface?: string
 }) {
   const queryClient = useQueryClient()
@@ -381,6 +415,12 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
             <div className="font-medium">{net.config["ipv4.nat"] === "true" ? "是" : "否"}</div>
           </div>
         )}
+        {net.config?.["ipv4.nat"] === "true" && (
+          <div>
+            <div className="text-muted-foreground">NAT 出口地址</div>
+            <div className="font-medium font-mono">{net.config["ipv4.nat.address"] || "自动"}</div>
+          </div>
+        )}
         {net.config?.["ipv6.nat"] && (
           <div>
             <div className="text-muted-foreground">IPv6 NAT</div>
@@ -469,6 +509,7 @@ function NetworkSection({ net, nodeId, activeNetworkName, detectInfo, interfaces
         nodeId={nodeId}
         networkName={net.name}
         interfaces={interfaces}
+        natAddresses={natAddresses}
         open={setupOpen}
         existingParentInterface={parentInterface}
         isActiveWithResources={isActive && hasResources}
@@ -549,6 +590,7 @@ export default function NodeNetworkTable({ nodeId, activeNetworkName, parentInte
     if (d.name) detectMap.set(d.name, d)
   }
   const physicalInterfaces = detectQuery.data?.interfaces ?? []
+  const natAddresses = detectQuery.data?.nat_addresses ?? []
 
   useQueryErrorToast(query.error, "获取网络列表失败", incusErrorMessage)
 
@@ -556,15 +598,8 @@ export default function NodeNetworkTable({ nodeId, activeNetworkName, parentInte
     return <NetworkTableSkeleton />
   }
 
-  if (query.isError) {
-    const errMsg = incusErrorMessage(query.error, "")
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center space-y-2">
-        <p className="text-sm text-destructive">获取网络列表失败</p>
-        {errMsg && <p className="text-xs text-muted-foreground font-mono">{errMsg}</p>}
-        <p className="text-xs text-muted-foreground">请检查节点是否已完成初始化且服务端口可达</p>
-      </div>
-    )
+  if (query.isLoadingError) {
+    return <NodeQueryError title="获取网络列表失败" error={query.error} onRetry={() => void query.refetch()} retrying={query.isFetching} />
   }
 
   if (networks.length === 0) {
@@ -586,6 +621,7 @@ export default function NodeNetworkTable({ nodeId, activeNetworkName, parentInte
             activeNetworkName={activeNetworkName}
             detectInfo={detectMap.get(net.name)}
             interfaces={physicalInterfaces}
+            natAddresses={natAddresses}
             parentInterface={parentInterface}
           />
         </div>

@@ -27,6 +27,10 @@ import {
   Receipt,
   MapPin,
   ArrowLeftRight,
+  Cable,
+  PackageOpen,
+  Boxes,
+  ClipboardList,
 } from "lucide-react"
 import type { NavGroup } from "@/components/nav-main"
 
@@ -39,6 +43,7 @@ export function buildNavGroups(basePath: string): NavGroup[] {
     },
     {
       label: "资源管理",
+      settingKey: "self_hosted_enabled",
       items: [
         { title: "区域管理", url: `${basePath}/regions`, icon: MapPin },
         { title: "节点管理", url: `${basePath}/nodes`, icon: Server },
@@ -49,10 +54,22 @@ export function buildNavGroups(basePath: string): NavGroup[] {
     },
     {
       label: "网络",
+      settingKey: "self_hosted_enabled",
       items: [
         { title: "IP 池管理", url: `${basePath}/ips`, icon: Network },
         { title: "共享 IP", url: `${basePath}/shared-ips`, icon: Globe, featureKey: "shared_ip" },
         { title: "私有网络", url: `${basePath}/vpcs`, icon: Shield, featureKey: "vpc" },
+      ],
+    },
+    {
+      label: "供应商",
+      settingKey: "supplier_resale_enabled",
+      items: [
+        { title: "供应商连接", url: `${basePath}/supplier/connections`, icon: Cable, featureKey: "supplier_resale" },
+        { title: "模块商品", url: `${basePath}/supplier/products`, icon: PackageOpen, featureKey: "supplier_resale" },
+        // 存量服务与待处理不受授权限制：授权失效后仍需处理已售服务的续费、操作与人工核对
+        { title: "服务管理", url: `${basePath}/supplier/services`, icon: Boxes },
+        { title: "待处理", url: `${basePath}/supplier/operations`, icon: ClipboardList, badgeKey: "supplier_attention" },
       ],
     },
     {
@@ -66,8 +83,8 @@ export function buildNavGroups(basePath: string): NavGroup[] {
     {
       label: "商品",
       items: [
-        { title: "套餐管理", url: `${basePath}/plans`, icon: Package },
-        { title: "流量包", url: `${basePath}/traffic-packages`, icon: Gauge },
+        { title: "套餐管理", url: `${basePath}/plans`, icon: Package, settingKey: "self_hosted_enabled" },
+        { title: "流量包", url: `${basePath}/traffic-packages`, icon: Gauge, settingKey: "self_hosted_enabled" },
         { title: "优惠券", url: `${basePath}/coupons`, icon: Ticket },
       ],
     },
@@ -77,7 +94,7 @@ export function buildNavGroups(basePath: string): NavGroup[] {
         { title: "订单管理", url: `${basePath}/orders`, icon: ShoppingCart },
         { title: "支付记录", url: `${basePath}/payments`, icon: CreditCard },
         { title: "发票管理", url: `${basePath}/invoices`, icon: Receipt },
-        { title: "转移管理", url: `${basePath}/push-transfers`, icon: ArrowLeftRight },
+        { title: "转移管理", url: `${basePath}/push-transfers`, icon: ArrowLeftRight, settingKey: "self_hosted_enabled" },
       ],
     },
     {

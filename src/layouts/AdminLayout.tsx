@@ -19,6 +19,7 @@ import {
 import { AppSidebar } from '@/components/app-sidebar'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ActivationTrigger, ActivationDialog } from '@/components/activation-dialog'
+import { LicenseExpiryBanner } from '@/components/license-expiry-banner'
 import { BreadcrumbNav } from '@/components/breadcrumb-nav'
 import { BreadcrumbProvider, useBreadcrumbItems } from '@/hooks/use-breadcrumb'
 import { TaskProvider } from '@/hooks/use-tasks'
@@ -193,6 +194,7 @@ export default function AdminLayout() {
                 <span>页面设置</span>
               </div>
             )}
+            <LicenseExpiryBanner />
             <div className="flex flex-col flex-1 min-h-0 overflow-auto">
               <ErrorBoundary resetKeys={[pathname, search]}>
                 <Outlet />

@@ -72,7 +72,7 @@ function AgentList() {
   // 用户搜索（设置代理对话框的用户选择器）
   const fetchUserOptions = useCallback(async (page: number, keyword: string) => {
     const { data: res } = await getAdminUsers({
-      query: { page, page_size: 20, ...(keyword ? { keyword } : {}) },
+      query: { page, page_size: 20, role: "user", ...(keyword ? { keyword } : {}) },
     })
     const users = res?.data?.items ?? []
     const total = res?.data?.total ?? 0

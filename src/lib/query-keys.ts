@@ -3,6 +3,11 @@
 // （接口的 query 参数直接传入生成函数，而非手工追加判别符），
 // 只有聚合多接口或走通配 proxy（无生成 SDK）的查询才允许手工构造 key，且必须集中登记在此。
 import type { QueryClient } from "@tanstack/react-query"
+import {
+  getPortalInstancesByIdQueryKey,
+  getPortalServicesByIdQueryKey,
+  getPortalServicesQueryKey,
+} from "@/api/@tanstack/react-query.gen"
 
 export function invalidateGeneratedQueries(qc: QueryClient, operationId: string) {
   qc.invalidateQueries({
@@ -42,4 +47,20 @@ export const queryKeys = {
   nodeHardware: (nodeId: number) => ["node-hardware", nodeId] as const,
   /** 节点存储池容量用量聚合（概览页使用） */
   nodeStoragePoolUsage: (nodeId: number) => ["node-storage-pool-usage", nodeId] as const,
+}
+
+/** 订单支付或状态变化后，失效订单关联资源（流量包对应的实例、服务订单对应的服务）的缓存 */
+export function invalidateOrderResources(
+  qc: QueryClient,
+  order: { type?: string; instance_id?: number; biz?: string; service_id?: number },
+) {
+  if (order.type === "traffic_package" && order.instance_id) {
+    qc.invalidateQueries({ queryKey: getPortalInstancesByIdQueryKey({ path: { id: order.instance_id } }) })
+  }
+  if (order.biz === "module") {
+    qc.invalidateQueries({ queryKey: getPortalServicesQueryKey() })
+    if (order.service_id) {
+      qc.invalidateQueries({ queryKey: getPortalServicesByIdQueryKey({ path: { id: order.service_id } }) })
+    }
+  }
 }

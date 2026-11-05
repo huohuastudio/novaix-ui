@@ -47,6 +47,7 @@ import { formatBytes, getErrorMessage } from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusStoragePoolDetail, IncusStorageVolume } from "@/types/incus"
+import { NodeQueryError } from "@/components/node-query-error"
 import { queryKeys } from "@/lib/query-keys"
 import { runtimeResourceStatusLabel } from "@/lib/node-constants"
 
@@ -414,6 +415,10 @@ export default function NodeStorageTable({ nodeId }: Props) {
 
   if (query.isPending) {
     return <StorageTableSkeleton />
+  }
+
+  if (query.isLoadingError) {
+    return <NodeQueryError title="获取存储池列表失败" error={query.error} onRetry={() => void query.refetch()} retrying={query.isFetching} />
   }
 
   if (pools.length === 0) {

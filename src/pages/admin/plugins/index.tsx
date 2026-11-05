@@ -12,6 +12,7 @@ import {
   Download,
   Store,
   PackageOpen,
+  Cable,
 } from "lucide-react"
 import {
   putAdminPluginsByIdToggle,
@@ -29,7 +30,8 @@ import {
   getAdminProvidersByKindOptions,
 } from "@/api/@tanstack/react-query.gen"
 import { useSettings } from "@/hooks/use-settings"
-import { useSiteSettings } from "@/hooks/use-site-settings"
+import { useAdminPath, useSiteSettings } from "@/hooks/use-site-settings"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
@@ -86,6 +88,7 @@ const typeLabels: Record<string, string> = {
   kyc: "认证",
   oauth: "登录",
   extension: "扩展",
+  supplier: "供应商",
 }
 
 const allTypes = Object.keys(typeLabels)
@@ -229,6 +232,7 @@ function InstalledPlugins({
   const [uninstalling, setUninstalling] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const adminPath = useAdminPath()
 
 
   const filtered = useMemo(() => {
@@ -467,7 +471,20 @@ function InstalledPlugins({
                   </TooltipTrigger>
                   <TooltipContent>重载</TooltipContent>
                 </Tooltip>
-                {!p.error && (
+                {!p.error && p.type === "supplier" && (
+                  // 供应商插件无全局配置，接入信息在供应商连接中按连接分别填写
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8" asChild>
+                        <Link to={`${adminPath}/supplier/connections`}>
+                          <Cable className="size-4" />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>前往供应商连接</TooltipContent>
+                  </Tooltip>
+                )}
+                {!p.error && p.type !== "supplier" && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button

@@ -50,6 +50,7 @@ import { formatBytes, getErrorMessage} from "@/lib/utils"
 import { incus, incusErrorMessage } from "@/lib/incus"
 import { toast } from "sonner"
 import type { IncusImage } from "@/types/incus"
+import { NodeQueryError } from "@/components/node-query-error"
 import { queryKeys } from "@/lib/query-keys"
 
 export function ImageTableSkeleton() {
@@ -279,6 +280,10 @@ export default function NodeImageTable({ nodeId }: Props) {
 
   if (loading) {
     return <ImageTableSkeleton />
+  }
+
+  if (query.isLoadingError) {
+    return <NodeQueryError title="获取镜像列表失败" error={query.error} onRetry={fetchImages} retrying={query.isFetching} />
   }
 
   return (

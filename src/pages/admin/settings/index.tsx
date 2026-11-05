@@ -31,6 +31,7 @@ import {
   Wallet,
   ArrowLeftRight,
   Network,
+  Store,
 } from "lucide-react"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { useAdminPath } from "@/hooks/use-site-settings"
@@ -66,6 +67,7 @@ import { RechargeSection } from "./sections/recharge"
 import { RefundSection } from "./sections/refund"
 import { PushTransferSection } from "./sections/push-transfer"
 import { VPCSection } from "./sections/vpc"
+import { BusinessSection } from "./sections/business"
 
 interface SettingItem {
   id: string
@@ -93,6 +95,13 @@ const settingGroups: SettingGroup[] = [
       { id: "legal", label: "服务条款", description: "服务条款与隐私政策", icon: Scale, component: LegalSection, docPath: "/novaix/setting" },
       { id: "maintenance", label: "维护模式", description: "开启或关闭系统维护状态", icon: Wrench, component: MaintenanceSection, docPath: "/novaix/setting" },
       { id: "advanced", label: "高级设置", description: "API 文档、更新镜像等系统级配置", icon: SlidersHorizontal, component: AdvancedSection, docPath: "/novaix/config" },
+    ],
+  },
+  {
+    label: "经营模式",
+    tourId: "settings-business",
+    items: [
+      { id: "business", label: "经营模式", description: "自营资源与供应商转售开关、同步间隔、余额告警", icon: Store, component: BusinessSection },
     ],
   },
   {

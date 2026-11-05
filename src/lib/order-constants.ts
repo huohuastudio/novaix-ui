@@ -23,6 +23,20 @@ export const orderTypeMap: Record<string, string> = {
   traffic_package: "流量包",
 }
 
+/** 订单业务类型：空为自营实例，module 为供应商转售的模块商品 */
+export const orderBizOptions = [
+  { label: "自营", value: "instance" },
+  { label: "转售", value: "module" },
+]
+
+/** 订单履约状态 */
+export const fulfillmentStatusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  provisioning: { label: "开通中", variant: "outline" },
+  completed: { label: "已完成", variant: "secondary" },
+  failed: { label: "失败", variant: "destructive" },
+  partially_completed: { label: "部分完成", variant: "outline" },
+}
+
 export const billingCycleMap: Record<string, string> = {
   hourly: "时付",
   monthly: "月付",

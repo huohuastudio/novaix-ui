@@ -17,6 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { IncusProfile } from "@/types/incus"
+import { NodeQueryError } from "@/components/node-query-error"
+import { useQueryErrorToast } from "@/hooks/use-query-error-toast"
+import { incusErrorMessage } from "@/lib/incus"
 import { ProfileCreateSheet } from "@/components/profile-create-sheet"
 import { ProfileEditSheet } from "@/components/profile-edit-sheet"
 
@@ -65,7 +68,8 @@ interface NodeProfileTableProps {
 }
 
 export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
-  const { profiles, loading, refetch } = useNodeProfiles(nodeId)
+  const { profiles, loading, error, isLoadingError, retrying, refetch } = useNodeProfiles(nodeId)
+  useQueryErrorToast(error, "获取配置文件列表失败", incusErrorMessage)
   const { confirm, ConfirmDialog } = useConfirm()
   const [createOpen, setCreateOpen] = useState(false)
   const [editState, setEditState] = useState({ open: false, profileName: "" })
@@ -108,6 +112,10 @@ export default function NodeProfileTable({ nodeId }: NodeProfileTableProps) {
 
   if (loading) {
     return <ProfileTableSkeleton />
+  }
+
+  if (isLoadingError) {
+    return <NodeQueryError title="获取配置文件列表失败" error={error} onRetry={refetch} retrying={retrying} />
   }
 
   return (

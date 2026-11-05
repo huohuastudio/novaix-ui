@@ -7,6 +7,10 @@ import type { IncusProfile } from "@/types/incus"
 export interface NodeProfiles {
   profiles: IncusProfile[]
   loading: boolean
+  error: unknown
+  // 首次加载即失败（无可用数据）：应显示加载失败而不是"暂无配置文件"
+  isLoadingError: boolean
+  retrying: boolean
   refetch: () => void
 }
 
@@ -33,6 +37,9 @@ export function useNodeProfiles(nodeId: number | undefined): NodeProfiles {
   return {
     profiles: query.data ?? [],
     loading: query.isLoading,
+    error: query.error,
+    isLoadingError: query.isLoadingError,
+    retrying: query.isFetching,
     refetch,
   }
 }

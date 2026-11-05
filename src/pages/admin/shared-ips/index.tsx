@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserPopover } from "@/components/user-popover"
 import {
   Select,
@@ -416,6 +417,10 @@ function SharedIpEditDialog({
     }
   }, [open, item, form])
 
+  // 已被实例使用时修改地址会迁移节点上的端口转发，需提示管理员
+  const inUse = (item.allocated_count ?? 0) > 0 || (item.mode === "dedicated" && !!item.instance_id)
+  const addressChanged = form.watch("address") !== (item.address ?? "")
+
   const onSubmit = async (values: SharedIpFormValues) => {
     try {
       const { data: res } = await putAdminSharedIpsById({
@@ -426,7 +431,7 @@ function SharedIpEditDialog({
         toast.error(res?.message ?? "更新失败")
         return
       }
-      toast.success("共享 IP 已更新")
+      toast.success(inUse && addressChanged ? "共享 IP 已更新，正在将端口转发迁移到新地址" : "共享 IP 已更新")
       onOpenChange(false)
       onSuccess()
     } catch (err) {
@@ -450,6 +455,13 @@ function SharedIpEditDialog({
                   : undefined
               }
             />
+            {inUse && addressChanged && (
+              <Alert>
+                <AlertDescription>
+                  该地址已有实例在使用。保存后节点上旧地址的端口转发会立即删除，并在新地址上重建，实例的 SSH 和端口转发地址随之变更。适用于宿主机更换公网 IP 的场景
+                </AlertDescription>
+              </Alert>
+            )}
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "保存中..." : "保存"}

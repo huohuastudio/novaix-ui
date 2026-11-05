@@ -77,6 +77,7 @@ import { toast } from 'sonner'
 
 const API_KEY_MODULES = [
   { key: 'instances', label: '云服务器' },
+  { key: 'services', label: '服务' },
   { key: 'orders', label: '订单' },
   { key: 'tickets', label: '工单' },
   { key: 'ssh-keys', label: 'SSH 密钥' },

@@ -47,12 +47,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { orderStatusMap, orderTypeMap, billingCycleMap, planTypeMap, transactionTypeMeta, refundStatusMap } from "@/lib/order-constants"
+import { orderStatusMap, orderTypeMap, billingCycleMap, planTypeMap, transactionTypeMeta, refundStatusMap, fulfillmentStatusMap } from "@/lib/order-constants"
 import { useFormatAmount, useFormatDate, useAdminPath } from "@/hooks/use-site-settings"
 import { statusMap as instanceStatusMap } from "@/lib/instance-constants"
 import { useConfirm } from "@/hooks/use-confirm"
 import { useBreadcrumb } from "@/hooks/use-breadcrumb"
 import { RefundDialog } from "./refund-dialog"
+import { ModuleRefundDialog } from "@/components/module-refund-dialog"
 
 function DetailSkeleton() {
   return (
@@ -102,6 +103,7 @@ export default function OrderDetail() {
   const formatDate = useFormatDate()
   const queryClient = useQueryClient()
   const [refundOpen, setRefundOpen] = useState(false)
+  const [moduleRefundOpen, setModuleRefundOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectLoading, setRejectLoading] = useState(false)
@@ -165,9 +167,13 @@ export default function OrderDetail() {
     }
   }, [order, confirm, fetchOrder])
 
+  const isModule = order?.biz === "module"
+
+  // 模块商品订单走供应商退款流程（可选择是否同时退订上游）
   const handleRefund = useCallback(() => {
-    setRefundOpen(true)
-  }, [])
+    if (isModule) setModuleRefundOpen(true)
+    else setRefundOpen(true)
+  }, [isModule])
 
   const handleReject = async () => {
     if (!order?.id || !rejectReason.trim()) return
@@ -272,6 +278,29 @@ export default function OrderDetail() {
             <span className="text-muted-foreground text-xs ml-1">(ID: {order.user_id})</span>
           </KV>
           {(order.quantity ?? 1) > 1 && <KV label="数量">{order.quantity} 台</KV>}
+          {isModule ? (
+            <>
+              <KV label="商品">{snap?.name || order.plan_name || "-"}</KV>
+              <KV label="关联服务">
+                {order.module_service_id ? (
+                  <Link to={`${adminPath}/supplier/services/${order.module_service_id}`} className="text-primary hover:underline">
+                    服务 #{order.module_service_id}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </KV>
+              <KV label="履约状态">
+                {fulfillmentStatusMap[order.fulfillment_status ?? ""] ? (
+                  <Badge variant={fulfillmentStatusMap[order.fulfillment_status!].variant}>
+                    {fulfillmentStatusMap[order.fulfillment_status!].label}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </KV>
+            </>
+          ) : (
           <KV label="关联实例">
             {order.instances && order.instances.length > 0 ? (
               <div className="flex flex-col gap-1.5">
@@ -312,6 +341,7 @@ export default function OrderDetail() {
               <span className="text-muted-foreground">-</span>
             )}
           </KV>
+          )}
           <KV label="周期开始">{formatDate(order.period_start)}</KV>
           <KV label="周期结束">{formatDate(order.period_end)}</KV>
           <KV label="支付时间">{formatDate(order.paid_at)}</KV>
@@ -336,7 +366,7 @@ export default function OrderDetail() {
       </section>
 
       {/* 套餐快照 */}
-      {snap && snap.name && (
+      {snap && snap.name && !isModule && (
         <>
           <Separator />
           <section>
@@ -452,6 +482,11 @@ export default function OrderDetail() {
         onOpenChange={setRefundOpen}
         order={order}
         onSuccess={() => { setRefundOpen(false); fetchOrder() }}
+      />
+      <ModuleRefundDialog
+        open={moduleRefundOpen}
+        onOpenChange={setModuleRefundOpen}
+        order={order}
       />
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>

@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Cpu, HardDrive, MemoryStick, Globe, Loader2, Tag, RefreshCw } from 'lucide-react'
 import { PasswordInput } from '@/components/password-input'
+import { PortalPurchaseSwitch } from '@/components/portal-purchase-switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,7 @@ import { postPortalOrders, postPortalCouponsValidate } from '@/api'
 import { getPortalPlansOptions, getPortalSshKeysOptions } from '@/api/@tanstack/react-query.gen'
 import type { PortalPurchasePlanItem, PortalPurchaseRegionItem } from '@/api'
 import { useSiteName, useFormatAmount, useSiteSettings } from '@/hooks/use-site-settings'
+import { usePortalBusinessMode } from '@/hooks/use-portal-business-mode'
 import { formatMemory, getErrorMessage, generateHostname, generatePassword } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { toast } from 'sonner'
@@ -38,7 +40,14 @@ function getPlanPrice(plan: PortalPurchasePlanItem, cycle: BillingCycle): number
   }
 }
 
+// 关闭自营资源时云服务器选购不可用，直接进入服务选购
 export default function PortalPurchase() {
+  const { cloud } = usePortalBusinessMode()
+  if (!cloud) return <Navigate to="/portal/purchase/services" replace />
+  return <CloudPurchase />
+}
+
+function CloudPurchase() {
   const siteName = useSiteName()
   const formatAmount = useFormatAmount()
   const navigate = useNavigate()
@@ -240,9 +249,12 @@ export default function PortalPurchase() {
   }
 
   const pageHeader = (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">选购云服务器</h1>
-      <p className="mt-1 text-sm text-muted-foreground">选择配置，创建您的云服务器</p>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">选购云服务器</h1>
+        <p className="mt-1 text-sm text-muted-foreground">选择配置，创建您的云服务器</p>
+      </div>
+      <PortalPurchaseSwitch active="cloud" />
     </div>
   )
 

@@ -44,6 +44,10 @@ interface SiteSettings {
   agent_application_enabled: string
   push_transfer_enabled: string
   vpc_enabled: string
+  /** 经营模式：是否展示自营资源（云服务器、节点等）入口 */
+  self_hosted_enabled: string
+  /** 经营模式：是否开启供应商转售（我的服务、模块商品） */
+  supplier_resale_enabled: string
   edition: string
   features: string
 }
@@ -90,6 +94,8 @@ const defaultSettings: SiteSettings = {
   agent_application_enabled: "false",
   push_transfer_enabled: "false",
   vpc_enabled: "false",
+  self_hosted_enabled: "true",
+  supplier_resale_enabled: "false",
   edition: "free",
   features: "[]",
 }

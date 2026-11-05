@@ -9,6 +9,7 @@ import {
   Globe,
   Loader2,
   Server,
+  Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -40,8 +41,8 @@ import {
   getPortalOrdersByIdQueryKey,
   getPortalOrdersByIdRefundEligibilityOptions,
   getPortalOrdersQueryKey,
-  getPortalInstancesByIdQueryKey,
 } from '@/api/@tanstack/react-query.gen'
+import { invalidateOrderResources } from '@/lib/query-keys'
 import { PayDialog } from './pay-dialog'
 import type { PortalPortalOrderDetail } from '@/api'
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
@@ -128,6 +129,8 @@ export default function PortalOrderDetail() {
   }, [orderQuery.isError, order, orderRes, navigate])
 
   const isPaid = order?.status === 'paid'
+  // biz=module 为服务订单：不展示套餐规格（能否自助退款以退款资格接口为准）
+  const isModule = order?.biz === 'module'
   const noRefundStatus = !order?.refund_status || order.refund_status === ''
   const eligibilityQuery = useQuery({
     ...getPortalOrdersByIdRefundEligibilityOptions({ path: { id: Number(id) } }),
@@ -141,9 +144,7 @@ export default function PortalOrderDetail() {
   const refreshOrder = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: getPortalOrdersByIdQueryKey({ path: { id: Number(id) } }) })
     queryClient.invalidateQueries({ queryKey: getPortalOrdersQueryKey() })
-    if (order?.type === 'traffic_package' && order.instance_id) {
-      queryClient.invalidateQueries({ queryKey: getPortalInstancesByIdQueryKey({ path: { id: order.instance_id } }) })
-    }
+    if (order) invalidateOrderResources(queryClient, order)
   }, [queryClient, id, order])
 
   const handleCancel = async () => {
@@ -193,7 +194,7 @@ export default function PortalOrderDetail() {
 
   const status = order.status ?? ''
   const colors = statusColors[status] ?? { dot: 'bg-zinc-400', text: 'text-zinc-400' }
-  const snap = order.plan_snapshot
+  const snap = isModule ? undefined : order.plan_snapshot
   const refundStatus = order.refund_status
   const canRequestRefund = refundEligible === true
   const refundCfg = refundStatus ? refundStatusMap[refundStatus] : null
@@ -308,7 +309,7 @@ export default function PortalOrderDetail() {
             <InfoRow label="订单类型" value={orderTypeMap[order.type ?? ''] ?? order.type ?? '—'} />
             <InfoRow label="计费周期" value={billingCycleMap[order.billing_cycle ?? ''] ?? order.billing_cycle ?? '—'} />
             <InfoRow label="订单状态" value={orderStatusMap[status]?.label ?? status} />
-            {!!order.fulfillment_status && (order.type === 'new' || order.type === 'addon_ip') && (
+            {!!order.fulfillment_status && (order.type === 'new' || order.type === 'addon_ip' || (isModule && order.type === 'renew')) && (
               <InfoRow label="交付状态" value={fulfillmentMap[String(order.fulfillment_status)] ?? String(order.fulfillment_status)} />
             )}
             {order.period_start && (
@@ -324,7 +325,20 @@ export default function PortalOrderDetail() {
             {order.remark && (
               <InfoRow label="备注" value={order.remark} />
             )}
-            {order.instances && order.instances.length > 0 ? (
+            {isModule ? (
+              !!order.service_id && (
+                <div className="flex items-center justify-between px-5 py-3.5">
+                  <span className="text-xs text-muted-foreground">关联服务</span>
+                  <Link
+                    to={`/portal/services/${order.service_id}`}
+                    className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <Package className="size-3" />
+                    查看详情
+                  </Link>
+                </div>
+              )
+            ) : order.instances && order.instances.length > 0 ? (
               <div className="px-5 py-3.5 space-y-2">
                 <span className="text-xs text-muted-foreground">关联云服务器（{order.quantity} 台）</span>
                 {order.instances.map((slot) => (

@@ -23,6 +23,8 @@ import { PortalTourMenuItem, PortalTourMenu } from '@/components/tour-menu'
 import { PortalActivityCenter } from '@/components/portal-activity-center'
 import { PortalTaskProvider } from '@/hooks/use-portal-tasks'
 import { useSiteSettings, useAdminPath } from '@/hooks/use-site-settings'
+import { usePortalBusinessMode } from '@/hooks/use-portal-business-mode'
+import { useIsAdmin } from '@/hooks/use-auth'
 import { getUser, logout } from '@/lib/auth'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -40,7 +42,11 @@ const mobileInactive = `${mobileBase} text-muted-foreground hover:bg-accent hove
 function useNavItems() {
   const { edition, invoice_enabled, agent_enabled, agent_application_enabled, push_transfer_enabled, vpc_enabled } = useSiteSettings()
   const isPaid = edition === 'paid'
-  const agentFeatureOn = isPaid && agent_enabled === 'true'
+  const isAdmin = useIsAdmin()
+  // 经营模式：关闭自营资源时隐藏云服务器及其附属入口；开启服务选购时显示"我的服务"
+  // （已购服务即使关闭选购也可通过链接访问，仅导航不显示）
+  const { cloud, services } = usePortalBusinessMode()
+  const agentFeatureOn = isPaid && agent_enabled === 'true' && !isAdmin
 
   // 仅在代理功能开启时查询服务端代理状态（TanStack Query 自动缓存，不会重复请求）
   const agentQuery = useQuery({
@@ -55,11 +61,12 @@ function useNavItems() {
 
   const items = [
     { to: '/portal', label: '控制台', end: true },
-    { to: '/portal/servers', label: '云服务器' },
-    ...(isPaid && vpc_enabled === 'true' ? [{ to: '/portal/vpcs', label: '私有网络' }] : []),
+    ...(cloud ? [{ to: '/portal/servers', label: '云服务器' }] : []),
+    ...(services ? [{ to: '/portal/services', label: '我的服务' }] : []),
+    ...(cloud && isPaid && vpc_enabled === 'true' ? [{ to: '/portal/vpcs', label: '私有网络' }] : []),
     { to: '/portal/orders', label: '费用订单' },
     ...(invoice_enabled === 'true' ? [{ to: '/portal/invoices', label: '发票' }] : []),
-    ...(push_transfer_enabled === 'true' ? [{ to: '/portal/transfers', label: '实例转移' }] : []),
+    ...(cloud && push_transfer_enabled === 'true' ? [{ to: '/portal/transfers', label: '实例转移' }] : []),
     { to: '/portal/tickets', label: '工单' },
   ]
 

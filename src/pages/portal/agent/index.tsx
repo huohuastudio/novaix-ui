@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Navigate } from "react-router-dom"
 import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { Users, Coins, TrendingUp, Copy, Check, Link2, UserPlus, Clock, XCircle, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -12,6 +13,7 @@ import { useSiteName, useSiteSettings, useFormatAmount, useFormatDate } from "@/
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { useCopyToClipboard } from "@uidotdev/usehooks"
 import { getUser, setUser, isImpersonating } from "@/lib/auth"
+import { useIsAdmin } from "@/hooks/use-auth"
 import {
   getPortalAgentStatsOptions,
   getPortalAgentLinkOptions,
@@ -200,7 +202,7 @@ function AgentDashboard() {
   const linkPath = linkQuery.data?.code === 0
     ? ((linkQuery.data.data as { link?: string })?.link ?? "")
     : ""
-  const link = linkPath ? `${window.location.origin}${linkPath}` : ""
+  const link = linkPath ? new URL(linkPath, window.location.origin).href : ""
 
   const usersQuery = useQuery({
     ...getPortalAgentUsersOptions({ query: { page: usersPage, page_size: pageSize } }),
@@ -376,8 +378,13 @@ export default function PortalAgent() {
   const { agent_enabled, agent_application_enabled } = useSiteSettings()
   const applicationOpen = agent_enabled === "true" && agent_application_enabled === "true"
 
+  const isAdmin = useIsAdmin()
+
   // 用服务端 is_agent 决定分支，避免本地角色缓存过期
-  const appQuery = useQuery(getPortalAgentApplicationOptions())
+  const appQuery = useQuery({
+    ...getPortalAgentApplicationOptions(),
+    enabled: !isAdmin,
+  })
   const serverIsAgent = appQuery.data?.code === 0
     ? (appQuery.data.data as PortalMyApplicationResponse | null)?.is_agent
     : undefined
@@ -397,6 +404,8 @@ export default function PortalAgent() {
       setUser(updated as typeof user)
     }
   }, [serverIsAgent])
+
+  if (isAdmin) return <Navigate to="/portal" replace />
 
   return (
     <div className="space-y-6">

@@ -38,6 +38,11 @@ const Tickets = lazy(() => import('@/pages/admin/tickets'))
 const Alerts = lazy(() => import('@/pages/admin/alerts'))
 const Logs = lazy(() => import('@/pages/admin/logs'))
 const Tasks = lazy(() => import('@/pages/admin/tasks'))
+const SupplierConnections = lazy(() => import('@/pages/admin/supplier/connections'))
+const SupplierProducts = lazy(() => import('@/pages/admin/supplier/products'))
+const SupplierServices = lazy(() => import('@/pages/admin/supplier/services'))
+const SupplierServiceDetail = lazy(() => import('@/pages/admin/supplier/services/detail'))
+const SupplierOperations = lazy(() => import('@/pages/admin/supplier/operations'))
 const Settings = lazy(() => import('@/pages/admin/settings'))
 const ISOs = lazy(() => import('@/pages/admin/isos'))
 const Agents = lazy(() => import('@/pages/admin/agents'))
@@ -68,6 +73,9 @@ const OAuthComplete = lazy(() => import('@/pages/portal/oauth/complete'))
 const PortalNotifications = lazy(() => import('@/pages/portal/notifications'))
 const PortalAgent = lazy(() => import('@/pages/portal/agent'))
 const PortalVPCs = lazy(() => import('@/pages/portal/vpcs'))
+const PortalServices = lazy(() => import('@/pages/portal/services'))
+const PortalServiceDetail = lazy(() => import('@/pages/portal/services/detail'))
+const PortalModulePurchase = lazy(() => import('@/pages/portal/purchase/module'))
 const PortalInvoices = lazy(() => import('@/pages/portal/invoices'))
 const PortalTransfers = lazy(() => import('@/pages/portal/transfers'))
 const PortalTransferInvite = lazy(() => import('@/pages/portal/transfers/invite'))
@@ -170,6 +178,11 @@ function AppRoutes() {
         <Route path="themes" element={<Themes />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="supplier/connections" element={<SupplierConnections />} />
+        <Route path="supplier/products" element={<SupplierProducts />} />
+        <Route path="supplier/services" element={<SupplierServices />} />
+        <Route path="supplier/services/:id" element={<SupplierServiceDetail />} />
+        <Route path="supplier/operations" element={<SupplierOperations />} />
         <Route path="logs/*" element={<Logs />} />
         <Route path="settings/*" element={<Settings />} />
         <Route path="about" element={<About />} />
@@ -206,6 +219,9 @@ function AppRoutes() {
         <Route path="profile" element={<PortalProfile />} />
         <Route path="notifications" element={<PortalNotifications />} />
         <Route path="purchase" element={<PortalPurchase />} />
+        <Route path="purchase/services" element={<PortalModulePurchase />} />
+        <Route path="services" element={<PortalServices />} />
+        <Route path="services/:id" element={<PortalServiceDetail />} />
         <Route path="agent" element={<PortalAgent />} />
         <Route path="vpcs" element={<PortalVPCs />} />
       </Route>

@@ -36,6 +36,18 @@ const typeLabels: Record<string, string> = {
   system: '系统通知',
 }
 
+// 服务相关通知复用实例的通知类型，展示时改用"服务"措辞
+const serviceTypeLabels: Record<string, string> = {
+  instance_frozen: '服务暂停',
+  instance_deleted: '服务回收',
+}
+
+function typeLabel(notif: PortalNotificationItem) {
+  const type = notif.type ?? ''
+  if (notif.rel_type === 'module_service' && serviceTypeLabels[type]) return serviceTypeLabels[type]
+  return typeLabels[type] ?? type
+}
+
 export default function NotificationsPage() {
   const { site_name: siteName } = useSiteSettings()
   useDocumentTitle(`通知 - ${siteName}`)
@@ -91,6 +103,8 @@ export default function NotificationsPage() {
     if (!notif.is_read) handleMarkRead(notif.id!)
     if (notif.rel_type === 'instance' && notif.rel_id) {
       navigate(`/portal/servers/${notif.rel_id}`)
+    } else if (notif.rel_type === 'module_service' && notif.rel_id) {
+      navigate(`/portal/services/${notif.rel_id}`)
     }
   }
 
@@ -149,7 +163,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-3">
                       <span className={`text-sm truncate ${!notif.is_read ? 'font-medium' : ''}`}>{notif.title}</span>
                       <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-                        {typeLabels[notif.type ?? ''] ?? notif.type}
+                        {typeLabel(notif)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">

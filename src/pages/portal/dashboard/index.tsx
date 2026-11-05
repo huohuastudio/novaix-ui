@@ -7,25 +7,37 @@ import {
   ArrowRight,
   Plus,
   Megaphone,
+  Package,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useSiteName, useFormatAmount, useFormatDate } from '@/hooks/use-site-settings'
+import { usePortalBusinessMode } from '@/hooks/use-portal-business-mode'
 import { getUser } from '@/lib/auth'
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import {
   getPortalDashboardStatsOptions,
+  getPortalServicesOptions,
   getPublicCmsArticlesOptions,
 } from '@/api/@tanstack/react-query.gen'
 
-const services = [
-  {
-    title: '云服务器',
-    description: '高性能弹性计算服务，按需选配 CPU、内存和存储',
-    icon: Server,
-    to: '/portal/servers',
-    action: '立即选购',
-  },
+const cloudProduct = {
+  title: '云服务器',
+  description: '高性能弹性计算服务，按需选配 CPU、内存和存储',
+  icon: Server,
+  to: '/portal/servers',
+  action: '立即选购',
+}
+
+const serviceProduct = {
+  title: '我的服务',
+  description: '选购并管理更多类型的服务',
+  icon: Package,
+  to: '/portal/services',
+  action: '进入管理',
+}
+
+const commonProducts = [
   {
     title: '费用中心',
     description: '查看账单、充值余额、管理订单与续费',
@@ -49,9 +61,23 @@ export default function PortalDashboard() {
   const user = getUser()
   useDocumentTitle(`控制台 - ${siteName}`)
 
+  const { cloud, services, shop } = usePortalBusinessMode()
+
   // 仪表盘统计
   const statsQuery = useQuery(getPortalDashboardStatsOptions())
   const stats = statsQuery.data?.data ?? null
+
+  // 仅开启服务选购（关闭自营资源）时，资源概览以服务数量代替云服务器数量
+  const servicesCountQuery = useQuery({
+    ...getPortalServicesOptions({ query: { page: 1, page_size: 1 } }),
+    enabled: !cloud,
+  })
+  const servicesTotal = servicesCountQuery.data?.data?.total ?? 0
+  const products = [
+    ...(cloud ? [cloudProduct] : []),
+    ...(services ? [serviceProduct] : []),
+    ...commonProducts,
+  ]
 
   // 最新公告
   const announcementsQuery = useQuery(
@@ -60,7 +86,9 @@ export default function PortalDashboard() {
   const announcements = announcementsQuery.data?.data?.items ?? []
 
   const statItems = [
-    { label: '云服务器', value: String(stats?.instances ?? 0), unit: '台', icon: Server, to: '/portal/servers', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/50' },
+    cloud
+      ? { label: '云服务器', value: String(stats?.instances ?? 0), unit: '台', icon: Server, to: '/portal/servers', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/50' }
+      : { label: '我的服务', value: String(servicesTotal), unit: '个', icon: Package, to: '/portal/services', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/50' },
     { label: '待处理订单', value: String(stats?.pending_orders ?? 0), unit: '笔', icon: ShoppingCart, to: '/portal/orders', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/50' },
     { label: '工单', value: String(stats?.open_tickets ?? 0), unit: '个', icon: Ticket, to: '/portal/tickets', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
     { label: '账户余额', value: formatAmount(stats?.balance ?? 0), unit: '', icon: Wallet, to: '/portal/wallet', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/50' },
@@ -76,12 +104,14 @@ export default function PortalDashboard() {
           欢迎使用 {siteName} 云服务平台，在这里管理您的所有云资源。
         </p>
         <div className="mt-5 flex flex-wrap gap-3" data-tour="portal-actions">
-          <Button asChild>
-            <Link to="/portal/purchase">
-              <Plus className="size-4" />
-              创建云服务器
-            </Link>
-          </Button>
+          {(cloud || shop) && (
+            <Button asChild>
+              <Link to={cloud ? '/portal/purchase' : '/portal/purchase/services'}>
+                <Plus className="size-4" />
+                {cloud ? '创建云服务器' : '选购服务'}
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link to="/portal/wallet">
               <Wallet className="size-4" />
@@ -119,7 +149,7 @@ export default function PortalDashboard() {
         <div className="lg:col-span-2 space-y-4" data-tour="portal-services">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">产品与服务</h2>
           <div className="grid sm:grid-cols-2 gap-3">
-            {services.map((svc) => (
+            {products.map((svc) => (
               <Link
                 key={svc.to}
                 to={svc.to}
