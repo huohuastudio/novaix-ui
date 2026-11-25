@@ -35,6 +35,8 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   system_update: "系统更新",
   migrate_instance: "迁移实例",
   live_migrate_instance: "在线迁移实例",
+  migrate_instance_new_ip: "迁移实例并更换 IP",
+  retire_migrate_instance: "退役迁移实例",
   rescue_instance: "进入救援",
   unrescue_instance: "退出救援",
   evacuate_node: "疏散节点",

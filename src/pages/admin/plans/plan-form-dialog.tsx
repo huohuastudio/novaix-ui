@@ -502,7 +502,7 @@ export default function PlanFormDialog({ open, onOpenChange: rawOnOpenChange, pl
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <Label>NAT 模式</Label>
-                    <HelpLink path="/novaix/shared-ip" />
+                    <HelpLink path="/docs/shared-ip" />
                   </div>
                   <p className="text-xs text-muted-foreground">启用后实例共享公网 IP，通过端口转发访问</p>
                 </div>

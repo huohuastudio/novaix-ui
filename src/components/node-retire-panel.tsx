@@ -240,7 +240,7 @@ export default function NodeRetirePanel({ nodeId }: Props) {
   useEffect(() => {
     return onAdminTaskChange((event) => {
       if (event.status === "completed" || event.status === "failed" || event.status === "compensation_failed") {
-        if (event.type === "delete_instance" || event.type === "migrate_instance" || event.type === "live_migrate_instance" || event.type === "retire_migrate_instance" || event.type === "snapshot_create") {
+        if (event.type === "delete_instance" || event.type === "migrate_instance" || event.type === "live_migrate_instance" || event.type === "retire_migrate_instance" || event.type === "migrate_instance_new_ip" || event.type === "snapshot_create") {
           queryClient.invalidateQueries({ queryKey: retireKey })
         }
       }

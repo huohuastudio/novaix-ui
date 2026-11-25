@@ -503,7 +503,7 @@ export default function Themes() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">主题管理</h1>
-            <HelpLink path="/novaix/theme" />
+            <HelpLink path="/docs/theme" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             自定义前端界面外观，安装和切换主题

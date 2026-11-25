@@ -58,6 +58,7 @@ const formSchema = z.object({
   description: z.string().max(1000, "描述不能超过 1000 个字符").optional().or(z.literal("")),
   features: z.string().optional().or(z.literal("")),
   test_ip: z.string().max(100, "测试 IP 不能超过 100 个字符").optional().or(z.literal("")),
+  hostname_prefix: z.string().max(32, "主机名前缀不能超过 32 个字符").optional().or(z.literal("")),
   image: z.string().optional().or(z.literal("")),
   public_visible: z.boolean().optional().default(false),
   status: z.coerce.number<number | string>().int(),
@@ -80,6 +81,7 @@ const defaultValues: FormValues = {
   description: "",
   features: "",
   test_ip: "",
+  hostname_prefix: "",
   image: "",
   public_visible: false,
   status: 1,
@@ -418,6 +420,20 @@ function RegionFormFields({ form }: { form: UseFormReturn<FormInput, unknown, Fo
       />
       <FormField
         control={form.control}
+        name="hostname_prefix"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>主机名前缀</FormLabel>
+            <FormControl>
+              <Input placeholder="如：HK" {...field} />
+            </FormControl>
+            <FormDescription>用户购买该区域的实例时，自动生成的主机名使用此前缀。未设置时使用系统设置中的主机名前缀</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
         name="image"
         render={({ field }) => (
           <FormItem>
@@ -527,6 +543,7 @@ export function RegionCreateSheet({
           description: values.description || undefined,
           features: features.length > 0 ? features : undefined,
           test_ip: values.test_ip || undefined,
+          hostname_prefix: values.hostname_prefix || undefined,
           image: values.image || undefined,
           public_visible: values.public_visible,
           status: values.status,
@@ -605,6 +622,7 @@ export function RegionEditSheet({
         description: region.description ?? "",
         features: region.features?.join(", ") ?? "",
         test_ip: region.test_ip ?? "",
+        hostname_prefix: region.hostname_prefix ?? "",
         image: region.image ?? "",
         public_visible: region.public_visible ?? false,
         status: region.status ?? 1,
@@ -632,6 +650,7 @@ export function RegionEditSheet({
           description: values.description,
           features,
           test_ip: values.test_ip,
+          hostname_prefix: values.hostname_prefix,
           image: values.image,
           public_visible: values.public_visible,
           status: values.status,

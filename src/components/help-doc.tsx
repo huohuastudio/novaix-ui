@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 
-const DOCS_BASE_URL = "https://docs.huohuastudio.com"
+const DOCS_BASE_URL = "https://novaix.cc"
 const DOCS_ORIGIN = new URL(DOCS_BASE_URL).origin
 
 interface HelpDocState {

@@ -122,7 +122,7 @@ export default function CreateInstance() {
       <div>
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">创建实例</h1>
-          <HelpLink path="/novaix/instance" />
+          <HelpLink path="/docs/instance" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           配置和创建新的容器或虚拟机实例

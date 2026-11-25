@@ -27,7 +27,7 @@ export function RDNSSection() {
         <div>
           <div className="flex items-center gap-1.5">
             <Label>rDNS 功能</Label>
-            <HelpLink path="/novaix/rdns" />
+            <HelpLink path="/docs/rdns" />
           </div>
           <p className="text-xs text-muted-foreground mt-1">开启后用户可为 IP 地址设置反向 DNS 记录</p>
         </div>

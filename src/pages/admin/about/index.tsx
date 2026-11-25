@@ -27,7 +27,7 @@ const links = [
   },
   {
     label: "产品文档",
-    url: "https://docs.huohuastudio.com/novaix",
+    url: "https://novaix.cc/docs/",
     description: "查阅部署指南、功能说明与配置参考",
     icon: BookOpen,
   },

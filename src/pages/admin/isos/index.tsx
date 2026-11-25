@@ -223,7 +223,7 @@ export default function ISOs() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">ISO 镜像</h1>
-          <HelpLink path="/novaix/iso" />
+          <HelpLink path="/docs/iso" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 ISO 镜像文件</p>
       </div>

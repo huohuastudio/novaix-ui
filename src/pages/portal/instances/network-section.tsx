@@ -66,6 +66,8 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
     }
     return (ipsQuery.data?.data as PortalPortalIpItem[] | undefined) ?? []
   }, [ipsQuery.isError, ipsQuery.data, instance.ip_address, instance.ipv6_address])
+  // 套餐未开启附加 IP / 独享 IP 时不显示购买入口
+  const purchaseEnabled = (instance.extra_ip_limit ?? 0) > 0
   const loading = ipsQuery.isPending
 
   // rDNS 加载失败不影响主流程（错误静默忽略）
@@ -214,6 +216,11 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
     )
   }
 
+  // NAT 实例的该区块只展示独享 IP，未开启且没有已绑定的独享 IP 时整块隐藏
+  if (instance.nat_info && !purchaseEnabled && ips.length === 0) {
+    return null
+  }
+
   return (
     <>
       <section>
@@ -221,10 +228,12 @@ export function NetworkSection({ instance, onRefresh }: { instance: PortalPortal
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             {instance.nat_info ? '独享 IP' : '网络'}
           </h2>
-          <Button variant="outline" onClick={handlePurchaseIp} disabled={purchasing}>
-            {purchasing ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-            {instance.nat_info ? '购买独享 IP' : '添加 IP'}
-          </Button>
+          {purchaseEnabled && (
+            <Button variant="outline" onClick={handlePurchaseIp} disabled={purchasing}>
+              {purchasing ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+              {instance.nat_info ? '购买独享 IP' : '添加 IP'}
+            </Button>
+          )}
         </div>
         {ips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">

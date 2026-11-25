@@ -212,7 +212,7 @@ function CouponList() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">优惠券管理</h1>
-          <HelpLink path="/novaix/coupon" />
+          <HelpLink path="/docs/coupon" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">创建和管理优惠券</p>
       </div>

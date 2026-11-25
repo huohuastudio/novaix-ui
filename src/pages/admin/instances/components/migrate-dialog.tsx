@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SimplePagination } from "@/components/simple-pagination"
 import { Spinner } from "@/components/ui/spinner"
@@ -37,6 +39,7 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
   const [search, setSearch] = useState("")
   const keyword = useDebounce(search, 300)
   const [targetNodeId, setTargetNodeId] = useState<string>("")
+  const [reassignIP, setReassignIP] = useState(false)
   const [loading, setLoading] = useState(false)
   const { addTask } = useTasks()
 
@@ -55,6 +58,7 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
     if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 对话框打开时重置状态
     setTargetNodeId("")
+    setReassignIP(false)
     setSearch("")
     setPage(1)
   }, [open])
@@ -65,12 +69,12 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
     try {
       const { data: res } = await postAdminInstancesByIdMigrate({
         path: { id: instanceId },
-        body: { target_node_id: Number(targetNodeId) },
+        body: { target_node_id: Number(targetNodeId), reassign_ip: reassignIP },
       })
       if (res?.code === 0) {
-        const data = res.data as { task_id?: number; migration_type?: string }
-        if (data?.task_id) {
-          addTask(data.task_id, data.migration_type === "live" ? "live_migrate_instance" : "migrate_instance")
+        const data = res.data
+        if (data?.task_id && data.task_type) {
+          addTask(data.task_id, data.task_type)
         }
         const typeLabel = data?.migration_type === "live" ? "在线迁移" : "离线迁移"
         toast.success(`${typeLabel}任务已提交`)
@@ -139,6 +143,20 @@ export function MigrateDialog({ open, onOpenChange, instanceId, instanceName, cu
         </div>
 
         <SimplePagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="migrate-reassign-ip"
+            className="mt-0.5"
+            checked={reassignIP}
+            onCheckedChange={(v) => setReassignIP(v === true)}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="migrate-reassign-ip" className="font-normal cursor-pointer">重新分配 IP</Label>
+            <p className="text-xs text-muted-foreground">
+              从目标节点的 IP 池分配新 IP，迁移完成后释放旧 IP，NAT 端口和冲突的端口转发规则会重新分配。适用于源节点与目标节点 IP 段不同的情况。需先停止实例，不支持绑定了独享 IP 或有多个 IP 的实例。
+            </p>
+          </div>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             取消

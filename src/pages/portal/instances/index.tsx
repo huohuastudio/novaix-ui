@@ -8,6 +8,7 @@ import {
   RotateCcw,
   MoreHorizontal,
   Search,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +25,7 @@ import {
   getPortalInstancesQueryKey,
 } from "@/api/@tanstack/react-query.gen"
 import { SimplePagination } from "@/components/simple-pagination"
+import { EmptyState } from "@/components/empty-state"
 import { usePortalInstanceActions, type PortalPowerAction } from "@/hooks/use-portal-instance-actions"
 import { useSiteName, useFormatDate } from "@/hooks/use-site-settings"
 import { useDocumentTitle } from '@uidotdev/usehooks'
@@ -31,6 +33,7 @@ import { useDebounce } from "@uidotdev/usehooks"
 import { formatMemory } from "@/lib/utils"
 import { portalStatusConfig, instanceAccessAddress, instanceDisplayName } from "@/lib/instance-constants"
 import { onPortalInstanceChange } from "@/hooks/use-portal-tasks"
+import { usePortalBusinessMode } from "@/hooks/use-portal-business-mode"
 
 function StatusIndicator({ status }: { status: string }) {
   const cfg = portalStatusConfig[status] ?? { label: "未知", color: "text-zinc-400", dot: "bg-zinc-400" }
@@ -174,6 +177,7 @@ export default function PortalInstances() {
   const siteName = useSiteName()
   useDocumentTitle(`云服务器 - ${siteName}`)
   const queryClient = useQueryClient()
+  const { cloud: purchasable } = usePortalBusinessMode()
 
   const [page, setPage] = useState(1)
   const pageSize = 12
@@ -220,25 +224,13 @@ export default function PortalInstances() {
     return () => { clearTimeout(timer); cleanup() }
   }, [invalidateList])
 
-  if (listQuery.isPending) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">云服务器</h1>
-          <p className="mt-1 text-sm text-muted-foreground">管理您的所有云服务器</p>
-        </div>
-        <ListSkeleton />
+  const header = (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">云服务器</h1>
+        <p className="mt-1 text-sm text-muted-foreground">管理您的所有云服务器</p>
       </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">云服务器</h1>
-          <p className="mt-1 text-sm text-muted-foreground">管理您的所有云服务器</p>
-        </div>
+      <div className="flex items-center gap-2">
         <div className="relative w-full sm:w-60" data-tour="instance-search">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -248,14 +240,42 @@ export default function PortalInstances() {
             onChange={(e) => setKeyword(e.target.value)}
           />
         </div>
+        {purchasable && (
+          <Button asChild>
+            <Link to="/portal/purchase">
+              <Plus className="size-4" />
+              购买云服务器
+            </Link>
+          </Button>
+        )}
       </div>
+    </div>
+  )
+
+  if (listQuery.isPending) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <ListSkeleton />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {header}
 
       {instances.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Server className="size-10 text-muted-foreground/30 mb-4" />
-          <h3 className="text-base font-medium">暂无云服务器</h3>
-          <p className="text-sm text-muted-foreground mt-1">创建您的第一台云服务器，开始使用云计算服务</p>
-        </div>
+        debouncedKeyword ? (
+          <EmptyState icon={Search} title="未找到匹配的云服务器" description="请检查名称或 IP 是否正确" />
+        ) : (
+          <EmptyState
+            icon={Server}
+            title="暂无云服务器"
+            description="购买后的云服务器将显示在这里"
+            action={purchasable ? { label: "购买云服务器", href: "/portal/purchase" } : undefined}
+          />
+        )
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -67,7 +67,7 @@ export function LifecycleSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-1.5">
           <Label htmlFor="traffic_exceed_action">流量超限动作</Label>
-          <HelpLink path="/novaix/setting" />
+          <HelpLink path="/docs/setting" />
         </div>
         <Select
           value={action}

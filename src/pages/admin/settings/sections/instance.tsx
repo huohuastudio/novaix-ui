@@ -29,7 +29,7 @@ export function InstanceSection() {
           onChange={(e) => update("instance_hostname_prefix", e.target.value)}
           placeholder="例如 HK、JP、US"
         />
-        <p className="text-xs text-muted-foreground">自动生成主机名时的固定前缀，留空则不添加前缀</p>
+        <p className="text-xs text-muted-foreground">自动生成主机名时的固定前缀，留空则不添加前缀。区域单独设置了前缀时，该区域使用区域的前缀</p>
       </div>
 
       <div className="space-y-2">

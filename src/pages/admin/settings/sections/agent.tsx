@@ -19,7 +19,7 @@ export function AgentSection() {
         <div>
           <div className="flex items-center gap-1.5">
             <Label>代理功能</Label>
-            <HelpLink path="/novaix/agent" />
+            <HelpLink path="/docs/agent" />
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">启用后允许用户成为代理并获得推荐返佣</p>
         </div>

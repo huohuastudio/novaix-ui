@@ -6,7 +6,8 @@ import {
   useRef,
   useState,
 } from "react"
-import { getAdminTasksActive, getAdminTasksByIdHistory, deleteAdminTasksFinished } from "@/api"
+import { useLocalStorage } from "@uidotdev/usehooks"
+import { getAdminTasksActive, getAdminTasksByIdHistory } from "@/api"
 import type { TaskTaskItem } from "@/api"
 import { getWSTicket } from "@/lib/ws-ticket"
 import { taskTypeLabel } from "@/lib/task-constants"
@@ -44,11 +45,22 @@ function updateTaskEntry(task: TaskEntry, field: Partial<TaskEntry>): TaskEntry 
   return { ...task, ...field }
 }
 
+function isTaskActive(status: string | undefined): boolean {
+  return status === "pending" || status === "running"
+}
+
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<TaskEntry[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const wsRefs = useRef<Map<number, WebSocket>>(new Map())
   const logsFetchedRef = useRef<Set<number>>(new Set())
+  // 面板清空水位线：ID 不超过该值的已结束任务不再从服务端带回，刷新页面后仍然生效
+  const [clearedUpTo, setClearedUpTo] = useLocalStorage("task-panel-cleared-up-to", 0)
+  const clearedUpToRef = useRef(clearedUpTo)
+  // 其他标签页清空时同步水位线，避免本页用旧值覆盖导致回退
+  useEffect(() => {
+    clearedUpToRef.current = clearedUpTo
+  }, [clearedUpTo])
 
   const fetchActiveTasks = useCallback(async () => {
     try {
@@ -61,6 +73,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         for (const t of serverTasks) {
           const id = t.id!
           const existing = merged.get(id)
+          // 已清空的任务跳过；清空时仍在进行、留在列表中的任务照常更新
+          if (!existing && id <= clearedUpToRef.current && !isTaskActive(t.status)) continue
           merged.set(id, {
             id,
             type: t.type ?? "",
@@ -93,7 +107,6 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载活跃任务
     void fetchActiveTasks()
   }, [fetchActiveTasks])
 
@@ -264,17 +277,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     [addTasks],
   )
 
-  const clearFinished = useCallback(async () => {
-    try {
-      await deleteAdminTasksFinished()
-      setTasks((prev) =>
-        prev.filter((t) => t.status === "pending" || t.status === "running"),
-      )
-      setSelectedTaskId(null)
-    } catch {
-      // API 失败时保留本地状态，避免与服务端不同步
-    }
-  }, [])
+  // 仅清空面板显示，不删除服务端任务记录（任务日志清理在任务管理页面进行）
+  const clearFinished = useCallback(() => {
+    const finishedIds = tasks.filter((t) => !isTaskActive(t.status)).map((t) => t.id)
+    const upTo = Math.max(clearedUpToRef.current, ...finishedIds)
+    clearedUpToRef.current = upTo
+    setClearedUpTo(upTo)
+    setTasks((prev) => prev.filter((t) => isTaskActive(t.status)))
+    setSelectedTaskId(null)
+  }, [tasks, setClearedUpTo])
 
   return (
     <TaskContext.Provider

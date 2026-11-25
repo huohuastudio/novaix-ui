@@ -284,7 +284,7 @@ function SSHAuthFields({ form, optional }: { form: UseFormReturn<NodeFormInput, 
             <FormItem>
               <div className="flex items-center gap-1.5">
                 <FormLabel>SSH 认证方式</FormLabel>
-                <HelpLink path="/novaix/node" />
+                <HelpLink path="/docs/node" />
               </div>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
@@ -344,7 +344,7 @@ function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown
       <Separator />
       <div className="flex items-center gap-1.5">
         <p className="text-sm font-medium">资源超开</p>
-        <HelpLink path="/novaix/node#overcommit" />
+        <HelpLink path="/docs/node#overcommit" />
       </div>
       <p className="text-xs text-muted-foreground -mt-2">0% 表示不超开，100% 表示可多卖一倍。超开过高可能导致宿主机 OOM</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -390,7 +390,7 @@ function OvercommitFields({ form }: { form: UseFormReturn<NodeFormInput, unknown
             <div className="space-y-0.5">
               <div className="flex items-center gap-1.5">
                 <FormLabel>动态内存</FormLabel>
-                <HelpLink path="/novaix/node#dynamic-memory" />
+                <HelpLink path="/docs/node#dynamic-memory" />
               </div>
               <p className="text-xs text-muted-foreground">允许容器在宿主机空闲时使用超出限制的内存</p>
             </div>

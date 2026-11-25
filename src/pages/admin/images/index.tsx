@@ -326,7 +326,7 @@ export default function Images() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">镜像管理</h1>
-          <HelpLink path="/novaix/image" />
+          <HelpLink path="/docs/image" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">添加操作系统镜像后，需通过「分发」将镜像推送到目标节点，用户购买时才能选择对应系统</p>
       </div>

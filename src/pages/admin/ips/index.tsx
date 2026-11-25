@@ -305,7 +305,7 @@ function PoolFormFields({ form, typeDisabled }: { form: UseFormReturn<PoolFormIn
             <FormItem>
               <div className="flex items-center gap-1.5">
                 <FormLabel required>CIDR</FormLabel>
-                <HelpLink path="/novaix/ip-pool" />
+                <HelpLink path="/docs/ip-pool" />
               </div>
               <FormControl><Input placeholder={ph.cidr} {...field} /></FormControl>
               <FormMessage />
@@ -1310,7 +1310,7 @@ export default function IPs() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">IP 池管理</h1>
-          <HelpLink path="/novaix/ip-pool" />
+          <HelpLink path="/docs/ip-pool" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 IPv4/IPv6 地址池</p>
       </div>

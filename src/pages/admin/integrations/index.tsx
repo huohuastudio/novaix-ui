@@ -150,7 +150,7 @@ export default function Integrations() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">集成方管理</h1>
-          <HelpLink path="/novaix/integration" />
+          <HelpLink path="/docs/integration" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           集成方是外部系统的稳定身份，API 密钥关联到集成方，可独立轮换而不影响业务连续性。

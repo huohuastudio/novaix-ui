@@ -170,7 +170,7 @@ function SharedIpFormFields({
           <FormItem>
             <div className="flex items-center gap-1.5">
               <FormLabel required>模式</FormLabel>
-              <HelpLink path="/novaix/shared-ip" />
+              <HelpLink path="/docs/shared-ip" />
             </div>
             <Select value={field.value} onValueChange={field.onChange}>
               <FormControl>
@@ -760,7 +760,7 @@ export default function SharedIPs() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">共享 IP 管理</h1>
-          <HelpLink path="/novaix/shared-ip" />
+          <HelpLink path="/docs/shared-ip" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">管理 NAT 模式下的共享公网 IP 及端口范围</p>
       </div>

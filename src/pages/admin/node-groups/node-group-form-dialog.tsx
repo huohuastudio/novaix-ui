@@ -182,7 +182,7 @@ export default function NodeGroupFormDialog({ open, onOpenChange, group, onSucce
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <FormLabel>集群模式</FormLabel>
-                    <HelpLink path="/novaix/node-group" />
+                    <HelpLink path="/docs/node-group" />
                   </div>
                   <FormDescription>
                     启用后支持组内虚拟机在线迁移（无需停机）
@@ -224,7 +224,7 @@ export default function NodeGroupFormDialog({ open, onOpenChange, group, onSucce
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <FormLabel>私有网络 (OVN)</FormLabel>
-                    <HelpLink path="/novaix/node-group" />
+                    <HelpLink path="/docs/node-group" />
                   </div>
                   <FormDescription>
                     启用后可创建 VPC 私有网络，实现实例间 L2 隔离（需集群模式）

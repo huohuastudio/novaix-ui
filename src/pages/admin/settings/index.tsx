@@ -89,12 +89,12 @@ const settingGroups: SettingGroup[] = [
     label: "基础设置",
     tourId: "settings-basic",
     items: [
-      { id: "site", label: "站点信息", description: "站点名称、URL、Logo、Favicon、SEO", icon: Globe, component: SiteSection, docPath: "/novaix/setting" },
-      { id: "homepage", label: "首页内容", description: "Hero 区域、功能特性、FAQ、CTA", icon: LayoutDashboard, component: HomepageSection, docPath: "/novaix/setting" },
-      { id: "locale", label: "货币与本地化", description: "货币符号、小数位数、时区", icon: Languages, component: LocaleSection, docPath: "/novaix/setting" },
-      { id: "legal", label: "服务条款", description: "服务条款与隐私政策", icon: Scale, component: LegalSection, docPath: "/novaix/setting" },
-      { id: "maintenance", label: "维护模式", description: "开启或关闭系统维护状态", icon: Wrench, component: MaintenanceSection, docPath: "/novaix/setting" },
-      { id: "advanced", label: "高级设置", description: "API 文档、更新镜像等系统级配置", icon: SlidersHorizontal, component: AdvancedSection, docPath: "/novaix/config" },
+      { id: "site", label: "站点信息", description: "站点名称、URL、Logo、Favicon、SEO", icon: Globe, component: SiteSection, docPath: "/docs/setting" },
+      { id: "homepage", label: "首页内容", description: "Hero 区域、功能特性、FAQ、CTA", icon: LayoutDashboard, component: HomepageSection, docPath: "/docs/setting" },
+      { id: "locale", label: "货币与本地化", description: "货币符号、小数位数、时区", icon: Languages, component: LocaleSection, docPath: "/docs/setting" },
+      { id: "legal", label: "服务条款", description: "服务条款与隐私政策", icon: Scale, component: LegalSection, docPath: "/docs/setting" },
+      { id: "maintenance", label: "维护模式", description: "开启或关闭系统维护状态", icon: Wrench, component: MaintenanceSection, docPath: "/docs/setting" },
+      { id: "advanced", label: "高级设置", description: "API 文档、更新镜像等系统级配置", icon: SlidersHorizontal, component: AdvancedSection, docPath: "/docs/config" },
     ],
   },
   {
@@ -108,22 +108,22 @@ const settingGroups: SettingGroup[] = [
     label: "通知与消息",
     tourId: "settings-notify",
     items: [
-      { id: "smtp", label: "邮件通知", description: "SMTP 发信渠道配置", icon: Mail, component: SmtpSection, docPath: "/novaix/mail" },
-      { id: "email_templates", label: "邮件模板", description: "自定义邮件通知模板内容", icon: FileText, component: EmailTemplateSection, docPath: "/novaix/email-template" },
-      { id: "mail_inbound", label: "邮件回复", description: "接收用户邮件回复到工单", icon: MailOpen, component: MailInboundSection, docPath: "/novaix/mail" },
-      { id: "notify", label: "通知渠道", description: "Webhook、Telegram 等通知方式", icon: Send, component: NotifySection, docPath: "/novaix/notify" },
-      { id: "sms", label: "短信", description: "短信验证码发送渠道", icon: MessageSquare, component: SMSSection, docPath: "/novaix/sms" },
-      { id: "alert", label: "告警配置", description: "系统告警规则与推送方式", icon: Bell, component: AlertSection, docPath: "/novaix/monitoring" },
-      { id: "ticket", label: "工单", description: "工单部门分类与 SLA 响应时限", icon: Headset, component: TicketSection, docPath: "/novaix/ticket" },
+      { id: "smtp", label: "邮件通知", description: "SMTP 发信渠道配置", icon: Mail, component: SmtpSection, docPath: "/docs/mail" },
+      { id: "email_templates", label: "邮件模板", description: "自定义邮件通知模板内容", icon: FileText, component: EmailTemplateSection, docPath: "/docs/email-template" },
+      { id: "mail_inbound", label: "邮件回复", description: "接收用户邮件回复到工单", icon: MailOpen, component: MailInboundSection, docPath: "/docs/mail" },
+      { id: "notify", label: "通知渠道", description: "Webhook、Telegram 等通知方式", icon: Send, component: NotifySection, docPath: "/docs/notify" },
+      { id: "sms", label: "短信", description: "短信验证码发送渠道", icon: MessageSquare, component: SMSSection, docPath: "/docs/sms" },
+      { id: "alert", label: "告警配置", description: "系统告警规则与推送方式", icon: Bell, component: AlertSection, docPath: "/docs/monitoring" },
+      { id: "ticket", label: "工单", description: "工单部门分类与 SLA 响应时限", icon: Headset, component: TicketSection, docPath: "/docs/ticket" },
     ],
   },
   {
     label: "财务与支付",
     tourId: "settings-finance",
     items: [
-      { id: "payment", label: "支付渠道", description: "在线支付方式与网关配置", icon: CreditCard, component: PaymentSection, docPath: "/novaix/payment" },
+      { id: "payment", label: "支付渠道", description: "在线支付方式与网关配置", icon: CreditCard, component: PaymentSection, docPath: "/docs/payment" },
       { id: "recharge", label: "充值", description: "充值金额限制", icon: Wallet, component: RechargeSection },
-      { id: "agent", label: "代理系统", description: "分销代理佣金与规则", icon: Users, component: AgentSection, docPath: "/novaix/agent" },
+      { id: "agent", label: "代理系统", description: "分销代理佣金与规则", icon: Users, component: AgentSection, docPath: "/docs/agent" },
       { id: "invoice", label: "发票", description: "电子发票申请与管理", icon: Receipt, component: InvoiceSection },
       { id: "refund", label: "退款策略", description: "退款时间窗口、流量阈值、次数限制", icon: Undo2, component: RefundSection },
       { id: "push_transfer", label: "实例转移", description: "转移码模式、手续费、实名要求、审批流程", icon: ArrowLeftRight, component: PushTransferSection },
@@ -136,20 +136,20 @@ const settingGroups: SettingGroup[] = [
       { id: "security", label: "安全", description: "登录策略、会话超时、锁定规则", icon: Shield, component: SecuritySection },
       { id: "captcha", label: "人机验证", description: "配置验证码服务，防止自动化攻击", icon: ShieldCheck, component: CaptchaSection },
       { id: "registration", label: "注册设置", description: "用户注册方式与限制", icon: UserPlus, component: RegistrationSection },
-      { id: "oauth", label: "社会化登录", description: "GitHub、Google、微信等第三方登录", icon: LogIn, component: OAuthSection, docPath: "/novaix/oauth" },
-      { id: "kyc", label: "实名认证", description: "KYC 身份验证服务配置", icon: Fingerprint, component: KYCSection, docPath: "/novaix/kyc" },
+      { id: "oauth", label: "社会化登录", description: "GitHub、Google、微信等第三方登录", icon: LogIn, component: OAuthSection, docPath: "/docs/oauth" },
+      { id: "kyc", label: "实名认证", description: "KYC 身份验证服务配置", icon: Fingerprint, component: KYCSection, docPath: "/docs/kyc" },
     ],
   },
   {
     label: "实例与运维",
     tourId: "settings-ops",
     items: [
-      { id: "instance", label: "实例创建", description: "主机名、密码自动生成规则", icon: Server, component: InstanceSection, docPath: "/novaix/instance" },
-      { id: "lifecycle", label: "实例生命周期", description: "到期、暂停、删除等策略", icon: Timer, component: LifecycleSection, docPath: "/novaix/setting" },
-      { id: "backup", label: "自动备份", description: "定时备份策略与保留周期", icon: Database, component: BackupSection, docPath: "/novaix/backup" },
-      { id: "storage", label: "对象存储", description: "S3 兼容存储用于镜像归档", icon: HardDrive, component: StorageSection, docPath: "/novaix/storage" },
-      { id: "rescue", label: "救援模式", description: "实例救援启动盘配置", icon: LifeBuoy, component: RescueSection, docPath: "/novaix/iso" },
-      { id: "rdns", label: "rDNS", description: "反向 DNS 解析设置", icon: Globe2, component: RDNSSection, docPath: "/novaix/rdns" },
+      { id: "instance", label: "实例创建", description: "主机名、密码自动生成规则", icon: Server, component: InstanceSection, docPath: "/docs/instance" },
+      { id: "lifecycle", label: "实例生命周期", description: "到期、暂停、删除等策略", icon: Timer, component: LifecycleSection, docPath: "/docs/setting" },
+      { id: "backup", label: "自动备份", description: "定时备份策略与保留周期", icon: Database, component: BackupSection, docPath: "/docs/backup" },
+      { id: "storage", label: "对象存储", description: "S3 兼容存储用于镜像归档", icon: HardDrive, component: StorageSection, docPath: "/docs/storage" },
+      { id: "rescue", label: "救援模式", description: "实例救援启动盘配置", icon: LifeBuoy, component: RescueSection, docPath: "/docs/iso" },
+      { id: "rdns", label: "rDNS", description: "反向 DNS 解析设置", icon: Globe2, component: RDNSSection, docPath: "/docs/rdns" },
       { id: "vpc", label: "私有网络", description: "VPC 功能开关", icon: Network, component: VPCSection },
     ],
   },
@@ -164,7 +164,7 @@ function SettingsIndex() {
     <div className="flex-1 overflow-y-auto px-6 pt-6">
       <div className="flex items-center gap-2">
         <h1 className="text-2xl font-bold tracking-tight">系统设置</h1>
-        <HelpLink path="/novaix/setting" />
+        <HelpLink path="/docs/setting" />
       </div>
       <p className="mt-1 text-sm text-muted-foreground">管理系统的全局配置参数</p>
 

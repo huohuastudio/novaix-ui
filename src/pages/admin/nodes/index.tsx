@@ -557,7 +557,7 @@ export default function Nodes() {
         <div data-tour="node-description">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">节点管理</h1>
-            <HelpLink path="/novaix/node" />
+            <HelpLink path="/docs/node" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">节点即运行实例的物理服务器。添加后需执行初始化，然后将节点加入节点组，再由套餐关联节点组进行售卖</p>
         </div>

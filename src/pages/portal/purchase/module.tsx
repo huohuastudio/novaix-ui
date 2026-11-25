@@ -267,7 +267,7 @@ export default function PortalModulePurchase() {
                 key={product.id}
                 disabled={disabled}
                 onClick={() => selectProduct(product)}
-                className={`relative rounded-2xl p-5 text-left transition-colors ${
+                className={`relative min-w-0 rounded-2xl p-5 text-left transition-colors ${
                   disabled
                     ? 'bg-background opacity-50 cursor-not-allowed'
                     : active
@@ -285,9 +285,9 @@ export default function PortalModulePurchase() {
                     <Check className="size-3 text-background" />
                   </div>
                 )}
-                <h3 className="text-sm font-semibold pr-10">{product.name}</h3>
+                <h3 className="text-sm font-semibold pr-10 wrap-anywhere">{product.name}</h3>
                 {product.description && (
-                  <p className="text-xs text-muted-foreground mt-1">{product.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1 wrap-anywhere">{product.description}</p>
                 )}
                 {hasSpec && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">

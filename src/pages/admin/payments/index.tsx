@@ -143,7 +143,7 @@ export default function Payments() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">支付记录</h1>
-          <HelpLink path="/novaix/payment" />
+          <HelpLink path="/docs/payment" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">查看所有在线支付记录</p>
       </div>

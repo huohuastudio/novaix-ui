@@ -286,7 +286,7 @@ export default function Users() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">用户管理</h1>
-          <HelpLink path="/novaix/user" />
+          <HelpLink path="/docs/user" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">管理系统中的所有用户账号</p>
       </div>

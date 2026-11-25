@@ -24,7 +24,7 @@ export function BackupSection() {
         <div>
           <div className="flex items-center gap-1.5">
             <Label>自动备份</Label>
-            <HelpLink path="/novaix/backup" />
+            <HelpLink path="/docs/backup" />
           </div>
           <p className="text-xs text-muted-foreground mt-1">开启后系统将按策略为已启用的实例自动创建快照备份</p>
         </div>

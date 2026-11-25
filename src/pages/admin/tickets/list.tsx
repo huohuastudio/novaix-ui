@@ -244,7 +244,7 @@ export default function TicketList() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">工单管理</h1>
-          <HelpLink path="/novaix/ticket" />
+          <HelpLink path="/docs/ticket" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">查看和处理用户提交的工单</p>
       </div>

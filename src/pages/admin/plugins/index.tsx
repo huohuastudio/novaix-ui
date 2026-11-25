@@ -731,7 +731,7 @@ export default function Plugins() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">插件管理</h1>
-            <HelpLink path="/novaix/plugin" />
+            <HelpLink path="/docs/plugin" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             管理已安装的扩展插件，或从插件市场浏览安装

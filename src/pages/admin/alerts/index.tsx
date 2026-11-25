@@ -74,7 +74,7 @@ export default function Alerts() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">告警记录</h1>
-            <HelpLink path="/novaix/monitoring" />
+            <HelpLink path="/docs/monitoring" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">节点资源超阈值或离线时产生的告警记录</p>
         </div>

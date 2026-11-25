@@ -226,7 +226,7 @@ function VpcCreateDialog({
                 <FormItem>
                   <div className="flex items-center gap-1.5">
                     <FormLabel required>网段 (CIDR)</FormLabel>
-                    <HelpLink path="/novaix/vpc" />
+                    <HelpLink path="/docs/vpc" />
                   </div>
                   <FormControl><Input placeholder="10.0.0.0/16" {...field} /></FormControl>
                   <FormMessage />
@@ -392,7 +392,7 @@ export default function VPCs() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">VPC 管理</h1>
-          <HelpLink path="/novaix/vpc" />
+          <HelpLink path="/docs/vpc" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">管理私有网络，隔离实例间的网络通信</p>
       </div>

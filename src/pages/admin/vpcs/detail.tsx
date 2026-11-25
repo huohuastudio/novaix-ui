@@ -251,7 +251,7 @@ export default function VPCDetailPage() {
         <div>
           <div className="flex items-center gap-1.5">
             <h3 className="text-lg font-semibold">子网管理</h3>
-            <HelpLink path="/novaix/vpc" />
+            <HelpLink path="/docs/vpc" />
           </div>
           <p className="text-sm text-muted-foreground">管理 VPC 中的子网</p>
         </div>
@@ -391,7 +391,7 @@ export default function VPCDetailPage() {
         <div>
           <div className="flex items-center gap-1.5">
             <h3 className="text-lg font-semibold">安全组</h3>
-            <HelpLink path="/novaix/vpc" />
+            <HelpLink path="/docs/vpc" />
           </div>
           <p className="text-sm text-muted-foreground">管理 VPC 网络访问控制策略</p>
         </div>

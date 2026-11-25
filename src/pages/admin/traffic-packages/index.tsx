@@ -151,7 +151,7 @@ export default function TrafficPackages() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">流量包管理</h1>
-          <HelpLink path="/novaix/traffic-package" />
+          <HelpLink path="/docs/traffic-package" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">配置可供用户加购的流量包</p>
       </div>

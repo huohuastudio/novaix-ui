@@ -417,7 +417,7 @@ export default function Agents() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">代理管理</h1>
-            <HelpLink path="/novaix/agent" />
+            <HelpLink path="/docs/agent" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">管理代理用户、返佣设置与代理分组</p>
         </div>

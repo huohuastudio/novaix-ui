@@ -417,7 +417,7 @@ export default function Plans() {
       <div>
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">套餐管理</h1>
-          <HelpLink path="/novaix/plan" />
+          <HelpLink path="/docs/plan" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">套餐定义资源配置和价格，通过可用节点限制开通位置。不同地区需要独立库存时，可复制套餐并分别设置节点和库存。</p>
       </div>

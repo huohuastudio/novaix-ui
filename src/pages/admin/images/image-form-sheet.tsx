@@ -402,7 +402,7 @@ function AdvancedFields({ form, groups }: { form: ImageBaseForm; groups: ImageGr
         <FormField control={form.control} name="tpm" render={({ field }) => (
           <FormItem className="flex items-center justify-between rounded-lg border p-3">
             <div className="space-y-0.5">
-              <FormLabel className="!mt-0 inline-flex items-center gap-1">TPM 2.0 <HelpLink path="/novaix/image#windows" /></FormLabel>
+              <FormLabel className="!mt-0 inline-flex items-center gap-1">TPM 2.0 <HelpLink path="/docs/image#windows" /></FormLabel>
               <p className="text-xs text-muted-foreground">启用虚拟 TPM 设备，Windows 11 和 Windows Server 2025 需要</p>
             </div>
             <FormControl>

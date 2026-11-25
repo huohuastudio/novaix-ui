@@ -14,7 +14,7 @@ import { getPortalPlansOptions, getPortalSshKeysOptions } from '@/api/@tanstack/
 import type { PortalPurchasePlanItem, PortalPurchaseRegionItem } from '@/api'
 import { useSiteName, useFormatAmount, useSiteSettings } from '@/hooks/use-site-settings'
 import { usePortalBusinessMode } from '@/hooks/use-portal-business-mode'
-import { formatMemory, getErrorMessage, generateHostname, generatePassword } from '@/lib/utils'
+import { formatMemory, getErrorMessage, generateHostnameSuffix, generatePassword } from '@/lib/utils'
 import { useDocumentTitle } from '@uidotdev/usehooks'
 import { toast } from 'sonner'
 import { billingCycleMap } from '@/lib/order-constants'
@@ -54,8 +54,8 @@ function CloudPurchase() {
   const settings = useSiteSettings()
   useDocumentTitle(`选购云服务器 - ${siteName}`)
 
-  const newHostname = () => generateHostname(
-    settings.instance_hostname_prefix,
+  // 主机名 = 区域前缀（未设置时用全局前缀）+ 随机后缀，前缀随所选区域变化
+  const newHostnameSuffix = () => generateHostnameSuffix(
     settings.instance_hostname_suffix_type,
     Number(settings.instance_hostname_suffix_length) || 8,
   )
@@ -67,7 +67,9 @@ function CloudPurchase() {
   const [userPlanId, setUserPlanId] = useState<number | null>(null)
   const [userCycle, setUserCycle] = useState<BillingCycle | null>(null)
   const [userImageId, setUserImageId] = useState<number | null>(null)
-  const [hostname, setHostname] = useState(newHostname)
+  const [hostnameSuffix, setHostnameSuffix] = useState(newHostnameSuffix)
+  // 用户手动修改过主机名后不再随区域变化
+  const [customHostname, setCustomHostname] = useState<string | null>(null)
   const [password, setPassword] = useState(() =>
     settings.instance_auto_password !== 'false' ? newPassword() : ''
   )
@@ -116,6 +118,9 @@ function CloudPurchase() {
   const selectedRegionId = regions.some(r => r.id === userRegionId)
     ? userRegionId
     : regions.find(r => r.id != null && regionAvailable.has(r.id))?.id ?? regions[0]?.id ?? null
+
+  const hostnamePrefix = regions.find(r => r.id === selectedRegionId)?.hostname_prefix || settings.instance_hostname_prefix
+  const hostname = customHostname ?? `${hostnamePrefix}${hostnameSuffix}`
 
   // 根据选中区域过滤套餐
   const plans = useMemo(() => {
@@ -338,7 +343,7 @@ function CloudPurchase() {
                 key={plan.id}
                 disabled={disabled}
                 onClick={() => selectPlan(plan)}
-                className={`relative rounded-2xl p-5 text-left transition-colors ${
+                className={`relative min-w-0 rounded-2xl p-5 text-left transition-colors ${
                   disabled
                     ? 'bg-background opacity-50 cursor-not-allowed'
                     : active
@@ -361,9 +366,9 @@ function CloudPurchase() {
                     <Check className="size-3 text-background" />
                   </div>
                 )}
-                <h3 className="text-sm font-semibold">{plan.name}</h3>
+                <h3 className="text-sm font-semibold pr-10 wrap-anywhere">{plan.name}</h3>
                 {plan.description && (
-                  <p className="text-xs text-muted-foreground mt-1">{plan.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1 wrap-anywhere">{plan.description}</p>
                 )}
                 <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><Cpu className="size-3" />{plan.cpu} vCPU</span>
@@ -477,14 +482,17 @@ function CloudPurchase() {
                   id="hostname"
                   placeholder="my-server"
                   value={hostname}
-                  onChange={(e) => setHostname(e.target.value)}
+                  onChange={(e) => setCustomHostname(e.target.value)}
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   className="shrink-0"
-                  onClick={() => setHostname(newHostname())}
+                  onClick={() => {
+                    setHostnameSuffix(newHostnameSuffix())
+                    setCustomHostname(null)
+                  }}
                 >
                   <RefreshCw className="size-4" />
                 </Button>

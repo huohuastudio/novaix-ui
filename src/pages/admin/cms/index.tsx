@@ -98,7 +98,7 @@ function CMSIndex() {
     <div className="flex-1 overflow-y-auto px-6 pt-6">
       <div className="flex items-center gap-2">
         <h1 className="text-2xl font-bold tracking-tight">内容管理</h1>
-        <HelpLink path="/novaix/cms" />
+        <HelpLink path="/docs/cms" />
       </div>
       <p className="mt-1 text-sm text-muted-foreground">管理站点内容，供第三方主题动态渲染</p>
 
@@ -164,7 +164,7 @@ function CMSDetail() {
         </Link>
         <div className="flex items-center gap-2">
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{item.label}</h1>
-          <HelpLink path="/novaix/cms" />
+          <HelpLink path="/docs/cms" />
         </div>
       </div>
       <Component />

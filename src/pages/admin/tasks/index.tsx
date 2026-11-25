@@ -277,7 +277,7 @@ export default function Tasks() {
       <div className="shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">任务管理</h1>
-          <HelpLink path="/novaix/task" />
+          <HelpLink path="/docs/task" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">查看系统异步任务的执行状态与日志，点击任意行展开查看实时日志</p>
       </div>

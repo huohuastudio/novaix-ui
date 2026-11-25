@@ -63,12 +63,11 @@ export function formatBytes(bytes: number | undefined): string {
 const ALPHA_NUM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const NUM_CHARS = '0123456789'
 
-export function generateHostname(prefix: string, suffixType: string, suffixLength: number): string {
+export function generateHostnameSuffix(suffixType: string, suffixLength: number): string {
   const chars = suffixType === 'random_num' ? NUM_CHARS : ALPHA_NUM_CHARS
   const arr = new Uint32Array(suffixLength)
   crypto.getRandomValues(arr)
-  const suffix = Array.from(arr, (v) => chars[v % chars.length]).join('')
-  return prefix ? `${prefix}${suffix}` : suffix
+  return Array.from(arr, (v) => chars[v % chars.length]).join('')
 }
 
 export function generatePassword(length: number): string {
